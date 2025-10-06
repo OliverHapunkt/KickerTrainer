@@ -419,4 +419,277 @@ function processHit(segment, segmentEl, isCorrect) {
 
 function updateAdaptiveWeights(segment, hit) {
     const currentWeight = gameState.adaptiveWeights[segment - 1];
-    const allTimeStats = StatsManager.allTime.segmentStats
+    const allTimeStats = StatsManager.allTime.segmentStats[segment];
+    const hitRate = allTimeStats.attempts > 0 ? 
+        allTimeStats.hits / allTimeStats.attempts : 0.5;
+    
+    if (hit) {
+        const reduction = hitRate > 0.7 ? 0.90 : 0.95;
+        gameState.adaptiveWeights[segment - 1] = Math.max(0.3, currentWeight * reduction);
+    } else {
+        const increase = hitRate < 0.5 ? 1.2 : 1.1;
+        gameState.adaptiveWeights[segment - 1] = Math.min(3, currentWeight * increase);
+    }
+    
+    // Normalize weights
+    const sum = gameState.adaptiveWeights.reduce((a, b) => a + b);
+    gameState.adaptiveWeights = gameState.adaptiveWeights.map(w => (w / sum) * 5);
+}
+
+function registerMiss() {
+    if (gameState.currentTarget === null) return;
+    
+    gameState.currentSession.total++;
+    gameState.currentSession.misses++;
+    gameState.currentSession.segmentStats[gameState.currentTarget].attempts++;
+    gameState.streak = 0;
+    
+    // Reset perfection progress
+    if (gameState.mode === 'perfection') {
+        gameState.currentSession.perfectionProgress[gameState.currentTarget].current = 0;
+    }
+    
+    updateAdaptiveWeights(gameState.currentTarget, false);
+    
+    // Visual feedback
+    const missBtn = document.querySelector('.btn-miss');
+    missBtn.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+        missBtn.style.transform = '';
+    }, 150);
+    
+    // Haptic feedback
+    if (window.navigator.vibrate) {
+        window.navigator.vibrate(100);
+    }
+    
+    updateDisplay();
+    StatsManager.update(gameState.currentSession, gameState.lastSessionHits, gameState.lastSessionTotal, gameState.lastSegmentStats);
+    
+    gameState.lastSessionHits = gameState.currentSession.hits;
+    gameState.lastSessionTotal = gameState.currentSession.total;
+    gameState.lastSegmentStats = JSON.parse(JSON.stringify(gameState.currentSession.segmentStats));
+    
+    localStorage.setItem('kickerAdaptiveWeights', JSON.stringify(gameState.adaptiveWeights));
+    
+    // Generate next (only if not timer mode)
+    if (!TimerMode.active) {
+        generateNext();
+    }
+}
+
+// ===== AUDIO DETECTION =====
+async function toggleAudioDetection() {
+    if (!AudioSystem.enabled) {
+        const result = await AudioSystem.start();
+        
+        if (result === true) {
+            // Successfully started
+            document.getElementById('audioBtn').classList.add('active');
+        } else if (result === 'calibration') {
+            // Calibration modal is now open
+            // Button will be activated after calibration
+        }
+    } else {
+        AudioSystem.stop();
+        document.getElementById('audioBtn').classList.remove('active');
+    }
+}
+
+function confirmCalibrationShot() {
+    AudioSystem.confirmShot();
+}
+
+function cancelCalibration() {
+    AudioSystem.cancelCalibration();
+    document.getElementById('audioBtn').classList.remove('active');
+}
+
+function handleAudioGoalDetection() {
+    if (!gameState.currentTarget) return;
+    
+    // Timer mode handling
+    if (TimerMode.active) {
+        TimerMode.handleShot(gameState.currentTarget, true);
+    }
+    
+    // Normal mode
+    const segmentEl = document.querySelector(`[data-segment="${gameState.currentTarget}"]`);
+    handleSegmentClick(gameState.currentTarget);
+}
+
+// ===== DISPLAY UPDATE =====
+function updateDisplay() {
+    const hitRate = gameState.currentSession.total > 0 ? 
+        Math.round((gameState.currentSession.hits / gameState.currentSession.total) * 100) : 0;
+    document.getElementById('hitRate').textContent = hitRate + '%';
+    document.getElementById('streak').textContent = gameState.streak;
+    document.getElementById('score').textContent = gameState.currentSession.hits;
+    
+    // Update segment stats
+    for (let i = 1; i <= 5; i++) {
+        const stats = gameState.currentSession.segmentStats[i];
+        const rate = stats.attempts > 0 ? 
+            Math.round((stats.hits / stats.attempts) * 100) : 0;
+        const segmentEl = document.querySelector(`[data-segment="${i}"] .segment-stats`);
+        segmentEl.textContent = `${stats.hits}/${stats.attempts} (${rate}%)`;
+    }
+    
+    // Update stats overlay if open
+    if (document.getElementById('statsOverlay').classList.contains('active')) {
+        StatsManager.updateCurrentStats(gameState.currentSession);
+    }
+}
+
+// ===== STATS DISPLAY =====
+function toggleStats() {
+    const overlay = document.getElementById('statsOverlay');
+    overlay.classList.toggle('active');
+    if (overlay.classList.contains('active')) {
+        StatsManager.updateCurrentStats(gameState.currentSession);
+    }
+}
+
+function showStatsTab(tab) {
+    document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    document.querySelectorAll('.stats-content').forEach(content => {
+        content.style.display = 'none';
+    });
+    
+    if (tab === 'current') {
+        StatsManager.updateCurrentStats(gameState.currentSession);
+    } else if (tab === 'history') {
+        StatsManager.updateHistoryStats();
+    } else if (tab === 'trends') {
+        StatsManager.updateTrendsStats();
+    }
+}
+
+function resetStats() {
+    if (StatsManager.reset()) {
+        gameState.adaptiveWeights = [1, 1, 1, 1, 1];
+        startGame();
+        toggleStats();
+    }
+}
+
+function updateTimerStatsDisplay(timerStats) {
+    StatsManager.updateTimerStats(timerStats);
+}
+
+// ===== SESSION MANAGEMENT =====
+function saveSession() {
+    StatsManager.saveSession(gameState.currentSession);
+    
+    // Clear auto-save
+    localStorage.removeItem('kickerCurrentSession');
+    localStorage.removeItem('kickerGameState');
+    
+    // Reset tracking
+    gameState.lastSessionHits = 0;
+    gameState.lastSessionTotal = 0;
+    gameState.lastSegmentStats = null;
+}
+
+// ===== GAME COMPLETION =====
+function showGameComplete() {
+    const duration = Math.round((Date.now() - gameState.currentSession.startTime) / 1000);
+    const hitRate = Math.round((gameState.currentSession.hits / gameState.currentSession.total) * 100);
+    
+    let message = '🎉 Training abgeschlossen!\n\n';
+    
+    if (gameState.mode === 'target') {
+        message += `${gameState.currentSession.targetGoal} Treffer erreicht!\n`;
+    } else if (gameState.mode === 'perfection') {
+        message += `Alle Segmente ${gameState.currentSession.perfectionTarget}x nacheinander getroffen!\n`;
+    }
+    
+    message += `Zeit: ${duration}s\n`;
+    message += `Trefferquote: ${hitRate}%\n`;
+    message += `Beste Serie: ${gameState.currentSession.streakBest}`;
+    
+    saveSession();
+    
+    setTimeout(() => {
+        alert(message);
+        showGameModal();
+    }, 1000);
+}
+
+// ===== KEYBOARD & GESTURE SUPPORT =====
+document.addEventListener('keydown', (e) => {
+    if (gameState.currentTarget === null) return;
+    
+    switch(e.key) {
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+            handleSegmentClick(parseInt(e.key));
+            break;
+        case ' ':
+        case '0':
+            e.preventDefault();
+            registerMiss();
+            break;
+        case 'p':
+            togglePass();
+            break;
+        case 's':
+            toggleStats();
+            break;
+        case 'n':
+            showGameModal();
+            break;
+        case 'a':
+            toggleAudioDetection();
+            break;
+    }
+});
+
+// Touch gestures
+let touchStartX = 0;
+let touchStartY = 0;
+
+document.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+});
+
+document.addEventListener('touchend', (e) => {
+    const touchEndX = e.changedTouches[0].screenX;
+    const touchEndY = e.changedTouches[0].screenY;
+    const diffX = touchEndX - touchStartX;
+    const diffY = touchEndY - touchStartY;
+    
+    // Swipe down for miss
+    if (Math.abs(diffY) > Math.abs(diffX) && diffY > 50) {
+        registerMiss();
+    }
+});
+
+// Prevent zoom
+document.addEventListener('gesturestart', (e) => {
+    e.preventDefault();
+});
+
+// Export functions for global access
+window.gameState = gameState;
+window.handleSegmentClick = handleSegmentClick;
+window.registerMiss = registerMiss;
+window.togglePass = togglePass;
+window.toggleStats = toggleStats;
+window.showStatsTab = showStatsTab;
+window.resetStats = resetStats;
+window.showGameModal = showGameModal;
+window.closeModal = closeModal;
+window.startGame = startGame;
+window.toggleAudioDetection = toggleAudioDetection;
+window.confirmCalibrationShot = confirmCalibrationShot;
+window.cancelCalibration = cancelCalibration;
+window.updateTimerStatsDisplay = updateTimerStatsDisplay;
+window.generateNext = generateNext;
+window.saveSession = saveSession;
