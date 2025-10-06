@@ -1,1 +1,201 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Tischkicker Trainer Pro</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>⚽ Tischkicker Pro</h1>
+        <div class="header-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="hitRate">0%</div>
+                <div class="stat-label">Quote</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="streak">0</div>
+                <div class="stat-label">Serie</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="score">0</div>
+                <div class="stat-label">Score</div>
+            </div>
+        </div>
+    </div>
 
+    <!-- Main Game Area -->
+    <div class="game-container">
+        <!-- Pass Section -->
+        <div class="pass-section" id="passSection">
+            <div class="pass-indicator">
+                <div class="pass-arrow up" id="passUp"></div>
+                <div class="pass-arrow down" id="passDown"></div>
+            </div>
+        </div>
+
+        <!-- Goal Section -->
+        <div class="goal-section">
+            <!-- ⭐ NEU: Zentrales Status-Display -->
+            <div class="status-display" id="statusDisplay">
+                <div class="status-icon">⏱️</div>
+                <div class="status-text">BEREIT MACHEN</div>
+                <div class="status-subtext"></div>
+            </div>
+
+            <!-- Goal Visualizer -->
+            <div class="goal-visualizer">
+                <div class="goal-segments">
+                    <div class="goal-segment" data-segment="1" onclick="handleSegmentClick(1)">
+                        <div class="segment-number">1</div>
+                        <div class="segment-stats">0/0 (0%)</div>
+                    </div>
+                    <div class="goal-segment" data-segment="2" onclick="handleSegmentClick(2)">
+                        <div class="segment-number">2</div>
+                        <div class="segment-stats">0/0 (0%)</div>
+                    </div>
+                    <div class="goal-segment" data-segment="3" onclick="handleSegmentClick(3)">
+                        <div class="segment-number">3</div>
+                        <div class="segment-stats">0/0 (0%)</div>
+                    </div>
+                    <div class="goal-segment" data-segment="4" onclick="handleSegmentClick(4)">
+                        <div class="segment-number">4</div>
+                        <div class="segment-stats">0/0 (0%)</div>
+                    </div>
+                    <div class="goal-segment" data-segment="5" onclick="handleSegmentClick(5)">
+                        <div class="segment-number">5</div>
+                        <div class="segment-stats">0/0 (0%)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <button class="btn btn-new-game" onclick="showGameModal()">Neu</button>
+        <button class="btn btn-miss" onclick="registerMiss()">Verfehlt</button>
+        <button class="btn btn-audio" id="audioBtn" onclick="toggleAudioDetection()">
+            <span class="audio-status"></span>
+            <span>Audio</span>
+        </button>
+        <button class="btn btn-stats" onclick="toggleStats()">Stats</button>
+        <div class="pass-toggle">
+            <span>Pass</span>
+            <div class="toggle-switch active" id="passToggle" onclick="togglePass()"></div>
+        </div>
+    </div>
+
+    <!-- Game Mode Modal -->
+    <div class="modal" id="gameModal">
+        <div class="modal-content">
+            <h2>Trainingsmodus wählen</h2>
+            <div class="game-modes">
+                <div class="game-mode selected" data-mode="free">
+                    <h3>🆓 Freies Training</h3>
+                    <p>Endloses Training ohne Zeitlimit</p>
+                </div>
+                <div class="game-mode" data-mode="target">
+                    <h3>🎯 Zielmodus</h3>
+                    <p>Erreiche eine bestimmte Anzahl Treffer</p>
+                    <select id="targetCount" onclick="event.stopPropagation()">
+                        <option value="10">10 Treffer</option>
+                        <option value="25">25 Treffer</option>
+                        <option value="50">50 Treffer</option>
+                    </select>
+                </div>
+                <div class="game-mode" data-mode="perfection">
+                    <h3>⭐ Perfektion</h3>
+                    <p>Treffe jedes Segment konsekutiv</p>
+                    <select id="perfectionCount" onclick="event.stopPropagation()">
+                        <option value="2">2x nacheinander</option>
+                        <option value="3">3x nacheinander</option>
+                        <option value="5">5x nacheinander</option>
+                    </select>
+                </div>
+                <div class="game-mode" data-mode="timer">
+                    <h3>⏱️ Reaktions-Training</h3>
+                    <p>Schieße auf Signal - Reaktionszeit wird gemessen</p>
+                    <select id="timerRounds" onclick="event.stopPropagation()">
+                        <option value="5">5 Runden</option>
+                        <option value="10" selected>10 Runden</option>
+                        <option value="20">20 Runden</option>
+                        <option value="50">50 Runden (Profi)</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-new-game" onclick="startGame()" style="flex: 1;">Start</button>
+                <button class="btn btn-stats" onclick="closeModal()" style="flex: 1;">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Calibration Modal -->
+    <div class="modal" id="calibrationModal">
+        <div class="modal-content" style="text-align: center;">
+            <h2>🎤 Audio-Kalibrierung</h2>
+            
+            <div class="calibration-step">
+                <div class="calibration-instruction">
+                    Schieße jetzt ein Tor und warte auf das Geräusch!
+                </div>
+                
+                <!-- Live Audio Level -->
+                <div class="audio-level-display">
+                    <div class="audio-level-bar-container">
+                        <div class="audio-level-bar" id="calAudioLevel"></div>
+                    </div>
+                    <div class="audio-level-label">Lautstärke</div>
+                </div>
+
+                <button class="btn btn-new-game" id="calibrationConfirm" onclick="confirmCalibrationShot()">
+                    Tor gehört! Weiter ✓
+                </button>
+            </div>
+
+            <div class="calibration-progress">
+                <div class="calibration-dot" id="cal1"></div>
+                <div class="calibration-dot" id="cal2"></div>
+                <div class="calibration-dot" id="cal3"></div>
+            </div>
+
+            <div class="calibration-info">
+                Schuss <span id="calCurrentShot">1</span> von 3
+            </div>
+
+            <button class="btn btn-stats" onclick="cancelCalibration()" style="margin-top: 20px;">Abbrechen</button>
+        </div>
+    </div>
+
+    <!-- Stats Overlay -->
+    <div class="stats-overlay" id="statsOverlay">
+        <button class="stats-close" onclick="toggleStats()">✕</button>
+        <h2 style="color: var(--primary); margin-bottom: 20px;">Statistiken</h2>
+        
+        <div class="stats-tabs">
+            <button class="stats-tab active" onclick="showStatsTab('current')">Session</button>
+            <button class="stats-tab" onclick="showStatsTab('history')">Verlauf</button>
+            <button class="stats-tab" onclick="showStatsTab('trends')">Trends</button>
+        </div>
+        
+        <div id="currentStats" class="stats-content"></div>
+        <div id="historyStats" class="stats-content" style="display: none;"></div>
+        <div id="trendsStats" class="stats-content" style="display: none;"></div>
+        
+        <div style="margin-top: 30px;">
+            <button class="btn btn-miss" onclick="resetStats()" style="width: 100%;">Statistik zurücksetzen</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="audio-system.js"></script>
+    <script src="timer-mode.js"></script>
+    <script src="stats.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
