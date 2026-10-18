@@ -1,201 +1,688 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Tischkicker Trainer Pro</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kicker">
+<meta name="theme-color" content="#0e1013">
+<title>KickerTrainer</title>
+<style>
+:root{--bg:#0e1013;--panel:#171a1f;--panel2:#1e2229;--line:#2a2f37;--text:#e8eaed;--mute:#8b929c;--acc:#ffb020;--hit:#2ecc71;--miss:#ff4d4f}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,system-ui,"Segoe UI",sans-serif;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button{font:inherit;color:inherit;cursor:pointer}
+.hidden{display:none!important}
+.screen{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 24px)}
+h1{font-size:28px;margin:4px 0 16px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);margin:0 0 10px;font-weight:600}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.hint{color:var(--mute);font-size:14px;margin:10px 0 0;line-height:1.4}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:11px 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:16px;min-height:44px}
+.chip.on{background:var(--acc);color:#111;border-color:var(--acc);font-weight:600}
+.sub{margin-top:14px}.sub:first-child{margin-top:0}
+.sub>label{display:block;font-size:14px;color:var(--mute);margin-bottom:6px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;font-size:17px}
+.row small{display:block;color:var(--mute);font-size:13px}
+.row input[type=checkbox]{width:28px;height:28px;accent-color:var(--acc);flex:none}
+.row input[type=range]{flex:1;max-width:260px;accent-color:var(--acc)}
+.meter{position:relative;height:16px;background:var(--panel2);border-radius:8px;overflow:hidden;margin-top:8px}
+.meter i{position:absolute;left:0;top:0;bottom:0;background:var(--hit);width:0}
+.meter b{position:absolute;top:0;bottom:0;width:3px;background:var(--miss);left:0}
+.big{display:block;width:100%;min-height:58px;border-radius:16px;border:1px solid var(--line);background:var(--panel);font-size:19px;font-weight:600;margin-top:10px}
+.primary{background:var(--acc);color:#111;border-color:var(--acc)}
+.two{display:grid;grid-template-columns:2fr 1fr;gap:8px}
+.planitem{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.planitem:last-of-type{border-bottom:0}.planitem span{flex:1}.planitem b{color:var(--acc);width:22px}
+.planitem button{background:none;border:0;color:var(--mute);font-size:22px;padding:4px 8px}
+/* Training */
+#train{position:fixed;inset:0;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 12px);gap:10px}
+.thead{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:16px;color:var(--mute)}
+.thead .count{font-size:22px;color:var(--text);font-weight:700;white-space:nowrap}
+.status{text-align:center;font-size:clamp(30px,8vw,68px);font-weight:800;min-height:1.25em;line-height:1.25}
+.status.alert{color:var(--acc)}.status.late{color:var(--miss)}.status.ok{color:var(--hit)}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--acc)}
+.area{flex:1;min-height:0;display:flex}
+.area>*{flex:1}
+.segs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.seg{border:3px solid var(--line);background:var(--panel);border-radius:16px;font-size:clamp(34px,9vw,84px);font-weight:800;color:var(--mute);display:flex;align-items:center;justify-content:center;transition:background .12s,opacity .2s}
+.off .seg,.off .sbtn{opacity:.3}
+.seg.target{border-color:var(--acc);background:rgba(255,176,32,.2);color:var(--acc);box-shadow:inset 0 0 40px rgba(255,176,32,.35)}
+.seg.pulse{animation:pulse .35s 2}
+@keyframes pulse{50%{background:rgba(255,176,32,.55)}}
+.fhit{background:var(--hit)!important;color:#000!important;border-color:var(--hit)!important}
+.fmiss{background:var(--miss)!important;color:#000!important;border-color:var(--miss)!important}
+.simple{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sbtn{border-radius:20px;font-size:clamp(28px,7vw,56px);font-weight:800;border:3px solid}
+.sbtn.yes{background:#13281c;border-color:#1f5a35;color:#6fe39b}
+.sbtn.no{background:#2a1517;border-color:#5a2226;color:#ff8a8c}
+.readybtn{border-radius:24px;border:3px dashed var(--acc);background:rgba(255,176,32,.08);color:var(--acc);font-size:clamp(40px,11vw,96px);font-weight:800}
+.tfoot{display:flex;gap:8px}
+.tfoot button{flex:1;min-height:64px;border-radius:16px;border:1px solid var(--line);background:var(--panel);font-size:19px;font-weight:600}
+.tfoot .miss{flex:2.4;background:#2a1517;border-color:#5a2226;color:#ff8a8c;font-size:22px}
+/* Overlay */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px;width:100%;max-width:520px;max-height:90dvh;overflow:auto}
+.bigpct{font-size:60px;font-weight:800;text-align:center;line-height:1}
+.center{text-align:center;color:var(--mute);margin:6px 0 12px}
+.segrow{display:grid;grid-template-columns:repeat(var(--c,5),1fr);gap:6px;margin:10px 0}
+.segrow div{background:var(--panel2);border-radius:10px;padding:8px 2px;text-align:center;font-size:13px;color:var(--mute)}
+.segrow b{display:block;font-size:18px;color:var(--text)}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:16px}
+.kv:last-child{border-bottom:0}.kv span{color:var(--mute)}
+.blockh{font-size:15px;font-weight:700;margin:14px 0 4px;color:var(--acc)}
+/* Stats */
+.shead button{background:none;border:0;color:var(--acc);font-size:18px;padding:8px 0}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{background:var(--panel2);border-radius:12px;padding:10px;text-align:center}
+.tile b{display:block;font-size:22px}.tile span{font-size:12px;color:var(--mute)}
+.trend{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:6px}
+.trend div{flex:1;max-width:36px;background:var(--acc);border-radius:4px 4px 0 0;min-height:2px}
+table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
+.hm th{color:var(--mute);font-weight:600}.hm td{text-align:center;border-radius:8px;padding:8px 2px;background:var(--panel2)}
+.hm td small{display:block;font-size:10px;opacity:.75}
+.hm td:first-child{text-align:left;background:none;color:var(--mute)}
+/* Test */
+.say{font-size:44px;font-weight:800;text-align:center;margin:8px 0}
+.heard{text-align:center;color:var(--mute);min-height:1.4em;font-size:18px}
+.verdict{text-align:center;font-size:30px;font-weight:800;min-height:1.3em}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);background:#000;border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:20;font-size:15px;max-width:90vw}
+@media (max-width:420px){.tiles{grid-template-columns:repeat(2,1fr)}}
+</style>
 </head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <h1>⚽ Tischkicker Pro</h1>
-        <div class="header-stats">
-            <div class="stat-item">
-                <div class="stat-value" id="hitRate">0%</div>
-                <div class="stat-label">Quote</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="streak">0</div>
-                <div class="stat-label">Serie</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="score">0</div>
-                <div class="stat-label">Score</div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Main Game Area -->
-    <div class="game-container">
-        <!-- Pass Section -->
-        <div class="pass-section" id="passSection">
-            <div class="pass-indicator">
-                <div class="pass-arrow up" id="passUp"></div>
-                <div class="pass-arrow down" id="passDown"></div>
-            </div>
-        </div>
+<section id="home" class="screen">
+  <h1>KickerTrainer</h1>
+  <div class="card">
+    <div class="sub"><label>Disziplin</label><div class="chips" id="cDisc"></div></div>
+    <div class="sub"><label id="lTech">Technik</label><div class="chips" id="cTech"></div></div>
+    <div class="sub" id="wTech2"><label>Schuss-Technik</label><div class="chips" id="cTech2"></div></div>
+    <div class="sub" id="wTP"><label>Pass-Ziele</label><div class="chips" id="cTP"></div></div>
+    <div class="sub" id="wTS"><label>Schuss-Ziele</label><div class="chips" id="cTS"></div></div>
+  </div>
+  <div class="card">
+    <div class="sub"><label>Reihenfolge</label><div class="chips" id="cOrder"></div></div>
+    <div class="sub"><label>Timing</label><div class="chips" id="cTiming"></div><p class="hint" id="hTiming"></p></div>
+    <div class="sub" id="wWindow"><label>Reaktionsfenster nach Signal</label><div class="chips" id="cWindow"></div></div>
+    <div class="sub" id="wReady"><label>„Bereit“ auslösen</label><div class="chips" id="cReady"></div><p class="hint">Tippen geht immer. Mit Spracheingabe zusätzlich „Ja“.</p></div>
+    <div class="sub" id="wScore"><label>Wertung Schuss</label><div class="chips" id="cScore"></div></div>
+    <div class="sub"><label>Umfang</label><div class="chips" id="cAmt"></div></div>
+  </div>
+  <div class="two"><button class="big primary" id="btnStart">Start</button><button class="big" id="btnAddPlan">+ Plan</button></div>
+  <div class="card hidden" id="planCard" style="margin-top:12px"><h2>Trainingsplan</h2><div id="planList"></div>
+    <div class="two"><button class="big primary" id="btnPlanStart">Plan starten</button><button class="big" id="btnPlanClear">Leeren</button></div></div>
+  <div class="card" style="margin-top:12px"><h2>Optionen</h2>
+    <label class="row"><span>Sprachansage<small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" id="oVoiceOut"></label>
+    <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" id="oVoiceIn"></label>
+    <label class="row"><span>Schusserkennung (Mikrofon)<small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" id="oMic"></label>
+    <button class="big" id="btnTest">Mikrofon &amp; Sprache testen</button>
+  </div>
+  <p class="hint">Segment 1 = links aus Sicht des Schützen.</p>
+  <button class="big" id="btnStats">Statistik</button>
+</section>
 
-        <!-- Goal Section -->
-        <div class="goal-section">
-            <!-- ⭐ NEU: Zentrales Status-Display -->
-            <div class="status-display" id="statusDisplay">
-                <div class="status-icon">⏱️</div>
-                <div class="status-text">BEREIT MACHEN</div>
-                <div class="status-subtext"></div>
-            </div>
+<section id="train" class="hidden">
+  <div class="thead"><div id="tMode"></div><div id="tCount" class="count"></div><div id="tRate"></div></div>
+  <div class="status" id="tStatus"></div>
+  <div class="bar"><i id="tBar"></i></div>
+  <div class="area" id="area">
+    <button class="readybtn hidden" id="readyBtn">BEREIT</button>
+    <div class="segs hidden" id="segs"></div>
+    <div class="simple hidden" id="simple"><button class="sbtn yes" id="bYes">Treffer</button><button class="sbtn no" id="bNo">Daneben</button></div>
+  </div>
+  <div class="tfoot">
+    <button id="btnUndo">↶ Korr.</button>
+    <button id="btnMiss" class="miss">Daneben</button>
+    <button id="btnEnd">Ende</button>
+  </div>
+</section>
 
-            <!-- Goal Visualizer -->
-            <div class="goal-visualizer">
-                <div class="goal-segments">
-                    <div class="goal-segment" data-segment="1" onclick="handleSegmentClick(1)">
-                        <div class="segment-number">1</div>
-                        <div class="segment-stats">0/0 (0%)</div>
-                    </div>
-                    <div class="goal-segment" data-segment="2" onclick="handleSegmentClick(2)">
-                        <div class="segment-number">2</div>
-                        <div class="segment-stats">0/0 (0%)</div>
-                    </div>
-                    <div class="goal-segment" data-segment="3" onclick="handleSegmentClick(3)">
-                        <div class="segment-number">3</div>
-                        <div class="segment-stats">0/0 (0%)</div>
-                    </div>
-                    <div class="goal-segment" data-segment="4" onclick="handleSegmentClick(4)">
-                        <div class="segment-number">4</div>
-                        <div class="segment-stats">0/0 (0%)</div>
-                    </div>
-                    <div class="goal-segment" data-segment="5" onclick="handleSegmentClick(5)">
-                        <div class="segment-number">5</div>
-                        <div class="segment-stats">0/0 (0%)</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<section id="stats" class="screen hidden">
+  <div class="shead"><button id="btnBack">‹ Zurück</button></div>
+  <h1>Statistik</h1>
+  <div class="chips" id="cRange" style="margin-bottom:8px"></div>
+  <div class="chips" id="cSDisc" style="margin-bottom:12px"></div>
+  <div id="statsBody"></div>
+  <div class="card"><h2>Daten</h2>
+    <button class="big" id="btnExport">Exportieren / Teilen</button>
+    <button class="big" id="btnImport">Importieren (zusammenführen)</button>
+    <input type="file" id="fileImport" accept="application/json,.json" class="hidden">
+    <button class="big" id="btnReset" style="color:var(--miss)">Alle Daten löschen</button>
+    <p class="hint">Daten liegen nur auf diesem Gerät. iPad ↔ iPhone: exportieren (z. B. AirDrop) und drüben importieren – Duplikate werden erkannt. Tipp: App „Zum Home-Bildschirm“ hinzufügen, sonst kann Safari Daten nach 7 Tagen ohne Besuch löschen.</p>
+  </div>
+</section>
 
-    <!-- Control Panel -->
-    <div class="control-panel">
-        <button class="btn btn-new-game" onclick="showGameModal()">Neu</button>
-        <button class="btn btn-miss" onclick="registerMiss()">Verfehlt</button>
-        <button class="btn btn-audio" id="audioBtn" onclick="toggleAudioDetection()">
-            <span class="audio-status"></span>
-            <span>Audio</span>
-        </button>
-        <button class="btn btn-stats" onclick="toggleStats()">Stats</button>
-        <div class="pass-toggle">
-            <span>Pass</span>
-            <div class="toggle-switch active" id="passToggle" onclick="togglePass()"></div>
-        </div>
-    </div>
+<section id="test" class="screen hidden">
+  <div class="shead"><button id="btnTestBack">‹ Zurück</button></div>
+  <h1>Test</h1>
+  <div class="card"><h2>Sprachansage</h2>
+    <div class="two"><button class="big" id="tsNum">„Drei“</button><button class="big" id="tsWall">„Wall“</button></div>
+  </div>
+  <div class="card"><h2>Spracheingabe</h2>
+    <p class="hint" id="srSupport" style="margin-top:0"></p>
+    <div class="say" id="sSay">–</div>
+    <div class="heard" id="sHeard"></div>
+    <div class="verdict" id="sVerdict"></div>
+    <button class="big primary" id="btnSR">Test starten</button>
+    <p class="hint">Aus deiner Spielposition sprechen, normale Lautstärke. Wenn „Ja“ zuverlässig erkannt wird, lohnt sich die Spracheingabe.</p>
+  </div>
+  <div class="card"><h2>Schusserkennung</h2>
+    <button class="big" id="btnMicTest">Mikrofon an</button>
+    <div class="row"><span>Empfindlichkeit</span><input type="range" id="oSens" min="1.5" max="8" step="0.5"></div>
+    <div class="meter"><i id="meterLvl"></i><b id="meterThr"></b></div>
+    <div class="verdict" id="micVerdict"></div>
+    <p class="hint">Schuss ans Tor → grüner Balken klar über die rote Marke, Umgebung klar darunter. Regler rechts = unempfindlicher.</p>
+  </div>
+</section>
 
-    <!-- Game Mode Modal -->
-    <div class="modal" id="gameModal">
-        <div class="modal-content">
-            <h2>Trainingsmodus wählen</h2>
-            <div class="game-modes">
-                <div class="game-mode selected" data-mode="free">
-                    <h3>🆓 Freies Training</h3>
-                    <p>Endloses Training ohne Zeitlimit</p>
-                </div>
-                <div class="game-mode" data-mode="target">
-                    <h3>🎯 Zielmodus</h3>
-                    <p>Erreiche eine bestimmte Anzahl Treffer</p>
-                    <select id="targetCount" onclick="event.stopPropagation()">
-                        <option value="10">10 Treffer</option>
-                        <option value="25">25 Treffer</option>
-                        <option value="50">50 Treffer</option>
-                    </select>
-                </div>
-                <div class="game-mode" data-mode="perfection">
-                    <h3>⭐ Perfektion</h3>
-                    <p>Treffe jedes Segment konsekutiv</p>
-                    <select id="perfectionCount" onclick="event.stopPropagation()">
-                        <option value="2">2x nacheinander</option>
-                        <option value="3">3x nacheinander</option>
-                        <option value="5">5x nacheinander</option>
-                    </select>
-                </div>
-                <div class="game-mode" data-mode="timer">
-                    <h3>⏱️ Reaktions-Training</h3>
-                    <p>Schieße auf Signal - Reaktionszeit wird gemessen</p>
-                    <select id="timerRounds" onclick="event.stopPropagation()">
-                        <option value="5">5 Runden</option>
-                        <option value="10" selected>10 Runden</option>
-                        <option value="20">20 Runden</option>
-                        <option value="50">50 Runden (Profi)</option>
-                    </select>
-                </div>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn btn-new-game" onclick="startGame()" style="flex: 1;">Start</button>
-                <button class="btn btn-stats" onclick="closeModal()" style="flex: 1;">Abbrechen</button>
-            </div>
-        </div>
-    </div>
+<div id="summary" class="overlay hidden"><div class="sheet" id="summaryBody"></div></div>
 
-    <!-- Audio Calibration Modal -->
-    <div class="modal" id="calibrationModal">
-        <div class="modal-content" style="text-align: center;">
-            <h2>🎤 Audio-Kalibrierung</h2>
-            
-            <div class="calibration-step">
-                <div class="calibration-instruction">
-                    Schieße jetzt ein Tor und warte auf das Geräusch!
-                </div>
-                
-                <!-- Live Audio Level -->
-                <div class="audio-level-display">
-                    <div class="audio-level-bar-container">
-                        <div class="audio-level-bar" id="calAudioLevel"></div>
-                    </div>
-                    <div class="audio-level-label">Lautstärke</div>
-                </div>
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const LS_DATA='kt2_data',LS_SET='kt2_settings';
+const SHOT_T=['Pull','Push','Snake','Tic-Tac','Frei'];
+const PASS53_T=['Brush','Stick','Kick','Bande','Frei'];
+const DISC={
+  s3:{n:'Schuss 3er',kind:'shot',techs:SHOT_T,rule:15},
+  s2:{n:'Schuss 2er',kind:'shot',techs:['Gerade','Bande','Lücke','Frei'],rule:15},
+  p53:{n:'Pass 5er→3er',kind:'pass',techs:PASS53_T,rule:10},
+  p25:{n:'Pass 2er→5er',kind:'pass',techs:['Gerade','Bande','Frei'],rule:15},
+  p23:{n:'Pass 2er→3er',kind:'pass',techs:['Gerade','Bande','Frei'],rule:15},
+  k53:{n:'Kombi Pass+Schuss',kind:'combo',techs:PASS53_T,techs2:SHOT_T,rule:10,rule2:15}
+};
+const NUM=['','Eins','Zwei','Drei','Vier','Fünf'];
+const TORDER=[0,1,2,3,4,5,'wall','lane'];
+const DEFCFG={d:'s3',tech:'Pull',tech2:'Pull',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',timing:'free',window:2,ready:'tap',auto:5,scoring:'exact',amt:'count',count:20,minutes:10};
+const DEF={cfg:DEFCFG,plan:[],voiceOut:true,voiceIn:false,mic:false,sens:3};
 
-                <button class="btn btn-new-game" id="calibrationConfirm" onclick="confirmCalibrationShot()">
-                    Tor gehört! Weiter ✓
-                </button>
-            </div>
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function load(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v||clone(d)}catch(e){return clone(d)}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('Speichern fehlgeschlagen!')}}
+let S=Object.assign(clone(DEF),load(LS_SET,DEF));
+S.cfg=Object.assign(clone(DEFCFG),S.cfg||{});if(!Array.isArray(S.plan))S.plan=[];
+let D=load(LS_DATA,{v:2,sessions:[],shots:[]});
+// Migration v1 → v2
+D.shots.forEach(s=>{if(!s.d){s.d='s3';s.st='shot';s.sig=s.m==='late';s.end=true}});D.v=2;
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+function saveS(){save(LS_SET,S)}
 
-            <div class="calibration-progress">
-                <div class="calibration-dot" id="cal1"></div>
-                <div class="calibration-dot" id="cal2"></div>
-                <div class="calibration-dot" id="cal3"></div>
-            </div>
+function fmt(x,d=2){return x.toFixed(d).replace('.',',')}
+function pct(r){return Math.round(r*100)+' %'}
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2400)}
+function show(id){['home','train','stats','test'].forEach(x=>$('#'+x).classList.toggle('hidden',x!==id));window.scrollTo(0,0)}
+function tl(g,kind){return g===0?(kind==='pass'?'Pass':'Tor'):g==='wall'?'Wall':g==='lane'?'Lane':String(g)}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 
-            <div class="calibration-info">
-                Schuss <span id="calCurrentShot">1</span> von 3
-            </div>
+/* ---------- Audio ---------- */
+let actx=null,ignoreUntil=0,quietUntil=0;
+function ensureAudio(){if(!actx){const C=window.AudioContext||window.webkitAudioContext;if(C)actx=new C()}if(actx&&actx.state==='suspended')actx.resume()}
+function beep(f=880,d=.12,v=.4){if(!actx)return;const o=actx.createOscillator(),g=actx.createGain(),t=actx.currentTime;o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g).connect(actx.destination);o.start(t);o.stop(t+d+.02);ignoreUntil=performance.now()+d*1000+150}
+let voices=[];
+function loadVoices(){voices=speechSynthesis.getVoices()}
+if('speechSynthesis' in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
+function speak(t,lang='de-DE',force){
+  if((!S.voiceOut&&!force)||!('speechSynthesis' in window))return;
+  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang=lang;
+  const v=voices.find(x=>x.lang&&x.lang.toLowerCase().startsWith(lang.slice(0,2).toLowerCase()));if(v)u.voice=v;
+  u.rate=1.1;quietUntil=performance.now()+3000;u.onend=()=>{quietUntil=performance.now()+1200};
+  speechSynthesis.speak(u);
+}
 
-            <button class="btn btn-stats" onclick="cancelCalibration()" style="margin-top: 20px;">Abbrechen</button>
-        </div>
-    </div>
+/* ---------- Mikrofon: Schusserkennung ---------- */
+const mic={on:false,stream:null,an:null,buf:null,amb:.01,last:0,raf:0,testHit:0};
+async function micStart(){
+  if(mic.on)return true;
+  try{
+    ensureAudio();
+    mic.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    const src=actx.createMediaStreamSource(mic.stream);
+    mic.an=actx.createAnalyser();mic.an.fftSize=1024;mic.buf=new Float32Array(mic.an.fftSize);
+    src.connect(mic.an);mic.on=true;mic.amb=.01;micLoop();return true;
+  }catch(e){toast('Mikrofon nicht verfügbar');return false}
+}
+function micStop(){if(mic.stream)mic.stream.getTracks().forEach(t=>t.stop());mic.on=false;cancelAnimationFrame(mic.raf)}
+function micLoop(){
+  if(!mic.on)return;
+  mic.an.getFloatTimeDomainData(mic.buf);
+  let s=0;for(let i=0;i<mic.buf.length;i++)s+=mic.buf[i]*mic.buf[i];
+  const rms=Math.sqrt(s/mic.buf.length),thr=Math.max(mic.amb*S.sens,.02),now=performance.now();
+  if(rms>thr&&now-mic.last>400){mic.last=now;onImpulse(now)}else mic.amb=mic.amb*.98+rms*.02;
+  const sc=x=>Math.min(100,Math.sqrt(x/.5)*100);
+  $('#meterLvl').style.width=sc(rms)+'%';$('#meterThr').style.left=sc(thr)+'%';
+  mic.raf=requestAnimationFrame(micLoop);
+}
+function onImpulse(now){
+  if(!$('#test').classList.contains('hidden')){$('#micVerdict').textContent='Schuss erkannt ✓';$('#micVerdict').style.color='var(--hit)';clearTimeout(mic.testHit);mic.testHit=setTimeout(()=>$('#micVerdict').textContent='',1200);return}
+  if(!R||!R.active||R.undo)return;
+  if(now<ignoreUntil||(window.speechSynthesis&&speechSynthesis.speaking))return;
+  if(R.phase==='call'||R.phase==='aim'){if(R.detectAt==null)R.detectAt=now}
+}
 
-    <!-- Stats Overlay -->
-    <div class="stats-overlay" id="statsOverlay">
-        <button class="stats-close" onclick="toggleStats()">✕</button>
-        <h2 style="color: var(--primary); margin-bottom: 20px;">Statistiken</h2>
-        
-        <div class="stats-tabs">
-            <button class="stats-tab active" onclick="showStatsTab('current')">Session</button>
-            <button class="stats-tab" onclick="showStatsTab('history')">Verlauf</button>
-            <button class="stats-tab" onclick="showStatsTab('trends')">Trends</button>
-        </div>
-        
-        <div id="currentStats" class="stats-content"></div>
-        <div id="historyStats" class="stats-content" style="display: none;"></div>
-        <div id="trendsStats" class="stats-content" style="display: none;"></div>
-        
-        <div style="margin-top: 30px;">
-            <button class="btn btn-miss" onclick="resetStats()" style="width: 100%;">Statistik zurücksetzen</button>
-        </div>
-    </div>
+/* ---------- Spracheingabe ---------- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const WORDS={ja:'ready',jo:'ready',jep:'ready',bereit:'ready',los:'ready',
+  eins:1,'1':1,zwei:2,'2':2,drei:3,'3':3,vier:4,'4':4,'fünf':5,'5':5,
+  treffer:'hit',tor:'hit',gefangen:'hit',daneben:0,verloren:0,nein:0,vorbei:0};
+const rec={r:null,want:false,seen:{},gen:0,onText:null};
+function recStart(){
+  if(!SR)return false;
+  rec.want=true;
+  if(!rec.r){
+    const r=new SR();r.lang='de-DE';r.continuous=true;r.interimResults=true;
+    r.onresult=e=>{
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const res=e.results[i],txt=res[0].transcript.toLowerCase().replace(/[.,!?]/g,'').trim();
+        if(rec.onText)rec.onText(txt);
+        const words=txt.split(/\s+/).filter(Boolean),key=rec.gen+'_'+i;
+        let seen=rec.seen[key]||0;
+        for(let j=seen;j<words.length;j++){
+          if(Object.prototype.hasOwnProperty.call(WORDS,words[j])){rec.seen[key]=j+1;onVoice(WORDS[words[j]],words[j])}
+        }
+        if(res.isFinal)rec.seen[key]=words.length;
+      }
+    };
+    r.onend=()=>{if(rec.want)setTimeout(()=>{try{rec.gen++;rec.seen={};r.start()}catch(e){}},200)};
+    r.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){rec.want=false;toast('Spracherkennung nicht erlaubt')}};
+    rec.r=r;
+  }
+  try{rec.r.start()}catch(e){}
+  return true;
+}
+function recStop(){rec.want=false;if(rec.r)try{rec.r.stop()}catch(e){}}
+function onVoice(v,word){
+  if(performance.now()<quietUntil||(window.speechSynthesis&&speechSynthesis.speaking))return; // eigene Ansage ignorieren
+  if(testSR.active)return testSR.heard(v,word);
+  if(!$('#summary').classList.contains('hidden')){if(v==='ready'&&nextPlanBtn())nextPlanBtn().click();return}
+  if(!R||!R.active)return;
+  if(v==='ready')return input('ready');
+  const seg=inputMode()==='seg';
+  if(typeof v==='number'&&v>0){if(seg)input(v);return}
+  if(v==='hit'){input(seg?(R.target||0)===0?null:R.target:'hit');return}
+  if(v===0)input(0);
+}
 
-    <!-- Scripts -->
-    <script src="audio-system.js"></script>
-    <script src="timer-mode.js"></script>
-    <script src="stats.js"></script>
-    <script src="app.js"></script>
+/* ---------- Wake Lock ---------- */
+let wl=null;
+async function wake(on){try{if(on&&'wakeLock' in navigator)wl=await navigator.wakeLock.request('screen');else if(!on&&wl){await wl.release();wl=null}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&R&&R.active)wake(true)});
+
+/* ---------- Startseite ---------- */
+function chips(el,opts,isOn,onTap){
+  el.innerHTML='';
+  opts.forEach(o=>{const b=document.createElement('button');b.className='chip'+(isOn(o.v)?' on':'');b.textContent=o.t;
+    b.onclick=()=>{onTap(o.v);saveS();renderHome()};el.appendChild(b)});
+}
+function toggleTarget(arr,v){
+  if(v===0)return[0];
+  arr=arr.filter(x=>x!==0);
+  if(arr.includes(v)){arr=arr.filter(x=>x!==v);return arr.length?arr:[0]}
+  arr.push(v);return arr.sort((a,b)=>TORDER.indexOf(a)-TORDER.indexOf(b));
+}
+function hasShot(c){return DISC[c.d].kind!=='pass'}
+function hasPass(c){return DISC[c.d].kind!=='shot'}
+function cfgLabel(c){
+  const d=DISC[c.d],p=[d.n,c.tech+(d.kind==='combo'?' + '+c.tech2:'')];
+  if(hasPass(c))p.push(c.tP.map(x=>tl(x,'pass')).join('/'));
+  if(hasShot(c))p.push(c.tS.map(x=>tl(x,'shot')).join(''));
+  p.push(c.order==='mix'?'gemischt':'Serie',c.timing==='signal'?'Signal':'frei');
+  if(hasShot(c))p.push(c.scoring==='exact'?'genau':'einfach');
+  p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
+  return p.join(' · ');
+}
+function renderHome(){
+  const c=S.cfg,d=DISC[c.d];
+  chips($('#cDisc'),Object.entries(DISC).map(([v,x])=>({v,t:x.n})),v=>c.d===v,v=>{
+    c.d=v;const n=DISC[v];if(!n.techs.includes(c.tech))c.tech=n.techs[0];if(n.techs2&&!n.techs2.includes(c.tech2))c.tech2=n.techs2[0]});
+  $('#lTech').textContent=d.kind==='combo'?'Pass-Technik':'Technik';
+  chips($('#cTech'),d.techs.map(t=>({v:t,t})),v=>c.tech===v,v=>c.tech=v);
+  $('#wTech2').classList.toggle('hidden',d.kind!=='combo');
+  if(d.techs2)chips($('#cTech2'),d.techs2.map(t=>({v:t,t})),v=>c.tech2===v,v=>c.tech2=v);
+  $('#wTP').classList.toggle('hidden',!hasPass(c));$('#wTS').classList.toggle('hidden',!hasShot(c));
+  chips($('#cTP'),[{v:0,t:'Egal'},{v:'wall',t:'Wall'},{v:'lane',t:'Lane'}],v=>c.tP.includes(v),v=>c.tP=toggleTarget(c.tP,v));
+  chips($('#cTS'),[{v:0,t:'Tor (egal)'},1,2,3,4,5].map(x=>typeof x==='number'?{v:x,t:String(x)}:x),v=>c.tS.includes(v),v=>c.tS=toggleTarget(c.tS,v));
+  chips($('#cOrder'),[{v:'mix',t:'Gemischt'},{v:'series',t:'Serie'}],v=>c.order===v,v=>c.order=v);
+  chips($('#cTiming'),[{v:'free',t:'Freies Tempo'},{v:'signal',t:'Auf Signal'}],v=>c.timing===v,v=>c.timing=v);
+  $('#hTiming').textContent=c.timing==='free'
+    ?'Ziel wird sofort angesagt, du spielst in deinem Rhythmus.'
+    :'Nach „Bereit“ kommt das Ziel zufällig innerhalb der Regelzeit ('+d.rule+' s) – dann bleibt nur das Reaktionsfenster.';
+  $('#wWindow').classList.toggle('hidden',c.timing!=='signal');
+  chips($('#cWindow'),[1,1.5,2,3].map(n=>({v:n,t:fmt(n,n%1?1:0)+' s'})),v=>c.window===v,v=>c.window=v);
+  $('#wReady').classList.toggle('hidden',!(c.timing==='signal'||d.kind==='combo'));
+  chips($('#cReady'),[{v:'tap',t:'Tippen'},{v:3,t:'Auto 3 s'},{v:5,t:'Auto 5 s'},{v:8,t:'Auto 8 s'}],
+    v=>v==='tap'?c.ready==='tap':(c.ready==='auto'&&c.auto===v),v=>{if(v==='tap')c.ready='tap';else{c.ready='auto';c.auto=v}});
+  $('#wScore').classList.toggle('hidden',!hasShot(c));
+  chips($('#cScore'),[{v:'simple',t:'Einfach: Treffer/Daneben'},{v:'exact',t:'Genau: Segment tippen'}],v=>c.scoring===v,v=>c.scoring=v);
+  chips($('#cAmt'),[10,20,30,50].map(n=>({v:'c'+n,t:n+'×'})).concat([5,10,15].map(n=>({v:'m'+n,t:n+' min'}))),
+    v=>v[0]==='c'?(c.amt==='count'&&c.count===+v.slice(1)):(c.amt==='time'&&c.minutes===+v.slice(1)),
+    v=>{if(v[0]==='c'){c.amt='count';c.count=+v.slice(1)}else{c.amt='time';c.minutes=+v.slice(1)}});
+  // Plan
+  $('#planCard').classList.toggle('hidden',!S.plan.length);
+  $('#planList').innerHTML='';
+  S.plan.forEach((p,i)=>{const r=document.createElement('div');r.className='planitem';
+    r.innerHTML='<b>'+(i+1)+'</b><span></span><button>×</button>';r.querySelector('span').textContent=cfgLabel(p);
+    r.querySelector('button').onclick=()=>{S.plan.splice(i,1);saveS();renderHome()};$('#planList').appendChild(r)});
+  $('#oVoiceOut').checked=S.voiceOut;$('#oVoiceIn').checked=S.voiceIn;$('#oMic').checked=S.mic;$('#oSens').value=S.sens;
+  $('#oVoiceIn').disabled=!SR;
+}
+$('#oVoiceOut').onchange=e=>{S.voiceOut=e.target.checked;saveS()};
+$('#oVoiceIn').onchange=e=>{S.voiceIn=e.target.checked;saveS()};
+$('#oMic').onchange=e=>{S.mic=e.target.checked;saveS();if(!S.mic)micStop()};
+$('#oSens').oninput=e=>{S.sens=+e.target.value;saveS()};
+$('#btnStart').onclick=()=>startSession(S.cfg,null);
+$('#btnAddPlan').onclick=()=>{S.plan.push(clone(S.cfg));saveS();renderHome();toast('Zum Plan hinzugefügt')};
+$('#btnPlanStart').onclick=()=>{if(S.plan.length)startSession(S.plan[0],{i:0})};
+$('#btnPlanClear').onclick=()=>{if(confirm('Plan leeren?')){S.plan=[];saveS();renderHome()}};
+$('#btnStats').onclick=()=>{renderStats();show('stats')};
+$('#btnBack').onclick=()=>show('home');
+$('#btnTest').onclick=()=>{ensureAudio();renderTest();show('test')};
+
+/* ---------- Training ---------- */
+const segs=$('#segs');
+for(let n=1;n<=5;n++){const b=document.createElement('button');b.className='seg';b.textContent=n;
+  b.addEventListener('pointerdown',e=>{e.preventDefault();input(n)});segs.appendChild(b)}
+function pd(el,fn){el.addEventListener('pointerdown',e=>{e.preventDefault();fn()})}
+pd($('#btnMiss'),()=>input(0));pd($('#bYes'),()=>input('hit'));pd($('#bNo'),()=>input(0));pd($('#readyBtn'),()=>input('ready'));
+$('#btnUndo').onclick=()=>undo();
+$('#btnEnd').onclick=()=>finish();
+
+let R=null;
+function later(fn,ms){R.timers.push(setTimeout(fn,ms))}
+function clearTimers(){if(R){R.timers.forEach(clearTimeout);R.timers=[]}}
+function curKind(){return R.D.kind==='combo'?R.stage:R.D.kind}
+function ruleMs(){return(R.D.kind==='combo'&&R.stage==='shot'?R.D.rule2:R.D.rule)*1000}
+function curTech(){return R.D.kind==='combo'&&R.stage==='shot'?R.cfg.tech2:R.cfg.tech}
+function inputMode(){return curKind()==='shot'&&R.cfg.scoring==='exact'?'seg':'simple'}
+function deckKey(){return curKind()==='shot'?'deckS':'deckP'}
+function makeDeck(t){
+  const per=R.cfg.amt==='count'?Math.ceil(R.cfg.count/t.length):5,d=[];
+  t.forEach(x=>{for(let i=0;i<per;i++)d.push(x)});
+  return R.cfg.order==='mix'?shuffle(d):d;
+}
+function drawTarget(){
+  const k=deckKey();if(!R[k].length)R[k]=makeDeck(curKind()==='shot'?R.cfg.tS:R.cfg.tP);
+  const t=R[k].shift();R.pending={k,t};return t;
+}
+function isDone(){return R.cfg.amt==='count'?R.reps>=R.cfg.count:Date.now()-R.t0>=R.cfg.minutes*60000}
+
+async function startSession(cfg,plan){
+  ensureAudio();speak(' ');beep(660,.08,.2); // im Tap → entsperrt Audio auf iOS
+  $('#summary').classList.add('hidden');
+  const d=DISC[cfg.d];
+  R={id:Date.now().toString(36),cfg:clone(cfg),D:d,plan,entries:[],reps:0,stage:d.kind==='shot'?'shot':'pass',
+     deckP:[],deckS:[],pending:null,phase:'idle',target:null,callAt:0,detectAt:null,phaseStart:performance.now(),phaseDur:0,
+     timers:[],active:true,undo:null,lastHit:null,t0:Date.now()};
+  D.sessions.push({id:R.id,start:Date.now(),d:cfg.d,cfg:clone(cfg)});save(LS_DATA,D);
+  show('train');renderTrain();wake(true);
+  if(S.voiceIn)recStart();
+  if(S.mic)await micStart();
+  later(startRep,1000);
+  requestAnimationFrame(tick);
+}
+function setPhase(p,dur){R.phase=p;R.phaseStart=performance.now();R.phaseDur=dur||0;renderTrain()}
+function startRep(){
+  clearTimers();R.detectAt=null;R.undo=null;
+  const first=R.D.kind==='shot'?'shot':'pass';
+  if(R.stage===first&&isDone())return finish();
+  R.target=drawTarget();
+  const needReady=R.cfg.timing==='signal'||(R.D.kind==='combo'&&R.stage==='shot');
+  if(!needReady){call();return}
+  setPhase('ready');
+  if(R.cfg.ready==='auto')later(goReady,R.cfg.auto*1000);
+}
+function goReady(){
+  if(R.phase!=='ready')return;
+  clearTimers();beep(520,.05,.15);
+  if(R.cfg.timing==='free'){call();return}
+  const max=Math.max(1.5,ruleMs()/1000-R.cfg.window-2),w=(1+Math.random()*(max-1))*1000;
+  setPhase('wait',w);later(call,w);
+}
+function call(){
+  const sig=R.cfg.timing==='signal';
+  R.callAt=performance.now();R.detectAt=null;
+  setPhase(sig?'call':'aim',sig?R.cfg.window*1000:ruleMs());
+  if(sig)beep();
+  const k=curKind(),t=R.target;
+  if(k==='shot'&&t>0)speak(NUM[t]);
+  else if(k==='pass'&&t)speak(t,'en-US');
+  else if(!sig)beep();
+  pulse();
+  if(sig)later(()=>{if(R.detectAt==null)beep(330,.25,.35)},R.cfg.window*1000);
+}
+function pulse(){if(inputMode()!=='seg'||!(R.target>0))return;const s=segs.children[R.target-1];s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse')}
+function renderTrain(){
+  const live=R.phase==='aim'||R.phase==='call',m=inputMode(),k=curKind();
+  $('#readyBtn').classList.toggle('hidden',R.phase!=='ready');
+  segs.classList.toggle('hidden',R.phase==='ready'||m!=='seg');
+  $('#simple').classList.toggle('hidden',R.phase==='ready'||m!=='simple');
+  $('#btnMiss').classList.toggle('hidden',m!=='seg');
+  $('#area').classList.toggle('off',!live&&R.phase!=='ready');
+  [...segs.children].forEach((s,i)=>s.classList.toggle('target',live&&R.target===i+1));
+  $('#bYes').textContent=k==='pass'?'Gefangen':'Treffer';$('#bNo').textContent=k==='pass'?'Verloren':'Daneben';
+  $('#tMode').textContent=R.D.n+' · '+curTech()+(R.D.kind==='combo'?' ('+(k==='pass'?'Pass':'Schuss')+')':'')+(R.plan?' · Plan '+(R.plan.i+1)+'/'+S.plan.length:'');
+  const n=R.entries.length,h=R.entries.filter(s=>s.h).length;
+  $('#tRate').textContent=n?h+'/'+n+' · '+pct(h/n):'';
+}
+let lastTxt='';
+function tick(){
+  if(!R||!R.active)return;
+  const el=performance.now()-R.phaseStart,rem=R.phaseDur-el,k=curKind(),tgt=tl(R.target,k).toUpperCase();
+  let txt='',frac=0,cls='';
+  if(R.undo){txt='Korrektur · '+tgt}
+  else switch(R.phase){
+    case 'idle':txt='Bereit machen …';break;
+    case 'ready':txt=R.cfg.ready==='auto'?'Aufbauen · '+Math.max(1,Math.ceil((R.cfg.auto*1000-el)/1000)):(S.voiceIn?'Bereit? „Ja“ / Tippen':'Bereit? Tippen');
+      if(R.cfg.ready==='auto')frac=Math.min(1,el/(R.cfg.auto*1000));break;
+    case 'wait':txt='Achtung …';cls='alert';break;
+    case 'call':txt=rem>0?tgt+' – JETZT':tgt+' · Zeit um';cls=rem>0?'alert':'late';frac=Math.max(0,rem/R.phaseDur);break;
+    case 'aim':txt=tgt+' · '+(rem>0?Math.ceil(rem/1000)+' s':'Zeit um');frac=Math.max(0,rem/R.phaseDur);if(rem<=0)cls='late';break;
+    case 'result':txt=R.lastHit?(k==='pass'?'Gefangen':'Treffer'):(k==='pass'?'Verloren':'Daneben');cls=R.lastHit?'ok':'late';break;
+  }
+  if(mic.on&&R.detectAt!=null&&!R.undo&&(R.phase==='call'||R.phase==='aim'))txt+=' · ⚡ '+fmt((R.detectAt-R.callAt)/1000)+' s';
+  const key=txt+cls;
+  if(key!==lastTxt){const st=$('#tStatus');st.textContent=txt;st.className='status '+cls;lastTxt=key}
+  $('#tBar').style.width=(frac*100)+'%';
+  // Zähler
+  if(R.cfg.amt==='count')$('#tCount').textContent=Math.min(R.reps+1,R.cfg.count)+' / '+R.cfg.count;
+  else{const r=Math.max(0,R.cfg.minutes*60000-(Date.now()-R.t0)),s=Math.ceil(r/1000);$('#tCount').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+  requestAnimationFrame(tick);
+}
+function input(v){
+  if(!R||!R.active||v===null)return;
+  if(v==='ready'){if(R.phase==='ready')goReady();return}
+  if(!(R.phase==='aim'||R.phase==='call'))return;
+  const k=curKind(),m=inputMode();
+  let l=null,h;
+  if(v==='hit')h=true;
+  else if(v===0){h=false;if(m==='seg')l=0}
+  else{l=v;h=R.target===0?true:v===R.target}
+  let rt=null,late=null;
+  if(R.undo){rt=R.undo.rt;late=R.undo.late;R.undo=null}
+  else if(mic.on&&R.detectAt!=null){rt=Math.round(R.detectAt-R.callAt);if(R.cfg.timing==='signal')late=rt>R.cfg.window*1000}
+  const passOk=R.D.kind==='combo'&&R.stage==='pass'&&h,end=!passOk;
+  const e={s:R.id,t:Date.now(),d:R.cfg.d,st:k,k:curTech(),g:R.target,l,h,rt,late,sig:R.cfg.timing==='signal',end};
+  R.entries.push(e);D.shots.push(e);save(LS_DATA,D);
+  R.pending=null;clearTimers();R.lastHit=h;
+  if(end){R.reps++;if(R.D.kind==='combo')R.stage='pass'}else R.stage='shot';
+  beep(h?1200:400,.07,.2);
+  const el=m==='seg'?(l>0?segs.children[l-1]:$('#btnMiss')):(h?$('#bYes'):$('#bNo'));
+  el.classList.add(h?'fhit':'fmiss');setTimeout(()=>el.classList.remove('fhit','fmiss'),450);
+  setPhase('result');
+  later(startRep,550);
+}
+function undo(){
+  if(!R||!R.active||!R.entries.length)return;
+  const e=R.entries.pop(),i=D.shots.lastIndexOf(e);if(i>=0)D.shots.splice(i,1);save(LS_DATA,D);
+  clearTimers();
+  if(R.pending){R[R.pending.k].unshift(R.pending.t);R.pending=null}
+  if(e.end)R.reps--;
+  if(R.D.kind==='combo')R.stage=e.st;
+  R.target=e.g;R.undo={rt:e.rt,late:e.late};R.detectAt=null;
+  setPhase(R.cfg.timing==='signal'?'call':'aim',0);
+}
+function finish(){
+  if(!R)return;
+  clearTimers();R.active=false;wake(false);recStop();
+  if(!R.entries.length){D.sessions=D.sessions.filter(x=>x.id!==R.id);save(LS_DATA,D);const p=R.plan;R=null;show('home');return}
+  const sess=D.sessions.find(x=>x.id===R.id);if(sess){sess.end=Date.now();sess.reps=R.reps}
+  save(LS_DATA,D);
+  beep(880,.15,.3);
+  showSummary();
+}
+
+/* ---------- Auswertung ---------- */
+function agg(a){
+  const n=a.length,h=a.filter(s=>s.h).length,rts=a.filter(s=>s.rt!=null).map(s=>s.rt),lk=a.filter(s=>s.late!=null);
+  const wrong=a.filter(s=>typeof s.l==='number'&&s.l>0&&typeof s.g==='number'&&s.g>0&&!s.h);
+  return{n,h,rate:n?h/n:0,rtAvg:rts.length?rts.reduce((x,y)=>x+y,0)/rts.length:null,rtN:rts.length,
+    inWin:lk.length?lk.filter(s=>!s.late).length/lk.length:null,
+    dev:wrong.length?wrong.reduce((x,s)=>x+(s.l-s.g),0)/wrong.length:null,wrongN:wrong.length,
+    outN:a.filter(s=>s.l===0).length};
+}
+function tend(a){if(a.dev==null)return'–';if(a.dev<-.25)return'← eher links ('+fmt(a.dev,1)+')';if(a.dev>.25)return'eher rechts → (+'+fmt(a.dev,1)+')';return'ausgeglichen'}
+function kv(k,v){return'<div class="kv"><span>'+k+'</span><b>'+v+'</b></div>'}
+function targetRow(a,kind){
+  const ts=TORDER.filter(t=>a.some(s=>s.g===t));if(ts.length<2&&!(ts[0]>0))return'';
+  return'<div class="segrow" style="--c:'+ts.length+'">'+ts.map(t=>{const x=a.filter(s=>s.g===t),h=x.filter(s=>s.h).length;
+    return'<div>'+tl(t,kind)+'<b>'+Math.round(h/x.length*100)+'%</b>'+h+'/'+x.length+'</div>'}).join('')+'</div>';
+}
+function detailKV(a,b){
+  let x='';
+  if(b.rtAvg!=null)x+=kv('Ø Reaktionszeit (Mikro)',fmt(b.rtAvg/1000)+' s ('+b.rtN+')');
+  if(b.inWin!=null)x+=kv('Im Reaktionsfenster',pct(b.inWin));
+  if(b.wrongN)x+=kv('Falsches Segment / daneben',b.wrongN+' / '+b.outN),x+=kv('Tendenz',tend(b));
+  return x;
+}
+function groups(a){
+  const m=new Map();
+  for(const s of a){const key=s.d+'|'+s.st;if(!m.has(key))m.set(key,[]);m.get(key).push(s)}
+  return[...m.entries()].map(([key,arr])=>{const[d,st]=key.split('|');
+    return{d,st,arr,title:(DISC[d]?DISC[d].n:d)+(DISC[d]&&DISC[d].kind==='combo'?' – '+(st==='pass'?'Pass':'Schuss'):'')}});
+}
+function chainRate(a){const ends=a.filter(s=>s.d==='k53'&&s.end);return ends.length?{n:ends.length,h:ends.filter(s=>s.st==='shot'&&s.h).length}:null}
+function nextPlanBtn(){return $('#sumNext')}
+function showSummary(){
+  const a=R.entries;let html='';
+  for(const g of groups(a)){
+    const b=agg(g.arr);
+    html+='<div class="blockh">'+g.title+'</div><div class="bigpct">'+pct(b.rate)+'</div><p class="center">'+b.h+' von '+b.n+'</p>'+targetRow(g.arr,g.st)+detailKV(g.arr,b);
+  }
+  const ch=chainRate(a);if(ch)html+=kv('Kette Pass → Tor',ch.h+' / '+ch.n+' ('+pct(ch.h/ch.n)+')');
+  html+='<p class="center" style="margin-top:12px">'+cfgLabel(R.cfg)+'</p>';
+  const hasNext=R.plan&&R.plan.i+1<S.plan.length;
+  if(hasNext)html+='<button class="big primary" id="sumNext">Weiter: Übung '+(R.plan.i+2)+'</button><p class="center">'+cfgLabel(S.plan[R.plan.i+1])+(S.voiceIn?' · oder „Ja“':'')+'</p>';
+  html+='<button class="big'+(hasNext?'':' primary')+'" id="sumAgain">Nochmal</button><button class="big" id="sumHome">Menü</button>';
+  $('#summaryBody').innerHTML=html;$('#summary').classList.remove('hidden');
+  const cfg=R.cfg,plan=R.plan;
+  if(hasNext){$('#sumNext').onclick=()=>startSession(S.plan[plan.i+1],{i:plan.i+1});if(S.voiceIn)recStart()}
+  $('#sumAgain').onclick=()=>startSession(cfg,plan);
+  $('#sumHome').onclick=()=>{recStop();$('#summary').classList.add('hidden');R=null;show('home')};
+  if(S.voiceOut){const all=agg(a);speak((hasNext?'Übung fertig. ':'Fertig. ')+all.h+' von '+all.n)}
+}
+let range='all',sdisc='all';
+function renderStats(){
+  chips($('#cRange'),[{v:'all',t:'Gesamt'},{v:'30',t:'30 Tage'},{v:'7',t:'7 Tage'}],v=>range===v,v=>{range=v;renderStats()});
+  const present=Object.keys(DISC).filter(d=>D.shots.some(s=>s.d===d));
+  chips($('#cSDisc'),[{v:'all',t:'Alle'}].concat(present.map(d=>({v:d,t:DISC[d].n}))),v=>sdisc===v,v=>{sdisc=v;renderStats()});
+  const since=range==='all'?0:Date.now()-(+range)*864e5;
+  const a=D.shots.filter(s=>s.t>=since&&(sdisc==='all'||s.d===sdisc));
+  const body=$('#statsBody');
+  if(!a.length){body.innerHTML='<div class="card"><p class="hint" style="margin:0">Noch keine Daten in dieser Auswahl.</p></div>';return}
+  const all=agg(a);
+  const bySess=new Map();for(const s of a){if(!bySess.has(s.s))bySess.set(s.s,[]);bySess.get(s.s).push(s)}
+  const sess=[...bySess.values()];
+  let mins=0;for(const arr of sess)mins+=(arr[arr.length-1].t-arr[0].t)/60000;
+  let html='<div class="card"><h2>Überblick</h2><div class="tiles">'
+    +'<div class="tile"><b>'+all.n+'</b><span>Aktionen</span></div>'
+    +'<div class="tile"><b>'+pct(all.rate)+'</b><span>Erfolg</span></div>'
+    +'<div class="tile"><b>'+sess.length+'</b><span>Sessions</span></div>'
+    +'<div class="tile"><b>'+Math.round(mins)+'</b><span>Minuten</span></div></div></div>';
+  html+='<div class="card"><h2>Verlauf (letzte 20 Sessions)</h2><div class="trend">'
+    +sess.slice(-20).map(x=>{const r=x.filter(s=>s.h).length/x.length;return'<div title="'+pct(r)+'" style="height:'+Math.max(2,r*100)+'%"></div>'}).join('')
+    +'</div></div>';
+  for(const g of groups(a)){
+    const b=agg(g.arr),techs=[...new Set(g.arr.map(s=>s.k))],ts=TORDER.filter(t=>g.arr.some(s=>s.g===t));
+    let best=0,cur=0;for(const s of g.arr){cur=s.h?cur+1:0;if(cur>best)best=cur}
+    html+='<div class="card"><h2>'+g.title+'</h2>'+kv('Erfolgsquote',pct(b.rate)+' ('+b.h+'/'+b.n+')')+kv('Beste Serie',best);
+    html+='<table class="hm" style="margin-top:8px"><tr><th></th>'+ts.map(t=>'<th>'+tl(t,g.st)+'</th>').join('')+'</tr>';
+    const combos=[];
+    for(const t of techs){
+      html+='<tr><td>'+t+'</td>';
+      for(const tg of ts){
+        const x=g.arr.filter(s=>s.k===t&&s.g===tg),h=x.filter(s=>s.h).length;
+        if(!x.length){html+='<td>–</td>';continue}
+        const r=h/x.length;combos.push({t,tg,r,n:x.length});
+        html+='<td style="background:hsla('+Math.round(r*120)+',70%,42%,'+(.25+.6*Math.min(1,x.length/10))+')">'+Math.round(r*100)+'%<small>n='+x.length+'</small></td>';
+      }
+      html+='</tr>';
+    }
+    html+='</table>';
+    const weak=combos.filter(c=>c.n>=5).sort((x,y)=>x.r-y.r)[0];
+    if(weak&&combos.length>1)html+='<p class="hint"><b style="color:var(--acc)">Schwachpunkt:</b> '+weak.t+' → '+tl(weak.tg,g.st)+' ('+pct(weak.r)+', n='+weak.n+')</p>';
+    html+=detailKV(g.arr,b);
+    const sigA=g.arr.filter(s=>s.sig),freeA=g.arr.filter(s=>!s.sig);
+    if(sigA.length&&freeA.length)html+=kv('Frei / auf Signal',pct(agg(freeA).rate)+' / '+pct(agg(sigA).rate));
+    html+='</div>';
+  }
+  const ch=chainRate(a);if(ch)html+='<div class="card"><h2>Kombi-Kette</h2>'+kv('Pass gefangen und Tor',ch.h+' / '+ch.n+' ('+pct(ch.h/ch.n)+')')+'</div>';
+  html+='<p class="hint" style="margin:0 0 12px">Kräftige Farbe = viele Versuche, blass = wenig Daten.</p>';
+  body.innerHTML=html;
+}
+
+/* ---------- Test ---------- */
+const testSR={active:false,i:0,seq:[['Ja','ready'],['Drei',3],['Daneben',0],['Treffer','hit'],['Fünf',5]],
+  heard(v,w){const exp=this.seq[this.i][1],ok=v===exp;
+    $('#sVerdict').textContent=ok?'✓ erkannt':'✗ „'+w+'“';$('#sVerdict').style.color=ok?'var(--hit)':'var(--miss)';
+    if(ok){beep(1200,.07,.2);setTimeout(()=>{this.i=(this.i+1)%this.seq.length;$('#sSay').textContent='Sag: „'+this.seq[this.i][0]+'“';$('#sVerdict').textContent=''},900)}}};
+function renderTest(){
+  $('#srSupport').textContent=SR?'Dieser Browser unterstützt Spracherkennung (bei Safari teils über Apple-Server, Internet nötig).':'Dieser Browser unterstützt keine Spracherkennung – Eingabe nur per Tippen.';
+  $('#btnSR').disabled=!SR;$('#btnSR').textContent=testSR.active?'Test stoppen':'Test starten';
+  $('#btnMicTest').textContent=mic.on?'Mikrofon aus':'Mikrofon an';
+}
+$('#btnTestBack').onclick=()=>{testSR.active=false;rec.onText=null;recStop();show('home')};
+$('#tsNum').onclick=()=>{ensureAudio();speak('Drei','de-DE',true)};
+$('#tsWall').onclick=()=>{ensureAudio();speak('wall','en-US',true)};
+$('#btnSR').onclick=()=>{
+  if(testSR.active){testSR.active=false;rec.onText=null;recStop();$('#sSay').textContent='–';$('#sHeard').textContent='';renderTest();return}
+  testSR.active=true;testSR.i=0;$('#sSay').textContent='Sag: „Ja“';$('#sVerdict').textContent='';
+  rec.onText=t=>{$('#sHeard').textContent='gehört: '+t};recStart();renderTest();
+};
+$('#btnMicTest').onclick=async()=>{if(mic.on)micStop();else await micStart();renderTest()};
+
+/* ---------- Export / Import ---------- */
+$('#btnExport').onclick=async()=>{
+  const name='kickertrainer-'+new Date().toISOString().slice(0,10)+'.json',blob=new Blob([JSON.stringify(D)],{type:'application/json'});
+  try{const f=new File([blob],name,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'KickerTrainer Daten'});return}}catch(e){if(e&&e.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+};
+$('#btnImport').onclick=()=>$('#fileImport').click();
+$('#fileImport').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const o=JSON.parse(await f.text());if(!o||!Array.isArray(o.shots))throw 0;
+    o.shots.forEach(s=>{if(!s.d){s.d='s3';s.st='shot';s.sig=s.m==='late';s.end=true}});
+    const key=s=>s.s+'|'+s.t+'|'+s.st,have=new Set(D.shots.map(key));let add=0;
+    for(const s of o.shots)if(!have.has(key(s))){D.shots.push(s);add++}
+    D.shots.sort((a,b)=>a.t-b.t);
+    const hs=new Set(D.sessions.map(x=>x.id));for(const x of(o.sessions||[]))if(!hs.has(x.id))D.sessions.push(x);
+    D.sessions.sort((a,b)=>a.start-b.start);
+    save(LS_DATA,D);toast(add+' Einträge importiert');renderStats();
+  }catch(err){toast('Datei ungültig')}
+  e.target.value='';
+};
+$('#btnReset').onclick=()=>{
+  if(!confirm('Wirklich ALLE Trainingsdaten löschen?'))return;
+  if(!confirm('Sicher? Das kann nicht rückgängig gemacht werden.'))return;
+  D={v:2,sessions:[],shots:[]};save(LS_DATA,D);renderStats();toast('Gelöscht');
+};
+
+renderHome();
+</script>
 </body>
 </html>
