@@ -31,6 +31,10 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute
 .row input[type=range]{flex:1;max-width:260px;accent-color:var(--acc)}
 .meter{position:relative;height:16px;background:var(--panel2);border-radius:8px;overflow:hidden;margin-top:8px}
 .meter i{position:absolute;left:0;top:0;bottom:0;background:var(--hit);width:0}
+.meter.det i{background:var(--acc)}
+.mlive{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:6px 8px;align-items:center;font-size:13px;color:var(--mute)}
+.mlive .meter{margin-top:0;height:12px}
+.mstate{grid-column:1/-1;font-size:13px;min-height:0}
 .meter b{position:absolute;top:0;bottom:0;width:3px;background:var(--miss);left:0}
 .big{display:block;width:100%;min-height:58px;border-radius:16px;border:1px solid var(--line);background:var(--panel);font-size:19px;font-weight:600;margin-top:10px}
 .primary{background:var(--acc);color:#111;border-color:var(--acc)}
@@ -119,7 +123,9 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
   <div class="card" style="margin-top:12px"><h2>Optionen</h2>
     <label class="row"><span>Sprachansage<small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" id="oVoiceOut"></label>
     <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" id="oVoiceIn"></label>
-    <label class="row"><span>Schusserkennung (Mikrofon)<small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" id="oMic"></label>
+    <label class="row"><span>Schusserkennung<small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" id="oMic"></label>
+    <div class="sub" id="wDet"><label>Erkennung über</label><div class="chips" id="cDet"></div>
+      <p class="hint">„Ton + Erschütterung“ = beide müssen gleichzeitig ausschlagen: am wenigsten Fehlauslöser (Stimmen, Nachbartisch). Erschütterung braucht iPad direkt auf dem Tisch.</p></div>
     <button class="big" id="btnTest">Mikrofon &amp; Sprache testen</button>
   </div>
   <p class="hint">Segment 1 = links aus Sicht des Schützen.</p>
@@ -130,6 +136,7 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
   <div class="thead"><div id="tMode"></div><div id="tCount" class="count"></div><div id="tRate"></div></div>
   <div class="status" id="tStatus"></div>
   <div class="bar"><i id="tBar"></i></div>
+  <div class="mlive hidden" id="mLive"><span>Ton</span><div class="meter mA"><i></i><b></b></div><span>Vibr.</span><div class="meter mM"><i></i><b></b></div><div class="mstate" id="mState"></div></div>
   <div class="area" id="area">
     <button class="readybtn hidden" id="readyBtn">BEREIT</button>
     <div class="segs hidden" id="segs"></div>
@@ -173,8 +180,11 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
   </div>
   <div class="card"><h2>Schusserkennung</h2>
     <button class="big" id="btnMicTest">Mikrofon an</button>
-    <div class="row"><span>Empfindlichkeit</span><input type="range" id="oSens" min="1.5" max="8" step="0.5"></div>
-    <div class="meter"><i id="meterLvl"></i><b id="meterThr"></b></div>
+    <div class="row"><span>Ton – Schwelle</span><input type="range" id="oSens" min="1.5" max="8" step="0.5"></div>
+    <div class="meter mA"><i></i><b></b></div>
+    <div class="row"><span>Erschütterung – Schwelle</span><input type="range" id="oMSens" min="1.5" max="10" step="0.5"></div>
+    <div class="meter mM"><i></i><b></b></div>
+    <div class="mstate" id="mStateTest"></div>
     <div class="verdict" id="micVerdict"></div>
     <p class="hint">Schuss ans Tor → grüner Balken klar über die rote Marke, Umgebung klar darunter. Regler rechts = unempfindlicher.</p>
   </div>
@@ -199,7 +209,7 @@ const DISC={
 const NUM=['','Eins','Zwei','Drei','Vier','Fünf'];
 const TORDER=[0,1,2,3,4,5,'wall','lane'];
 const DEFCFG={d:'s3',tech:'Pull',tech2:'Pull',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',timing:'free',window:2,ready:'tap',auto:5,scoring:'exact',amt:'count',count:20,minutes:10};
-const DEF={cfg:DEFCFG,plan:[],voiceOut:true,voiceIn:false,mic:false,sens:3};
+const DEF={cfg:DEFCFG,plan:[],voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,det:'audio'};
 
 function clone(o){return JSON.parse(JSON.stringify(o))}
 function load(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v||clone(d)}catch(e){return clone(d)}}
@@ -223,28 +233,44 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
 let actx=null,ignoreUntil=0,quietUntil=0;
 function ensureAudio(){if(!actx){const C=window.AudioContext||window.webkitAudioContext;if(C)actx=new C()}if(actx&&actx.state==='suspended')actx.resume()}
 function beep(f=880,d=.12,v=.4){if(!actx)return;const o=actx.createOscillator(),g=actx.createGain(),t=actx.currentTime;o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g).connect(actx.destination);o.start(t);o.stop(t+d+.02);ignoreUntil=performance.now()+d*1000+150}
-let voices=[];
+let voices=[],ttsBusy=false,ttsT=0;
 function loadVoices(){voices=speechSynthesis.getVoices()}
 if('speechSynthesis' in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
 function speak(t,lang='de-DE',force){
   if((!S.voiceOut&&!force)||!('speechSynthesis' in window))return;
   speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang=lang;
   const v=voices.find(x=>x.lang&&x.lang.toLowerCase().startsWith(lang.slice(0,2).toLowerCase()));if(v)u.voice=v;
-  u.rate=1.1;quietUntil=performance.now()+3000;u.onend=()=>{quietUntil=performance.now()+1200};
+  u.rate=1.1;quietUntil=performance.now()+3000;ttsBusy=true;clearTimeout(ttsT);ttsT=setTimeout(()=>ttsBusy=false,2500);
+  u.onend=u.onerror=()=>{quietUntil=performance.now()+1200;clearTimeout(ttsT);ttsT=setTimeout(()=>ttsBusy=false,150)};
   speechSynthesis.speak(u);
 }
 
 /* ---------- Mikrofon: Schusserkennung ---------- */
+let micErr='';
+function micBlocker(){
+  if(!window.isSecureContext)return'Seite nicht über HTTPS geöffnet ('+location.protocol+') – bitte die GitHub-Pages-Adresse in Safari öffnen';
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return'Browser erlaubt hier keinen Mikrofonzugriff – direkt in Safari öffnen, nicht in einer Vorschau/App';
+  try{if(window.top!==window.self)return'Seite läuft eingebettet (Vorschau) – direkt in Safari öffnen'}catch(e){return'Seite läuft eingebettet (Vorschau) – direkt in Safari öffnen'}
+  return'';
+}
 const mic={on:false,stream:null,an:null,buf:null,amb:.01,last:0,raf:0,testHit:0};
 async function micStart(){
   if(mic.on)return true;
   try{
+    const why=micBlocker();if(why)throw new Error(why);
+    // getUserMedia zuerst und direkt im Tap aufrufen (iOS zeigt sonst evtl. keinen Dialog)
+    const p=navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
     ensureAudio();
-    mic.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    mic.stream=await p;
+    if(actx.state!=='running')await actx.resume();
     const src=actx.createMediaStreamSource(mic.stream);
     mic.an=actx.createAnalyser();mic.an.fftSize=1024;mic.buf=new Float32Array(mic.an.fftSize);
     src.connect(mic.an);mic.on=true;mic.amb=.01;micLoop();return true;
-  }catch(e){toast('Mikrofon nicht verfügbar');return false}
+  }catch(e){
+    const m=e.name==='NotAllowedError'?'Mikrofon blockiert – in Einstellungen › Safari › Mikrofon (bzw. „aA“ › Website-Einstellungen) erlauben'
+      :e.name==='NotFoundError'?'Kein Mikrofon gefunden':(e.message||e.name||'unbekannter Fehler');
+    micErr=m;toast('Mikrofon: '+m);const v=$('#micVerdict');if(v){v.textContent=m;v.style.color='var(--miss)'}
+    return false}
 }
 function micStop(){if(mic.stream)mic.stream.getTracks().forEach(t=>t.stop());mic.on=false;cancelAnimationFrame(mic.raf)}
 function micLoop(){
@@ -252,15 +278,76 @@ function micLoop(){
   mic.an.getFloatTimeDomainData(mic.buf);
   let s=0;for(let i=0;i<mic.buf.length;i++)s+=mic.buf[i]*mic.buf[i];
   const rms=Math.sqrt(s/mic.buf.length),thr=Math.max(mic.amb*S.sens,.02),now=performance.now();
-  if(rms>thr&&now-mic.last>400){mic.last=now;onImpulse(now)}else mic.amb=mic.amb*.98+rms*.02;
-  const sc=x=>Math.min(100,Math.sqrt(x/.5)*100);
-  $('#meterLvl').style.width=sc(rms)+'%';$('#meterThr').style.left=sc(thr)+'%';
+  mic.rms=rms;mic.thr=thr;
+  if(rms>thr){if(now-mic.last>400){mic.last=now;sensorHit('a',now)}}else mic.amb=mic.amb*.98+rms*.02;
   mic.raf=requestAnimationFrame(micLoop);
 }
+/* ---------- Erschütterung (Beschleunigungssensor) ---------- */
+const mot={on:false,prev:null,amb:.05,lvl:0,thr:0,last:0,peak:0,n:0};
+async function motStart(){
+  if(mot.on)return true;
+  try{
+    if(typeof DeviceMotionEvent==='undefined')throw new Error('Kein Bewegungssensor');
+    if(typeof DeviceMotionEvent.requestPermission==='function'){
+      const st=await DeviceMotionEvent.requestPermission();if(st!=='granted')throw new Error('Bewegungssensor nicht erlaubt');
+    }
+    window.addEventListener('devicemotion',onMotion);mot.on=true;mot.prev=null;mot.amb=.05;return true;
+  }catch(e){toast('Erschütterung: '+(e.message||e.name));return false}
+}
+function motStop(){window.removeEventListener('devicemotion',onMotion);mot.on=false}
+function onMotion(e){
+  const a=e.accelerationIncludingGravity||e.acceleration;if(!a||a.x==null)return;
+  mot.n++;
+  if(mot.prev){
+    const d=Math.hypot(a.x-mot.prev.x,a.y-mot.prev.y,a.z-mot.prev.z),now=performance.now();
+    mot.lvl=d;mot.thr=Math.max(mot.amb*S.msens,.08);
+    if(d>mot.thr){if(now-mot.last>400){mot.last=now;sensorHit('m',now)}}else mot.amb=mot.amb*.97+d*.03;
+  }
+  mot.prev={x:a.x,y:a.y,z:a.z};
+}
+/* ---------- Fusion ---------- */
+const fus={a:-1e9,m:-1e9,fired:-1e9,flash:{a:0,m:0}};
+function sensorHit(src,now){
+  fus[src]=now;fus.flash[src]=now;
+  const det=S.det,need=det==='both'?(fus.a>now-250&&fus.m>now-250):det==='either'?true:det==='audio'?src==='a':src==='m';
+  if(need&&now-fus.fired>400){fus.fired=now;onImpulse(now)}
+}
+function sensorsOn(){return(useAudio()?mic.on:true)&&(useMotion()?mot.on:true)}
+function useAudio(){return S.det!=='motion'}
+function useMotion(){return S.det!=='audio'}
+async function detStart(){ // beide Anfragen parallel im selben Tap starten (iOS verlangt Nutzergeste)
+  const pm=useMotion()?motStart():(motStop(),Promise.resolve(true));
+  const pa=useAudio()?micStart():(micStop(),Promise.resolve(true));
+  const [a,m]=await Promise.all([pa,pm]);return a&&m}
+function detStop(){micStop();motStop()}
+function micHealth(){
+  if(useAudio()){
+    if(!mic.on)return'Mikrofon aus';
+    const t=mic.stream&&mic.stream.getAudioTracks()[0];
+    if(!t||t.readyState==='ended')return'Mikrofon beendet (iOS) – tippen zum Neustart';
+    if(t.muted)return'Mikrofon stumm geschaltet (iOS, evtl. durch Sprachansage/-eingabe) – tippen zum Neustart';
+    if(actx&&actx.state!=='running')return'Audio pausiert – tippen zum Neustart';
+  }
+  if(useMotion()&&(!mot.on||mot.n===0))return'Keine Sensordaten (Erschütterung)';
+  return'';
+}
+async function detRestart(){micStop();motStop();mot.n=0;ensureAudio();await detStart()}
+function drawMeters(){
+  const now=performance.now(),scA=x=>Math.min(100,Math.sqrt(x/.5)*100),scM=x=>Math.min(100,Math.sqrt(x/4)*100);
+  document.querySelectorAll('.mA').forEach(m=>{m.querySelector('i').style.width=(mic.on?scA(mic.rms||0):0)+'%';m.querySelector('b').style.left=scA(mic.thr||0)+'%';m.classList.toggle('det',now-fus.flash.a<250)});
+  document.querySelectorAll('.mM').forEach(m=>{m.querySelector('i').style.width=(mot.on?scM(mot.lvl):0)+'%';m.querySelector('b').style.left=scM(mot.thr)+'%';m.classList.toggle('det',now-fus.flash.m<250)});
+  const hs=S.mic?micHealth():'';
+  [$('#mState'),$('#mStateTest')].forEach(el=>{if(!el)return;const txt=hs||(now-fus.fired<700?'● Schuss erkannt':'● bereit');
+    if(el.textContent!==txt){el.textContent=txt;el.style.color=hs?'var(--miss)':now-fus.fired<700?'var(--hit)':'var(--mute)'}});
+  requestAnimationFrame(drawMeters);
+}
+requestAnimationFrame(drawMeters);
+setInterval(()=>{if(actx&&actx.state==='suspended'&&(mic.on||(R&&R.active)))actx.resume().catch(()=>{})},1000);
+
 function onImpulse(now){
   if(!$('#test').classList.contains('hidden')){$('#micVerdict').textContent='Schuss erkannt ✓';$('#micVerdict').style.color='var(--hit)';clearTimeout(mic.testHit);mic.testHit=setTimeout(()=>$('#micVerdict').textContent='',1200);return}
   if(!R||!R.active||R.undo)return;
-  if(now<ignoreUntil||(window.speechSynthesis&&speechSynthesis.speaking))return;
+  if(now<ignoreUntil||ttsBusy)return;
   if(R.phase==='call'||R.phase==='aim'){if(R.detectAt==null)R.detectAt=now}
 }
 
@@ -368,11 +455,15 @@ function renderHome(){
     r.innerHTML='<b>'+(i+1)+'</b><span></span><button>×</button>';r.querySelector('span').textContent=cfgLabel(p);
     r.querySelector('button').onclick=()=>{S.plan.splice(i,1);saveS();renderHome()};$('#planList').appendChild(r)});
   $('#oVoiceOut').checked=S.voiceOut;$('#oVoiceIn').checked=S.voiceIn;$('#oMic').checked=S.mic;$('#oSens').value=S.sens;
-  $('#oVoiceIn').disabled=!SR;
+  $('#oVoiceIn').disabled=!SR;$('#oMSens').value=S.msens;
+  $('#wDet').classList.toggle('hidden',!S.mic);
+  chips($('#cDet'),[{v:'audio',t:'Ton'},{v:'motion',t:'Erschütterung'},{v:'both',t:'Ton + Erschütterung'},{v:'either',t:'Ton oder Erschütterung'}],v=>S.det===v,v=>{S.det=v;if(S.mic)detStart()});
 }
 $('#oVoiceOut').onchange=e=>{S.voiceOut=e.target.checked;saveS()};
 $('#oVoiceIn').onchange=e=>{S.voiceIn=e.target.checked;saveS()};
-$('#oMic').onchange=e=>{S.mic=e.target.checked;saveS();if(!S.mic)micStop()};
+$('#oMic').onchange=async e=>{S.mic=e.target.checked;saveS();if(!S.mic){detStop();$('#wDet').classList.add('hidden');return}
+  if(!await detStart()){S.mic=false;saveS();e.target.checked=false}else toast('Schusserkennung aktiv ✓');renderHome()};
+$('#oMSens').oninput=e=>{S.msens=+e.target.value;saveS()};
 $('#oSens').oninput=e=>{S.sens=+e.target.value;saveS()};
 $('#btnStart').onclick=()=>startSession(S.cfg,null);
 $('#btnAddPlan').onclick=()=>{S.plan.push(clone(S.cfg));saveS();renderHome();toast('Zum Plan hinzugefügt')};
@@ -389,6 +480,7 @@ for(let n=1;n<=5;n++){const b=document.createElement('button');b.className='seg'
 function pd(el,fn){el.addEventListener('pointerdown',e=>{e.preventDefault();fn()})}
 pd($('#btnMiss'),()=>input(0));pd($('#bYes'),()=>input('hit'));pd($('#bNo'),()=>input(0));pd($('#readyBtn'),()=>input('ready'));
 $('#btnUndo').onclick=()=>undo();
+$('#mLive').onclick=()=>{if(micHealth())detRestart()};
 $('#btnEnd').onclick=()=>finish();
 
 let R=null;
@@ -411,6 +503,7 @@ function drawTarget(){
 function isDone(){return R.cfg.amt==='count'?R.reps>=R.cfg.count:Date.now()-R.t0>=R.cfg.minutes*60000}
 
 async function startSession(cfg,plan){
+  const micP=S.mic?detStart():null; // im Tap anfragen
   ensureAudio();speak(' ');beep(660,.08,.2); // im Tap → entsperrt Audio auf iOS
   $('#summary').classList.add('hidden');
   const d=DISC[cfg.d];
@@ -419,8 +512,10 @@ async function startSession(cfg,plan){
      timers:[],active:true,undo:null,lastHit:null,t0:Date.now()};
   D.sessions.push({id:R.id,start:Date.now(),d:cfg.d,cfg:clone(cfg)});save(LS_DATA,D);
   show('train');renderTrain();wake(true);
+  $('#mLive').classList.toggle('hidden',!S.mic);
+  if(micP&&!await micP)toast('Schusserkennung unvollständig – siehe Anzeige');
+  if(S.mic&&S.voiceIn)toast('Hinweis: iOS kann Mikrofon und Spracheingabe nicht immer gleichzeitig');
   if(S.voiceIn)recStart();
-  if(S.mic)await micStart();
   later(startRep,1000);
   requestAnimationFrame(tick);
 }
@@ -452,7 +547,11 @@ function call(){
   else if(k==='pass'&&t)speak(t,'en-US');
   else if(!sig)beep();
   pulse();
-  if(sig)later(()=>{if(R.detectAt==null)beep(330,.25,.35)},R.cfg.window*1000);
+  later(timeUp,sig?R.cfg.window*1000:ruleMs());
+}
+function timeUp(){ // zwei tiefe Töne = Zeit abgelaufen
+  if(!R||!R.active||R.detectAt!=null)return;
+  beep(330,.22,.5);setTimeout(()=>beep(247,.35,.5),280);
 }
 function pulse(){if(inputMode()!=='seg'||!(R.target>0))return;const s=segs.children[R.target-1];s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse')}
 function renderTrain(){
@@ -483,7 +582,7 @@ function tick(){
     case 'aim':txt=tgt+' · '+(rem>0?Math.ceil(rem/1000)+' s':'Zeit um');frac=Math.max(0,rem/R.phaseDur);if(rem<=0)cls='late';break;
     case 'result':txt=R.lastHit?(k==='pass'?'Gefangen':'Treffer'):(k==='pass'?'Verloren':'Daneben');cls=R.lastHit?'ok':'late';break;
   }
-  if(mic.on&&R.detectAt!=null&&!R.undo&&(R.phase==='call'||R.phase==='aim'))txt+=' · ⚡ '+fmt((R.detectAt-R.callAt)/1000)+' s';
+  if(S.mic&&R.detectAt!=null&&!R.undo&&(R.phase==='call'||R.phase==='aim'))txt+=' · ⚡ '+fmt((R.detectAt-R.callAt)/1000)+' s';
   const key=txt+cls;
   if(key!==lastTxt){const st=$('#tStatus');st.textContent=txt;st.className='status '+cls;lastTxt=key}
   $('#tBar').style.width=(frac*100)+'%';
@@ -503,7 +602,7 @@ function input(v){
   else{l=v;h=R.target===0?true:v===R.target}
   let rt=null,late=null;
   if(R.undo){rt=R.undo.rt;late=R.undo.late;R.undo=null}
-  else if(mic.on&&R.detectAt!=null){rt=Math.round(R.detectAt-R.callAt);if(R.cfg.timing==='signal')late=rt>R.cfg.window*1000}
+  else if(S.mic&&R.detectAt!=null){rt=Math.round(R.detectAt-R.callAt);if(R.cfg.timing==='signal')late=rt>R.cfg.window*1000}
   const passOk=R.D.kind==='combo'&&R.stage==='pass'&&h,end=!passOk;
   const e={s:R.id,t:Date.now(),d:R.cfg.d,st:k,k:curTech(),g:R.target,l,h,rt,late,sig:R.cfg.timing==='signal',end};
   R.entries.push(e);D.shots.push(e);save(LS_DATA,D);
@@ -642,7 +741,8 @@ const testSR={active:false,i:0,seq:[['Ja','ready'],['Drei',3],['Daneben',0],['Tr
 function renderTest(){
   $('#srSupport').textContent=SR?'Dieser Browser unterstützt Spracherkennung (bei Safari teils über Apple-Server, Internet nötig).':'Dieser Browser unterstützt keine Spracherkennung – Eingabe nur per Tippen.';
   $('#btnSR').disabled=!SR;$('#btnSR').textContent=testSR.active?'Test stoppen':'Test starten';
-  $('#btnMicTest').textContent=mic.on?'Mikrofon aus':'Mikrofon an';
+  $('#btnMicTest').textContent=(mic.on||mot.on)?'Sensoren aus':'Mikrofon + Erschütterung an';
+  const b=micBlocker();if(b&&!mic.on){$('#micVerdict').textContent=b;$('#micVerdict').style.color='var(--miss)'}
 }
 $('#btnTestBack').onclick=()=>{testSR.active=false;rec.onText=null;recStop();show('home')};
 $('#tsNum').onclick=()=>{ensureAudio();speak('Drei','de-DE',true)};
@@ -652,7 +752,7 @@ $('#btnSR').onclick=()=>{
   testSR.active=true;testSR.i=0;$('#sSay').textContent='Sag: „Ja“';$('#sVerdict').textContent='';
   rec.onText=t=>{$('#sHeard').textContent='gehört: '+t};recStart();renderTest();
 };
-$('#btnMicTest').onclick=async()=>{if(mic.on)micStop();else await micStart();renderTest()};
+$('#btnMicTest').onclick=async()=>{if(mic.on||mot.on)detStop();else{const s=S.det;if(!S.mic)S.det='either';await Promise.all([micStart(),motStart()]);S.det=s}renderTest()};
 
 /* ---------- Export / Import ---------- */
 $('#btnExport').onclick=async()=>{
