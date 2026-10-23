@@ -125,6 +125,8 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
     <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" id="oVoiceIn"></label>
     <label class="row"><span>Schusserkennung<small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" id="oMic"></label>
     <div class="sub" id="wDet"><label>Erkennung über</label><div class="chips" id="cDet"></div>
+      <label class="row"><span>Erkannten Schuss automatisch zählen<small>Standard: Treffer – du korrigierst im Fenster per Segment / Daneben</small></span><input type="checkbox" id="oAuto"></label>
+      <div class="sub" id="wCorr"><label>Korrekturfenster</label><div class="chips" id="cCorr"></div></div>
       <p class="hint">„Ton + Erschütterung“ = beide müssen gleichzeitig ausschlagen: am wenigsten Fehlauslöser (Stimmen, Nachbartisch). Erschütterung braucht iPad direkt auf dem Tisch.</p></div>
     <button class="big" id="btnTest">Mikrofon &amp; Sprache testen</button>
   </div>
@@ -209,7 +211,7 @@ const DISC={
 const NUM=['','Eins','Zwei','Drei','Vier','Fünf'];
 const TORDER=[0,1,2,3,4,5,'wall','lane'];
 const DEFCFG={d:'s3',tech:'Pull',tech2:'Pull',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',timing:'free',window:2,ready:'tap',auto:5,scoring:'exact',amt:'count',count:20,minutes:10};
-const DEF={cfg:DEFCFG,plan:[],voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,det:'audio'};
+const DEF={cfg:DEFCFG,plan:[],voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,det:'audio',autoCount:true,corrWin:3};
 
 function clone(o){return JSON.parse(JSON.stringify(o))}
 function load(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v||clone(d)}catch(e){return clone(d)}}
@@ -348,7 +350,10 @@ function onImpulse(now){
   if(!$('#test').classList.contains('hidden')){$('#micVerdict').textContent='Schuss erkannt ✓';$('#micVerdict').style.color='var(--hit)';clearTimeout(mic.testHit);mic.testHit=setTimeout(()=>$('#micVerdict').textContent='',1200);return}
   if(!R||!R.active||R.undo)return;
   if(now<ignoreUntil||ttsBusy)return;
-  if(R.phase==='call'||R.phase==='aim'){if(R.detectAt==null)R.detectAt=now}
+  if((R.phase==='call'||R.phase==='aim')&&R.detectAt==null){
+    R.detectAt=now;
+    if(S.mic&&S.autoCount&&curKind()==='shot')input(inputMode()==='seg'&&R.target>0?R.target:'hit',true);
+  }
 }
 
 /* ---------- Spracheingabe ---------- */
@@ -457,12 +462,15 @@ function renderHome(){
   $('#oVoiceOut').checked=S.voiceOut;$('#oVoiceIn').checked=S.voiceIn;$('#oMic').checked=S.mic;$('#oSens').value=S.sens;
   $('#oVoiceIn').disabled=!SR;$('#oMSens').value=S.msens;
   $('#wDet').classList.toggle('hidden',!S.mic);
+  $('#oAuto').checked=S.autoCount;$('#wCorr').classList.toggle('hidden',!S.autoCount);
+  chips($('#cCorr'),[2,3,5].map(n=>({v:n,t:n+' s'})),v=>S.corrWin===v,v=>S.corrWin=v);
   chips($('#cDet'),[{v:'audio',t:'Ton'},{v:'motion',t:'Erschütterung'},{v:'both',t:'Ton + Erschütterung'},{v:'either',t:'Ton oder Erschütterung'}],v=>S.det===v,v=>{S.det=v;if(S.mic)detStart()});
 }
 $('#oVoiceOut').onchange=e=>{S.voiceOut=e.target.checked;saveS()};
 $('#oVoiceIn').onchange=e=>{S.voiceIn=e.target.checked;saveS()};
 $('#oMic').onchange=async e=>{S.mic=e.target.checked;saveS();if(!S.mic){detStop();$('#wDet').classList.add('hidden');return}
   if(!await detStart()){S.mic=false;saveS();e.target.checked=false}else toast('Schusserkennung aktiv ✓');renderHome()};
+$('#oAuto').onchange=e=>{S.autoCount=e.target.checked;saveS();renderHome()};
 $('#oMSens').oninput=e=>{S.msens=+e.target.value;saveS()};
 $('#oSens').oninput=e=>{S.sens=+e.target.value;saveS()};
 $('#btnStart').onclick=()=>startSession(S.cfg,null);
@@ -521,7 +529,7 @@ async function startSession(cfg,plan){
 }
 function setPhase(p,dur){R.phase=p;R.phaseStart=performance.now();R.phaseDur=dur||0;renderTrain()}
 function startRep(){
-  clearTimers();R.detectAt=null;R.undo=null;
+  clearTimers();R.corr=null;R.detectAt=null;R.undo=null;
   const first=R.D.kind==='shot'?'shot':'pass';
   if(R.stage===first&&isDone())return finish();
   R.target=drawTarget();
@@ -560,7 +568,7 @@ function renderTrain(){
   segs.classList.toggle('hidden',R.phase==='ready'||m!=='seg');
   $('#simple').classList.toggle('hidden',R.phase==='ready'||m!=='simple');
   $('#btnMiss').classList.toggle('hidden',m!=='seg');
-  $('#area').classList.toggle('off',!live&&R.phase!=='ready');
+  $('#area').classList.toggle('off',!live&&R.phase!=='ready'&&!R.corr);
   [...segs.children].forEach((s,i)=>s.classList.toggle('target',live&&R.target===i+1));
   $('#bYes').textContent=k==='pass'?'Gefangen':'Treffer';$('#bNo').textContent=k==='pass'?'Verloren':'Daneben';
   $('#tMode').textContent=R.D.n+' · '+curTech()+(R.D.kind==='combo'?' ('+(k==='pass'?'Pass':'Schuss')+')':'')+(R.plan?' · Plan '+(R.plan.i+1)+'/'+S.plan.length:'');
@@ -580,7 +588,8 @@ function tick(){
     case 'wait':txt='Achtung …';cls='alert';break;
     case 'call':txt=rem>0?tgt+' – JETZT':tgt+' · Zeit um';cls=rem>0?'alert':'late';frac=Math.max(0,rem/R.phaseDur);break;
     case 'aim':txt=tgt+' · '+(rem>0?Math.ceil(rem/1000)+' s':'Zeit um');frac=Math.max(0,rem/R.phaseDur);if(rem<=0)cls='late';break;
-    case 'result':txt=R.lastHit?(k==='pass'?'Gefangen':'Treffer'):(k==='pass'?'Verloren':'Daneben');cls=R.lastHit?'ok':'late';break;
+    case 'result':txt=R.lastHit?(k==='pass'?'Gefangen':'Treffer'):(k==='pass'?'Verloren':'Daneben');cls=R.lastHit?'ok':'late';
+      if(R.corr){txt+=' · falsch? tippen';frac=Math.max(0,rem/R.phaseDur)}break;
   }
   if(S.mic&&R.detectAt!=null&&!R.undo&&(R.phase==='call'||R.phase==='aim'))txt+=' · ⚡ '+fmt((R.detectAt-R.callAt)/1000)+' s';
   const key=txt+cls;
@@ -591,9 +600,19 @@ function tick(){
   else{const r=Math.max(0,R.cfg.minutes*60000-(Date.now()-R.t0)),s=Math.ceil(r/1000);$('#tCount').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
   requestAnimationFrame(tick);
 }
-function input(v){
+function correct(v){
+  const e=R.corr.e,m=inputMode();let l=null,h;
+  if(v==='hit')h=true;else if(v===0){h=false;if(m==='seg')l=0}else{l=v;h=e.g===0?true:v===e.g}
+  e.l=l;e.h=h;e.fix=true;save(LS_DATA,D);
+  clearTimers();R.corr=null;R.lastHit=h;beep(h?1200:400,.07,.2);
+  const el=m==='seg'?(l>0?segs.children[l-1]:$('#btnMiss')):(h?$('#bYes'):$('#bNo'));
+  el.classList.add(h?'fhit':'fmiss');setTimeout(()=>el.classList.remove('fhit','fmiss'),450);
+  setPhase('result');later(startRep,800);
+}
+function input(v,auto){
   if(!R||!R.active||v===null)return;
   if(v==='ready'){if(R.phase==='ready')goReady();return}
+  if(R.phase==='result'&&R.corr){correct(v);return}
   if(!(R.phase==='aim'||R.phase==='call'))return;
   const k=curKind(),m=inputMode();
   let l=null,h;
@@ -605,17 +624,18 @@ function input(v){
   else if(S.mic&&R.detectAt!=null){rt=Math.round(R.detectAt-R.callAt);if(R.cfg.timing==='signal')late=rt>R.cfg.window*1000}
   const passOk=R.D.kind==='combo'&&R.stage==='pass'&&h,end=!passOk;
   const e={s:R.id,t:Date.now(),d:R.cfg.d,st:k,k:curTech(),g:R.target,l,h,rt,late,sig:R.cfg.timing==='signal',end};
+  if(auto)e.auto=true;
   R.entries.push(e);D.shots.push(e);save(LS_DATA,D);
   R.pending=null;clearTimers();R.lastHit=h;
   if(end){R.reps++;if(R.D.kind==='combo')R.stage='pass'}else R.stage='shot';
   beep(h?1200:400,.07,.2);
   const el=m==='seg'?(l>0?segs.children[l-1]:$('#btnMiss')):(h?$('#bYes'):$('#bNo'));
   el.classList.add(h?'fhit':'fmiss');setTimeout(()=>el.classList.remove('fhit','fmiss'),450);
-  setPhase('result');
-  later(startRep,550);
+  if(auto){const w=S.corrWin*1000;R.corr={e};setPhase('result',w);later(startRep,w)}
+  else{setPhase('result');later(startRep,550)}
 }
 function undo(){
-  if(!R||!R.active||!R.entries.length)return;
+  if(!R||!R.active||!R.entries.length)return;R.corr=null;
   const e=R.entries.pop(),i=D.shots.lastIndexOf(e);if(i>=0)D.shots.splice(i,1);save(LS_DATA,D);
   clearTimers();
   if(R.pending){R[R.pending.k].unshift(R.pending.t);R.pending=null}
