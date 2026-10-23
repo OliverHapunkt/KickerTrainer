@@ -585,6 +585,7 @@ async function startSession(cfg,plan){
 function setPhase(p,dur){R.phase=p;R.phaseStart=performance.now();R.phaseDur=dur||0;renderTrain()}
 function startRep(){
   clearTimers();R.corr=null;R.detectAt=null;R.undo=null;
+  if(R.nextStage){R.stage=R.nextStage;R.nextStage=null}
   const first=R.D.kind==='shot'?'shot':'pass';
   if(R.stage===first&&isDone())return finish();
   R.target=drawTarget();
@@ -682,7 +683,7 @@ function input(v,auto){
   if(auto)e.auto=true;
   R.entries.push(e);D.shots.push(e);save(LS_DATA,D);
   R.pending=null;clearTimers();R.lastHit=h;
-  if(end){R.reps++;if(R.D.kind==='combo')R.stage='pass'}else R.stage='shot';
+  if(end){R.reps++;R.nextStage=R.D.kind==='combo'?'pass':R.stage}else R.nextStage='shot'; // Phasenwechsel erst beim nächsten Ziel, sonst stimmt die Anzeige im Korrekturfenster nicht
   beep(h?1200:400,.07,.2);
   const el=m==='seg'?(l>0?segs.children[l-1]:$('#btnMiss')):(h?$('#bYes'):$('#bNo'));
   el.classList.add(h?'fhit':'fmiss');setTimeout(()=>el.classList.remove('fhit','fmiss'),450);
@@ -695,7 +696,7 @@ function undo(){
   clearTimers();
   if(R.pending){R[R.pending.k].unshift(R.pending.t);R.pending=null}
   if(e.end)R.reps--;
-  if(R.D.kind==='combo')R.stage=e.st;
+  R.nextStage=null;if(R.D.kind==='combo')R.stage=e.st;
   R.target=e.g;if(R.cfg.order==='weak')R.techNow=e.k;R.undo={rt:e.rt,late:e.late};R.detectAt=null;
   setPhase(R.cfg.timing==='signal'?'call':'aim',0);
 }
