@@ -24,7 +24,7 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute
 .chip{padding:11px 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:16px;min-height:44px}
 .chip.on{background:var(--acc);color:#111;border-color:var(--acc);font-weight:600}
 .sub{margin-top:14px}.sub:first-child{margin-top:0}
-.sub>label{display:block;font-size:14px;color:var(--mute);margin-bottom:6px}
+.sub>label:not(.row){display:block;font-size:14px;color:var(--mute);margin-bottom:6px}
 .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;font-size:17px}
 .row small{display:block;color:var(--mute);font-size:13px}
 .row input[type=checkbox]{width:28px;height:28px;accent-color:var(--acc);flex:none}
@@ -124,8 +124,8 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
     <label class="row"><span>Sprachansage<small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" id="oVoiceOut"></label>
     <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" id="oVoiceIn"></label>
     <label class="row"><span>Schusserkennung<small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" id="oMic"></label>
+    <label class="row"><span>Erkannten Schuss automatisch zählen<small>Zählt als Treffer – du korrigierst im Fenster. Nur mit Schusserkennung, nur bei Schüssen</small></span><input type="checkbox" id="oAuto"></label>
     <div class="sub" id="wDet"><label>Erkennung über</label><div class="chips" id="cDet"></div>
-      <label class="row"><span>Erkannten Schuss automatisch zählen<small>Standard: Treffer – du korrigierst im Fenster per Segment / Daneben</small></span><input type="checkbox" id="oAuto"></label>
       <div class="sub" id="wCorr"><label>Korrekturfenster</label><div class="chips" id="cCorr"></div></div>
       <p class="hint">„Ton + Erschütterung“ = beide müssen gleichzeitig ausschlagen: am wenigsten Fehlauslöser (Stimmen, Nachbartisch). Erschütterung braucht iPad direkt auf dem Tisch.</p></div>
     <button class="big" id="btnTest">Mikrofon &amp; Sprache testen</button>
@@ -462,7 +462,7 @@ function renderHome(){
   $('#oVoiceOut').checked=S.voiceOut;$('#oVoiceIn').checked=S.voiceIn;$('#oMic').checked=S.mic;$('#oSens').value=S.sens;
   $('#oVoiceIn').disabled=!SR;$('#oMSens').value=S.msens;
   $('#wDet').classList.toggle('hidden',!S.mic);
-  $('#oAuto').checked=S.autoCount;$('#wCorr').classList.toggle('hidden',!S.autoCount);
+  $('#oAuto').checked=S.autoCount;$('#wCorr').classList.toggle('hidden',!S.autoCount);$('#oAuto').disabled=false;
   chips($('#cCorr'),[2,3,5].map(n=>({v:n,t:n+' s'})),v=>S.corrWin===v,v=>S.corrWin=v);
   chips($('#cDet'),[{v:'audio',t:'Ton'},{v:'motion',t:'Erschütterung'},{v:'both',t:'Ton + Erschütterung'},{v:'either',t:'Ton oder Erschütterung'}],v=>S.det===v,v=>{S.det=v;if(S.mic)detStart()});
 }
