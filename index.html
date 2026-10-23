@@ -19,6 +19,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 h1{font-size:28px;margin:4px 0 16px}
 h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);margin:0 0 10px;font-weight:600}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+#hWeak{white-space:pre-line}
 .hint{color:var(--mute);font-size:14px;margin:10px 0 0;line-height:1.4}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{padding:11px 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:16px;min-height:44px}
@@ -110,7 +111,8 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
     <div class="sub" id="wTS"><label>Schuss-Ziele</label><div class="chips" id="cTS"></div></div>
   </div>
   <div class="card">
-    <div class="sub"><label>Reihenfolge</label><div class="chips" id="cOrder"></div></div>
+    <div class="sub"><label>Reihenfolge</label><div class="chips" id="cOrder"></div>
+      <div id="wWeak" class="hidden"><div class="sub"><label>Datenbasis: letzte Sessions dieser Disziplin</label><div class="chips" id="cWeakN"></div></div><p class="hint" id="hWeak"></p></div></div>
     <div class="sub"><label>Timing</label><div class="chips" id="cTiming"></div><p class="hint" id="hTiming"></p></div>
     <div class="sub" id="wWindow"><label>Reaktionsfenster nach Signal</label><div class="chips" id="cWindow"></div></div>
     <div class="sub" id="wReady"><label>„Bereit“ auslösen</label><div class="chips" id="cReady"></div><p class="hint">Tippen geht immer. Mit Spracheingabe zusätzlich „Ja“.</p></div>
@@ -210,7 +212,7 @@ const DISC={
 };
 const NUM=['','Eins','Zwei','Drei','Vier','Fünf'];
 const TORDER=[0,1,2,3,4,5,'wall','lane'];
-const DEFCFG={d:'s3',tech:'Pull',tech2:'Pull',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',timing:'free',window:2,ready:'tap',auto:5,scoring:'exact',amt:'count',count:20,minutes:10};
+const DEFCFG={d:'s3',tech:'Pull',tech2:'Pull',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',wt:['Pull'],wt2:['Pull'],weakN:10,timing:'free',window:2,ready:'tap',auto:5,scoring:'exact',amt:'count',count:20,minutes:10};
 const DEF={cfg:DEFCFG,plan:[],voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,det:'audio',autoCount:true,corrWin:3};
 
 function clone(o){return JSON.parse(JSON.stringify(o))}
@@ -418,11 +420,48 @@ function toggleTarget(arr,v){
 }
 function hasShot(c){return DISC[c.d].kind!=='pass'}
 function hasPass(c){return DISC[c.d].kind!=='shot'}
+function techList(c,n){const a=n===2?c.wt2:c.wt,f=n===2?c.tech2:c.tech;return a&&a.length?a:[f]}
+function toggleTech(c,n,v){
+  const key=n===2?'wt2':'wt',a=techList(c,n).slice(),i=a.indexOf(v);
+  if(i>=0){if(a.length>1)a.splice(i,1)}else a.push(v);
+  c[key]=a;if(n===1)c.tech=a[0];else c.tech2=a[0];
+}
+/* Schwachstellen: Gewicht je Kombination Technik × Ziel aus den letzten N Sessions */
+function weakPlan(cfg,kind){
+  const d=DISC[cfg.d],techs=(d.kind==='combo'&&kind==='shot')?techList(cfg,2):techList(cfg,1),
+    targets=kind==='shot'?cfg.tS:cfg.tP;
+  const ids=new Set(D.sessions.filter(x=>x.d===cfg.d).slice(-(cfg.weakN||10)).map(x=>x.id));
+  const shots=D.shots.filter(s=>ids.has(s.s)&&s.st===kind);
+  const combos=[];
+  for(const k of techs)for(const g of targets){
+    const a=shots.filter(s=>s.k===k&&s.g===g),n=a.length,h=a.filter(s=>s.h).length,rate=(h+1)/(n+2);
+    combos.push({k,g,n,h,rate,w:.15+(1-rate)});
+  }
+  return{combos,shots:shots.length};
+}
+function pickW(list,last){
+  const tot=list.reduce((x,c)=>x+c.w,0);
+  for(let t=0;t<6;t++){
+    let r=Math.random()*tot,c=list[list.length-1];
+    for(const x of list){r-=x.w;if(r<=0){c=x;break}}
+    if(!(last&&last.length>=2&&list.length>1&&last.every(l=>l.k===c.k&&l.g===c.g)))return c;
+  }
+  return list[0];
+}
+function weakPreview(cfg){
+  const kinds=DISC[cfg.d].kind==='combo'?['pass','shot']:[DISC[cfg.d].kind];let out=[];
+  for(const kind of kinds){
+    const pl=weakPlan(cfg,kind),seen=pl.combos.filter(c=>c.n>=3).sort((a,b)=>a.rate-b.rate).slice(0,3);
+    const nm=c=>c.k+' → '+tl(c.g,kind)+' ('+Math.round(c.h/c.n*100)+' %, n='+c.n+')';
+    out.push((kinds.length>1?(kind==='pass'?'Pass: ':'Schuss: '):'')+(pl.shots<10||!seen.length?'noch zu wenig Daten – bis dahin fast gleichmäßig verteilt':'häufiger geübt: '+seen.map(nm).join(' · ')));
+  }
+  return out.join('\n')+'\nDie Gewichtung passt sich während der Session laufend an.';
+}
 function cfgLabel(c){
-  const d=DISC[c.d],p=[d.n,c.tech+(d.kind==='combo'?' + '+c.tech2:'')];
+  const d=DISC[c.d],wk=c.order==='weak',p=[d.n,(wk?techList(c,1).join('/'):c.tech)+(d.kind==='combo'?' + '+(wk?techList(c,2).join('/'):c.tech2):'')];
   if(hasPass(c))p.push(c.tP.map(x=>tl(x,'pass')).join('/'));
   if(hasShot(c))p.push(c.tS.map(x=>tl(x,'shot')).join(''));
-  p.push(c.order==='mix'?'gemischt':'Serie',c.timing==='signal'?'Signal':'frei');
+  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',c.timing==='signal'?'Signal':'frei');
   if(hasShot(c))p.push(c.scoring==='exact'?'genau':'einfach');
   p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
   return p.join(' · ');
@@ -430,15 +469,26 @@ function cfgLabel(c){
 function renderHome(){
   const c=S.cfg,d=DISC[c.d];
   chips($('#cDisc'),Object.entries(DISC).map(([v,x])=>({v,t:x.n})),v=>c.d===v,v=>{
-    c.d=v;const n=DISC[v];if(!n.techs.includes(c.tech))c.tech=n.techs[0];if(n.techs2&&!n.techs2.includes(c.tech2))c.tech2=n.techs2[0]});
-  $('#lTech').textContent=d.kind==='combo'?'Pass-Technik':'Technik';
-  chips($('#cTech'),d.techs.map(t=>({v:t,t})),v=>c.tech===v,v=>c.tech=v);
+    c.d=v;const n=DISC[v];if(!n.techs.includes(c.tech))c.tech=n.techs[0];if(n.techs2&&!n.techs2.includes(c.tech2))c.tech2=n.techs2[0];c.wt=(c.wt||[]).filter(x=>n.techs.includes(x));if(!c.wt.length)c.wt=[c.tech];if(n.techs2){c.wt2=(c.wt2||[]).filter(x=>n.techs2.includes(x));if(!c.wt2.length)c.wt2=[c.tech2]}});
+  const wk=c.order==='weak';
+  $('#lTech').textContent=(d.kind==='combo'?'Pass-Technik':'Technik')+(wk?' (mehrere möglich)':'');
+  if(wk)chips($('#cTech'),d.techs.map(t=>({v:t,t})),v=>techList(c,1).includes(v),v=>toggleTech(c,1,v));
+  else chips($('#cTech'),d.techs.map(t=>({v:t,t})),v=>c.tech===v,v=>c.tech=v);
   $('#wTech2').classList.toggle('hidden',d.kind!=='combo');
-  if(d.techs2)chips($('#cTech2'),d.techs2.map(t=>({v:t,t})),v=>c.tech2===v,v=>c.tech2=v);
+  if(d.techs2){
+    $('#wTech2').querySelector('label').textContent='Schuss-Technik'+(wk?' (mehrere möglich)':'');
+    if(wk)chips($('#cTech2'),d.techs2.map(t=>({v:t,t})),v=>techList(c,2).includes(v),v=>toggleTech(c,2,v));
+    else chips($('#cTech2'),d.techs2.map(t=>({v:t,t})),v=>c.tech2===v,v=>c.tech2=v);
+  }
   $('#wTP').classList.toggle('hidden',!hasPass(c));$('#wTS').classList.toggle('hidden',!hasShot(c));
   chips($('#cTP'),[{v:0,t:'Egal'},{v:'wall',t:'Wall'},{v:'lane',t:'Lane'}],v=>c.tP.includes(v),v=>c.tP=toggleTarget(c.tP,v));
   chips($('#cTS'),[{v:0,t:'Tor (egal)'},1,2,3,4,5].map(x=>typeof x==='number'?{v:x,t:String(x)}:x),v=>c.tS.includes(v),v=>c.tS=toggleTarget(c.tS,v));
-  chips($('#cOrder'),[{v:'mix',t:'Gemischt'},{v:'series',t:'Serie'}],v=>c.order===v,v=>c.order=v);
+  chips($('#cOrder'),[{v:'mix',t:'Gemischt'},{v:'series',t:'Serie'},{v:'weak',t:'Schwachstellen'}],v=>c.order===v,v=>c.order=v);
+  $('#wWeak').classList.toggle('hidden',c.order!=='weak');
+  if(c.order==='weak'){
+    chips($('#cWeakN'),[5,10,20].map(n=>({v:n,t:String(n)})),v=>c.weakN===v,v=>c.weakN=v);
+    $('#hWeak').textContent=weakPreview(c);
+  }
   chips($('#cTiming'),[{v:'free',t:'Freies Tempo'},{v:'signal',t:'Auf Signal'}],v=>c.timing===v,v=>c.timing=v);
   $('#hTiming').textContent=c.timing==='free'
     ?'Ziel wird sofort angesagt, du spielst in deinem Rhythmus.'
@@ -496,7 +546,7 @@ function later(fn,ms){R.timers.push(setTimeout(fn,ms))}
 function clearTimers(){if(R){R.timers.forEach(clearTimeout);R.timers=[]}}
 function curKind(){return R.D.kind==='combo'?R.stage:R.D.kind}
 function ruleMs(){return(R.D.kind==='combo'&&R.stage==='shot'?R.D.rule2:R.D.rule)*1000}
-function curTech(){return R.D.kind==='combo'&&R.stage==='shot'?R.cfg.tech2:R.cfg.tech}
+function curTech(){return R.techNow||(R.D.kind==='combo'&&R.stage==='shot'?R.cfg.tech2:R.cfg.tech)}
 function inputMode(){return curKind()==='shot'&&R.cfg.scoring==='exact'?'seg':'simple'}
 function deckKey(){return curKind()==='shot'?'deckS':'deckP'}
 function makeDeck(t){
@@ -505,6 +555,11 @@ function makeDeck(t){
   return R.cfg.order==='mix'?shuffle(d):d;
 }
 function drawTarget(){
+  if(R.cfg.order==='weak'){
+    const c=pickW(weakPlan(R.cfg,curKind()).combos,R.lastPicks);
+    R.lastPicks=((R.lastPicks||[]).concat(c)).slice(-2);R.techNow=c.k;R.pending=null;return c.g;
+  }
+  R.techNow=null;
   const k=deckKey();if(!R[k].length)R[k]=makeDeck(curKind()==='shot'?R.cfg.tS:R.cfg.tP);
   const t=R[k].shift();R.pending={k,t};return t;
 }
@@ -641,7 +696,7 @@ function undo(){
   if(R.pending){R[R.pending.k].unshift(R.pending.t);R.pending=null}
   if(e.end)R.reps--;
   if(R.D.kind==='combo')R.stage=e.st;
-  R.target=e.g;R.undo={rt:e.rt,late:e.late};R.detectAt=null;
+  R.target=e.g;if(R.cfg.order==='weak')R.techNow=e.k;R.undo={rt:e.rt,late:e.late};R.detectAt=null;
   setPhase(R.cfg.timing==='signal'?'call':'aim',0);
 }
 function finish(){
