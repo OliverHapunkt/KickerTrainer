@@ -34,9 +34,9 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 function fmt(x,d=2){return x.toFixed(d).replace('.',',')}
 function pct(r){return Math.round(r*100)+' %'}
 function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2400)}
-const TABS=['home','stats','settings'];
+const TABS=['home','chal','stats','settings'];
 function show(id){
-  ['home','train','stats','settings','test'].forEach(x=>$('#'+x).classList.toggle('hidden',x!==id));
+  ['home','train','chal','stats','settings','test'].forEach(x=>$('#'+x).classList.toggle('hidden',x!==id));
   $('#tabbar').classList.toggle('hidden',!TABS.includes(id));
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===id));
   window.scrollTo(0,0)}

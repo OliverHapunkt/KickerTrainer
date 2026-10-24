@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.3.0',d:'2026-10-24'};
+window.KT_VER={v:'3.4.0',d:'2026-10-24'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -19,6 +19,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 
 <section id="home" class="screen tabbed">
   <header class="ptitle"><span class="brand">KickerTrainer</span><h1>Training</h1></header>
+  <div id="gamHome"></div>
 
   <div class="card qcard">
     <div class="qhead"><h2>Aktuelle Übung</h2><button class="link" id="btnCfg" aria-expanded="false">Anpassen</button></div>
@@ -81,11 +82,21 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
   <div id="statsBody"></div>
 </section>
 
+<section id="chal" class="screen tabbed hidden">
+  <header class="ptitle"><span class="brand">KickerTrainer</span><h1>Challenges</h1></header>
+  <div id="chalBody"></div>
+</section>
+
 <section id="settings" class="screen tabbed hidden">
   <header class="ptitle"><span class="brand">KickerTrainer</span><h1>Einstellungen</h1></header>
   <div class="card"><h2>Ansage &amp; Eingabe</h2>
     <label class="row"><span>Sprachansage<small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" class="sw" id="oVoiceOut"></label>
     <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" class="sw" id="oVoiceIn"></label>
+  </div>
+  <div class="card"><h2>Gamification</h2>
+    <label class="row"><span>Gamification<small>Level, XP und Challenges. Aus = App wie bisher</small></span><input type="checkbox" class="sw" id="gOn"></label>
+    <label class="row"><span>XP &amp; Level<small>Punkte für Training und Treffer, schwierigere Ziele zählen mehr</small></span><input type="checkbox" class="sw" id="gXp"></label>
+    <label class="row"><span>Challenges<small>Vorkonfigurierte Aufgaben mit Fortschritt</small></span><input type="checkbox" class="sw" id="gCh"></label>
   </div>
   <div class="card"><h2>Schusserkennung</h2>
     <label class="row"><span>Schusserkennung<small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" class="sw" id="oMic"></label>
@@ -136,6 +147,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 
 <nav class="tabbar" id="tabbar">
   <button data-tab="home"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" class="f"/></svg><span>Training</span></button>
+  <button data-tab="chal"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg><span>Challenges</span></button>
   <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Statistik</span></button>
   <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>Einstellungen</span></button>
 </nav>
@@ -171,7 +183,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <div id="summary" class="overlay hidden"><div class="sheet" id="summaryBody"></div></div>
 <script>
 // Skripte in fester Reihenfolge laden (async=false), alle teilen sich denselben globalen Gültigkeitsbereich
-['core','sensors','home','training','stats','tools','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
+['core','sensors','home','training','stats','gamification','tools','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
 </script>
 </body>
 </html>

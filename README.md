@@ -2,17 +2,17 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.3.0-green)
+![Version](https://img.shields.io/badge/version-3.4.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.3.0 · 2026-10-24`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.4.0 · 2026-10-24`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
 ## Features
 
 ### Bedienung
-- **Tab-Leiste:** Training · Statistik · Einstellungen (während des Trainings ausgeblendet)
+- **Tab-Leiste:** Training · Challenges · Statistik · Einstellungen (während des Trainings ausgeblendet)
 - **Training:** Karte „Aktuelle Übung“ mit Kurzbeschreibung, Konfiguration über „Anpassen“; Start-Leiste immer unten erreichbar
 - **Meine Übungen:** aktuelle Konfiguration unter einem Namen speichern, mit ▶ direkt starten oder antippen zum Laden
 - **Einstellungen:** Ansage, Spracheingabe, Schusserkennung, Konto, Sichern/Import
@@ -47,6 +47,18 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.3.0 · 2026
 ### Spracheingabe (Beta)
 - Erkannte Wörter: „Ja“, „eins“ bis „fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“
 - Nur verfügbar, wenn der Browser Spracherkennung unterstützt
+
+### Gamification (abschaltbar, Standard: an)
+- Einstellungen › Gamification: Hauptschalter, einzeln **XP & Level** und **Challenges**. Aus = App wie bisher
+- **XP** werden nie gespeichert, sondern immer aus den Einträgen berechnet (ausgeschlossene Sessions zählen nicht, Formeländerungen gelten rückwirkend):
+  - 1 XP pro Aktion; Treffer zusätzlich 2 XP × Schwierigkeit (bestimmtes Segment ×2, Wall/Lane ×1,5, „egal“ ×1, auf Signal zusätzlich ×1,5)
+  - ab der 301. Aktion eines Tages nur 25 %; +20 XP je Session mit mindestens 20 Aktionen; XP aus geschafften Challenges
+- **Level:** benötigte Gesamt-XP = 100 · (Level − 1)^1,8 (L5: 1.213, L10: 5.220, L20: 20.033). Titel: Einsteiger, Vereinsspieler, Ligaspieler, Turnierspieler, Profi
+- **10 Challenges** (`js/gamification.js`, Liste `CHAL`): Warmlaufen, Linke Ecke, Rechte Ecke, Achterkette, Scharfschütze, Unter Druck, Passmaschine, Durchmarsch, Schwachstelle knacken, Eiserner Wille
+  - „Starten“ übernimmt die vorkonfigurierte Übung und startet sie; Fortschritt zählt ab diesem Zeitpunkt, auch aus normalen Trainings mit passender Übung
+  - Grenzwerte vorläufig, kalibriert an den Daten vom Oktober 2026
+  - Stand der Challenges liegt in `kt2_settings` und wird **nicht** zwischen Geräten abgeglichen
+- Training: Trefferserie ab 3 in der Kopfzeile (🔥); Auswertung zeigt XP, Level-Aufstieg und Challenge-Fortschritt
 
 ### Statistik
 - Zeitraum: Letzte Session, Heute, 7 Tage, 30 Tage, Alles
@@ -85,6 +97,7 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.3.0 · 2026
   | `home.js` | Startseite, Konfiguration, Schwachstellen-Planung |
   | `training.js` | Trainingsablauf, Eingabe, Korrektur, Auswertung nach der Session |
   | `stats.js` | Statistikseite und Diagramme |
+  | `gamification.js` | XP, Level, Challenges |
   | `tools.js` | Testseite, Export/Import, Alle Daten löschen |
   | `cloud.js` | Anmeldung und Cloud-Sync |
   | `main.js` | Start (läuft als letzte Datei) |
@@ -176,6 +189,7 @@ Mikrofon und Bewegungssensoren funktionieren nur über HTTPS oder `localhost`.
 ## Roadmap
 
 - Migration auf React als PWA (mit Service Worker und Offline-Betrieb)
+- Rangliste (freiwillig, nur zusammengefasste Werte, Server-Funktion) und Challenge-Stand im Konto speichern
 - Gruppen mit Einladungscode und gemeinsame Challenges (gleiche Konfiguration, Rangliste je Challenge)
 - Gespielte Partien erfassen (beide Seiten bestätigen) und daraus eine Elo-Rangliste berechnen (serverseitig)
 - Löschungen zwischen Geräten übertragen
