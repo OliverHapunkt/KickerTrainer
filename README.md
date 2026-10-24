@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.2.0-green)
+![Version](https://img.shields.io/badge/version-3.2.1-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.2.0 · 2026-10-24`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.2.1 · 2026-10-24`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -71,7 +71,18 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.2.0 · 2026
 
 ## Technik
 
-- Eine einzige Datei: `index.html` mit eingebettetem CSS und JavaScript (Vanilla JS, kein Build-Schritt)
+- Kein Build-Schritt: `index.html` (Oberfläche), `css/app.css`, Vanilla JS in `js/`:
+  | Datei | Inhalt |
+  |---|---|
+  | `core.js` | Konstanten, Disziplinen, Speicher (`localStorage`), Hilfsfunktionen |
+  | `sensors.js` | Signaltöne, Sprachansage, Schusserkennung (Ton/Erschütterung), Spracheingabe, Wake Lock |
+  | `home.js` | Startseite, Konfiguration, Schwachstellen-Planung |
+  | `training.js` | Trainingsablauf, Eingabe, Korrektur, Auswertung nach der Session |
+  | `stats.js` | Statistikseite und Diagramme |
+  | `tools.js` | Testseite, Export/Import, Alle Daten löschen |
+  | `cloud.js` | Anmeldung und Cloud-Sync |
+  | `main.js` | Start (läuft als letzte Datei) |
+- Die Dateien sind klassische Skripte (keine ES-Module) und teilen sich einen globalen Gültigkeitsbereich. Grund: Der Zustand (`S`, `D`, `R`, `SY`) wird an vielen Stellen neu zugewiesen, was zwischen ES-Modulen nicht geht. Die **Ladereihenfolge** steht in `index.html` und ist verbindlich
 - Einzige externe Abhängigkeit: `supabase-js` (fest auf Version 2.118.0 gepinnt, mit Prüfsumme/SRI), per jsDelivr **erst nach der Anmeldung** geladen
 - Web Audio API (Signaltöne, Schusserkennung), Web Speech API (Ansage, Spracheingabe), DeviceMotion (Erschütterung)
 - Hosting: GitHub Pages, Deployment per GitHub Actions bei jedem Push auf `main` (`.github/workflows/deploy.yml`)
@@ -96,18 +107,18 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.2.0 · 2026
 
 ### Altbestand im Repo
 
-`app.js`, `audio-system.js`, `stats.js`, `timer-mode.js` und `styles.css` gehören zu einer früheren, modularen Version. Sie werden von `index.html` **nicht** geladen und haben keinen Einfluss auf die App. Maßgeblich ist ausschließlich `index.html`.
+Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht** geladen.
 
 ---
 
 ## Backend (Supabase)
 
-- Datenbank, Anmeldung und Zugriffsregeln laufen auf Supabase. Projekt-URL und der **öffentliche** (publishable) Schlüssel stehen in `index.html` (`SB_URL`, `SB_KEY`)
-- Den geheimen Schlüssel (`service_role` / secret) und das Datenbank-Passwort **nie** ins Repo oder in `index.html` schreiben
+- Datenbank, Anmeldung und Zugriffsregeln laufen auf Supabase. Projekt-URL und der **öffentliche** (publishable) Schlüssel stehen in `js/cloud.js` (`SB_URL`, `SB_KEY`)
+- Den geheimen Schlüssel (`service_role` / secret) und das Datenbank-Passwort **nie** ins Repo schreiben
 - Der Schutz der Daten liegt in den Zugriffsregeln (Row Level Security): Jeder sieht und ändert nur eigene Zeilen, nicht angemeldete Besucher haben keinen Zugriff
 - Das Schema liegt als Migrationen in `supabase/migrations/`. Die GitHub-Integration von Supabase spielt neue Migrationen beim Merge nach `main` ein
 - Tabellen: `profiles`, `sessions`, `shots`. Konto löschen läuft über die Funktion `delete_my_account()`
-- Neue Version der Bibliothek: in `index.html` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
+- Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
 
 ### Einrichtung in Supabase
 1. Authentication › Templates: Vorlagen **Magic Link** und **Confirm signup** so ändern, dass sie `{{ .Token }}` enthalten (Code statt Link)
@@ -137,7 +148,7 @@ python3 -m http.server 8000
 Mikrofon und Bewegungssensoren funktionieren nur über HTTPS oder `localhost`.
 
 ### Versionierung
-- Version und Datum stehen in `index.html` in den Konstanten `APP_VERSION` und `APP_DATE`
+- Version und Datum stehen **nur** in `index.html` (`window.KT_VER`). Sie werden als `?v=…` an CSS und alle Skripte gehängt, damit iOS nach einem Update keine alten und neuen Dateien mischt
 - Bei jeder Änderung hochzählen und das Badge in dieser README anpassen
 - Schema: Patch (`3.1.x`) für Fixes, Minor (`3.x.0`) für neue Funktionen, Major für Datenmodell-Änderungen
 
@@ -159,7 +170,6 @@ Mikrofon und Bewegungssensoren funktionieren nur über HTTPS oder `localhost`.
 ## Roadmap
 
 - Migration auf React als PWA (mit Service Worker und Offline-Betrieb)
-- Altbestand entfernen oder in `legacy/` verschieben
 - Gruppen mit Einladungscode und gemeinsame Challenges (gleiche Konfiguration, Rangliste je Challenge)
 - Gespielte Partien erfassen (beide Seiten bestätigen) und daraus eine Elo-Rangliste berechnen (serverseitig)
 - Löschungen zwischen Geräten übertragen
