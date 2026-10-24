@@ -1,0 +1,4 @@
+# Supabase-Projektkonfiguration (lokal und für die GitHub-Integration).
+# Bewusst minimal gehalten. `supabase init` erzeugt eine vollständige Datei,
+# die du bei Bedarf an die Stelle setzen kannst.
+project_id = "kickertrainer"
