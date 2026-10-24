@@ -4,4 +4,5 @@
 requestAnimationFrame(drawMeters);
 setInterval(()=>{if(actx&&actx.state==='suspended'&&(mic.on||(R&&R.active)))actx.resume().catch(()=>{})},1000);
 renderHome();
+show('home');
 cloudBoot();

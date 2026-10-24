@@ -2,14 +2,20 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.2.1-green)
+![Version](https://img.shields.io/badge/version-3.3.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.2.1 · 2026-10-24`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.3.0 · 2026-10-24`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
 ## Features
+
+### Bedienung
+- **Tab-Leiste:** Training · Statistik · Einstellungen (während des Trainings ausgeblendet)
+- **Training:** Karte „Aktuelle Übung“ mit Kurzbeschreibung, Konfiguration über „Anpassen“; Start-Leiste immer unten erreichbar
+- **Meine Übungen:** aktuelle Konfiguration unter einem Namen speichern, mit ▶ direkt starten oder antippen zum Laden
+- **Einstellungen:** Ansage, Spracheingabe, Schusserkennung, Konto, Sichern/Import
 
 ### Disziplinen
 - **Schuss 3er** – Techniken: Pull, Push, Snake, Tic-Tac, Frei

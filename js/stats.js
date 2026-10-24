@@ -7,7 +7,6 @@ function exSet(){return new Set(D.sessions.filter(x=>x.x).map(x=>x.id))}
 function sessMeta(id){return D.sessions.find(x=>x.id===id)}
 function dayStart(t){const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()}
 function fmtDate(t,time){const d=new Date(t);return d.toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})+(time?' · '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'')}
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function discName(d){return DISC[d]?DISC[d].n:d}
 function baseFilter(s){return(ST.disc==='all'||s.d===ST.disc)&&(ST.tech==='all'||s.k===ST.tech)&&(ST.timing==='all'||(ST.timing==='sig')===!!s.sig)}
 function sessionsList(){
@@ -49,6 +48,10 @@ function chipsS(el,opts,isOn,onTap){
 /* Farbskala: eine Farbe (Akzent), dunkel = wenig, hell = viel */
 function seq(t){t=Math.max(0,Math.min(1,t));const a=[30,34,41],b=[255,176,32];return'rgb('+a.map((x,i)=>Math.round(x+(b[i]-x)*(.1+.9*t))).join(',')+')'}
 function seqTxt(t){return t>.6?'#111':C_TXT}
+/* Trefferquoten relativ zum eigenen Schnitt: rot = darunter, grau = im Schnitt, grün = darüber (±25 Pkt = volle Farbe) */
+function dvg(r,avg){const d=Math.max(-1,Math.min(1,(r-avg)/.25)),base=[46,51,60],to=d<0?[214,69,71]:[38,166,98],k=Math.abs(d);
+  return'rgb('+base.map((x,i)=>Math.round(x+(to[i]-x)*k)).join(',')+')'}
+function dvgLegend(avg){return'<div class="legend"><span><i style="background:linear-gradient(90deg,'+dvg(avg-.25,avg)+','+dvg(avg,avg)+','+dvg(avg+.25,avg)+');width:60px"></i>unter · im · über deinem Schnitt ('+pct(avg)+')</span><span>blass = weniger als 5 Versuche</span></div>'}
 function svg(W,H,inner){return'<svg class="chart" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">'+inner+'</svg>'}
 function card(title,body,sub){return'<div class="card"><h2>'+title+'</h2>'+(sub?'<p class="hint" style="margin:-4px 0 10px">'+sub+'</p>':'')+body+'</div>'}
 function legend(items){return'<div class="legend">'+items.map(([c,t,shape])=>'<span><i style="background:'+c+(shape==='line'?';height:3px;width:14px;border-radius:2px;vertical-align:3px':'')+(shape==='dot'?';border-radius:50%':'')+'"></i>'+t+'</span>').join('')+'</div>'}
@@ -94,18 +97,18 @@ function chartTrend(W,a,single){
 }
 function chartGoal(W,a){
   const sh=a.filter(z=>typeof z.g==='number'&&z.g>0);if(!sh.length)return'';
-  const gap=6,cw=(W-gap*4)/5,H=118;let s='';
+  const gap=6,cw=(W-gap*4)/5,H=118,avg=sh.filter(z=>z.h).length/sh.length;let s='';
   for(let g=1;g<=5;g++){
     const x=sh.filter(z=>z.g===g),n=x.length,h=x.filter(z=>z.h).length,r=n?h/n:0,X=(g-1)*(cw+gap);
-    const fill=n?seq(r):'#1e2229',op=n&&n<5?.55:1;
+    const fill=n?dvg(r,avg):'#1e2229',op=n&&n<5?.55:1;
     s+='<g opacity="'+op+'"><rect x="'+X+'" y="16" width="'+cw+'" height="'+(H-36)+'" rx="10" fill="'+fill+'"/>'
-      +'<text x="'+(X+cw/2)+'" y="'+(H/2+10)+'" text-anchor="middle" style="font-size:'+Math.min(26,cw/3)+'px;font-weight:800;fill:'+(n?seqTxt(r):C_MUTE)+'">'+(n?Math.round(r*100)+'%':'–')+'</text>'
-      +'<text x="'+(X+cw/2)+'" y="'+(H/2+28)+'" text-anchor="middle" style="fill:'+(n?seqTxt(r):C_MUTE)+';opacity:.8">'+(n?h+'/'+n:'')+'</text></g>'
+      +'<text x="'+(X+cw/2)+'" y="'+(H/2+10)+'" text-anchor="middle" style="font-size:'+Math.min(26,cw/3)+'px;font-weight:800;fill:'+(n?C_TXT:C_MUTE)+'">'+(n?Math.round(r*100)+'%':'–')+'</text>'
+      +'<text x="'+(X+cw/2)+'" y="'+(H/2+28)+'" text-anchor="middle" style="fill:'+(n?C_TXT:C_MUTE)+';opacity:.8">'+(n?h+'/'+n:'')+'</text></g>'
       +'<text x="'+(X+cw/2)+'" y="11" text-anchor="middle">'+g+'</text>'
       +'<rect class="hit" x="'+X+'" y="0" width="'+cw+'" height="'+H+'" data-tip="Segment '+g+'\n'+(n?h+' von '+n+' getroffen ('+pct(r)+')':'keine Daten')+'"/>';
   }
   s+='<line x1="0" x2="'+W+'" y1="'+(H-12)+'" y2="'+(H-12)+'" stroke="#3a404a" stroke-width="3" stroke-linecap="round"/>';
-  return card('Torkarte','<div class="scrollx">'+svg(W,H,s)+'</div>'+scaleLegend(),'Trefferquote je Zielsegment · Segment 1 = links aus Schützensicht');
+  return card('Torkarte','<div class="scrollx">'+svg(W,H,s)+'</div>'+dvgLegend(avg),'Trefferquote je Zielsegment · Segment 1 = links aus Schützensicht');
 }
 function scaleLegend(){return'<div class="legend"><span><i style="background:linear-gradient(90deg,'+seq(0)+','+seq(1)+');width:60px"></i>0 → 100 %</span><span>blass = weniger als 5 Versuche</span></div>'}
 function chartMatrix(W,a){
@@ -130,15 +133,15 @@ function chartMatrix(W,a){
 function chartTechTarget(W,group){
   const a=group.arr,techs=[...new Set(a.map(z=>z.k))],ts=TORDER.filter(t=>a.some(z=>z.g===t));
   if(techs.length<2&&ts.length<2)return'';
-  const L=78,cell=Math.min(70,(W-L)/ts.length),ch=40,H=24+techs.length*(ch+4);let s='',combos=[];
+  const L=78,cell=Math.min(70,(W-L)/ts.length),ch=40,H=24+techs.length*(ch+4),avg=a.filter(z=>z.h).length/a.length;let s='',combos=[];
   ts.forEach((t,j)=>s+='<text x="'+(L+j*cell+cell/2)+'" y="14" text-anchor="middle">'+tl(t,group.st)+'</text>');
   techs.forEach((k,i)=>{
     const Y=22+i*(ch+4);s+='<text x="'+(L-10)+'" y="'+(Y+ch/2+4)+'" text-anchor="end">'+esc(k)+'</text>';
     ts.forEach((t,j)=>{
       const x=a.filter(z=>z.k===k&&z.g===t),n=x.length,h=x.filter(z=>z.h).length,r=n?h/n:0,X=L+j*cell;
       if(n>=5)combos.push({k,t,r,n,X,Y});
-      s+='<rect x="'+(X+2)+'" y="'+Y+'" width="'+(cell-4)+'" height="'+ch+'" rx="7" fill="'+(n?seq(r):'#1e2229')+'" opacity="'+(n&&n<5?.55:1)+'"/>';
-      if(n)s+='<text x="'+(X+cell/2)+'" y="'+(Y+ch/2+5)+'" text-anchor="middle" style="fill:'+seqTxt(r)+';font-weight:600">'+Math.round(r*100)+'</text>';
+      s+='<rect x="'+(X+2)+'" y="'+Y+'" width="'+(cell-4)+'" height="'+ch+'" rx="7" fill="'+(n?dvg(r,avg):'#1e2229')+'" opacity="'+(n&&n<5?.55:1)+'"/>';
+      if(n)s+='<text x="'+(X+cell/2)+'" y="'+(Y+ch/2+5)+'" text-anchor="middle" style="fill:'+C_TXT+';font-weight:600">'+Math.round(r*100)+'</text>';
       s+='<rect class="hit" x="'+X+'" y="'+Y+'" width="'+cell+'" height="'+ch+'" data-tip="'+esc(k)+' → '+tl(t,group.st)+'\n'+(n?h+' von '+n+' ('+pct(r)+')':'keine Daten')+'"/>';
     });
   });
@@ -146,7 +149,7 @@ function chartTechTarget(W,group){
   if(combos.length>1){const w=combos.sort((p,q)=>p.r-q.r)[0];
     s+='<rect x="'+(w.X+1)+'" y="'+(w.Y-1)+'" width="'+(cell-2)+'" height="'+(ch+2)+'" rx="8" fill="none" stroke="'+C_TXT+'" stroke-width="2"/>';
     note='<p class="hint">Schwachpunkt (umrandet): <b style="color:var(--text)">'+esc(w.k)+' → '+tl(w.t,group.st)+'</b> mit '+pct(w.r)+' bei '+w.n+' Versuchen.</p>'}
-  return'<div class="scrollx">'+svg(Math.max(W,L+ts.length*44),H,s)+'</div>'+scaleLegend()+note;
+  return'<div class="scrollx">'+svg(Math.max(W,L+ts.length*44),H,s)+'</div>'+dvgLegend(avg)+note;
 }
 function chartTechBars(W,group){
   const a=group.arr,techs=[...new Set(a.map(z=>z.k))],isPass=group.st==='pass',split=isPass&&a.some(z=>z.g==='wall')&&a.some(z=>z.g==='lane');
@@ -214,9 +217,10 @@ function chartCalendar(W){
 function renderStats(){
   const all=D.shots;
   // Filter
-  const ranges=[['last','Letzte Session'],['today','Heute'],['7','7 Tage'],['30','30 Tage'],['all','Alles']];
-  chipsS($('#cRange'),(ST.session?[['pin','📌 '+fmtDate((sessMeta(ST.session)||{start:(all.find(z=>z.s===ST.session)||{t:Date.now()}).t}).start,true)+' ✕']]:[]).concat(ranges).map(([v,t])=>({v,t})),
-    v=>v==='pin'?true:!ST.session&&ST.range===v,v=>{ST.session=null;if(v!=='pin')ST.range=v});
+  const ranges=[['last','Letzte'],['today','Heute'],['7','7 Tage'],['30','30 Tage'],['all','Alles']];
+  $('#cPin').classList.toggle('hidden',!ST.session);
+  if(ST.session)chipsS($('#cPin'),[{v:'pin',t:'📌 Session '+fmtDate((sessMeta(ST.session)||{start:(all.find(z=>z.s===ST.session)||{t:Date.now()}).t}).start,true)+'  ✕'}],()=>true,()=>{ST.session=null});
+  chipsS($('#cRange'),ranges.map(([v,t])=>({v,t})),v=>!ST.session&&ST.range===v,v=>{ST.session=null;ST.range=v});
   const present=Object.keys(DISC).filter(d=>all.some(z=>z.d===d));
   if(ST.disc!=='all'&&!present.includes(ST.disc))ST.disc='all';
   chipsS($('#cSDisc'),[{v:'all',t:'Alle Disziplinen'}].concat(present.map(d=>({v:d,t:DISC[d].n}))),v=>ST.disc===v,v=>{ST.disc=v;ST.tech='all'});
