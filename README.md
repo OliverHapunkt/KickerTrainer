@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.4.0-green)
+![Version](https://img.shields.io/badge/version-3.5.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.4.0 · 2026-10-24`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.5.0 · 2026-10-25`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -13,9 +13,12 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.4.0 · 2026
 
 ### Bedienung
 - **Tab-Leiste:** Training · Challenges · Statistik · Einstellungen (während des Trainings ausgeblendet)
-- **Training:** Karte „Aktuelle Übung“ mit Kurzbeschreibung, Konfiguration über „Anpassen“; Start-Leiste immer unten erreichbar
+- **Training:** Hauptkarte „Aktuelle Übung“ mit Start und „+ Plan“ ganz oben, Konfiguration über „Anpassen“; Level als Abzeichen neben der Überschrift (antippen = Details)
 - **Meine Übungen:** aktuelle Konfiguration unter einem Namen speichern, mit ▶ direkt starten oder antippen zum Laden
 - **Einstellungen:** Ansage, Spracheingabe, Schusserkennung, Konto, Sichern/Import
+- **Pass-Skizze** im Training: 5er→3er von oben, angesagtes Ziel (Wall/Lane) als Pfeil hervorgehoben
+- Eigene Dialoge statt Browser-Popups; kurze Einführung beim allerersten Start (nicht für bestehende Nutzer)
+- Statistik ab 1000 px Breite (iPad quer) zweispaltig
 
 ### Disziplinen
 - **Schuss 3er** – Techniken: Pull, Push, Snake, Tic-Tac, Frei
@@ -92,6 +95,7 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.4.0 · 2026
 - Kein Build-Schritt: `index.html` (Oberfläche), `css/app.css`, Vanilla JS in `js/`:
   | Datei | Inhalt |
   |---|---|
+  | `ui.js` | Icons, Dialoge (`ask`, `askText`, `info`), Einführung |
   | `core.js` | Konstanten, Disziplinen, Speicher (`localStorage`), Hilfsfunktionen |
   | `sensors.js` | Signaltöne, Sprachansage, Schusserkennung (Ton/Erschütterung), Spracheingabe, Wake Lock |
   | `home.js` | Startseite, Konfiguration, Schwachstellen-Planung |

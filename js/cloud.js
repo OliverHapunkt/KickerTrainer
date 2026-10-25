@@ -170,10 +170,10 @@ async function sendCode(again){
 async function adopt(user){ // nach erfolgreicher Anmeldung: Gerätedaten zuordnen
   const n=D.shots.length;
   if(SY.uid&&SY.uid!==user.id){
-    if(!confirm('Auf diesem Gerät liegen Daten eines anderen Kontos'+(SY.email?' ('+SY.email+')':'')+'. Mit diesem Konto zusammenführen?\n\nAbbrechen = wieder abmelden.')){await signOutLocal();return}
+    if(!await ask('Auf diesem Gerät liegen Daten eines anderen Kontos'+(SY.email?' ('+SY.email+')':'')+'. Mit diesem Konto zusammenführen?',{title:'Anderes Konto',ok:'Zusammenführen',cancel:'Wieder abmelden'})){await signOutLocal();return}
     SY=SY0();
   }else if(!SY.uid&&n>0){
-    if(!confirm('Deine '+n+' bisherigen Einträge auf diesem Gerät in dein Konto übernehmen? Daten, die schon im Konto liegen, werden dazugemischt.\n\nAbbrechen = wieder abmelden.')){await signOutLocal();return}
+    if(!await ask('Deine '+n+' bisherigen Einträge auf diesem Gerät in dein Konto übernehmen? Daten, die schon im Konto liegen, werden dazugemischt.',{title:'Daten übernehmen',ok:'Übernehmen',cancel:'Wieder abmelden'})){await signOutLocal();return}
   }
   SY.uid=user.id;SY.email=user.email||null;saveSY();
   CL.user=user;CL.step='out';CL.err='';renderAcct();cloudSync(true)}
@@ -196,12 +196,12 @@ $('#acSync').onclick=async()=>{
   await cloudSync(true);
   if(!CL.err&&CL.info)toast(CL.info.up||CL.info.down?'Abgeglichen: '+CL.info.up+' hochgeladen, '+CL.info.down+' geholt':'Alles aktuell')};
 $('#acOutBtn').onclick=async()=>{
-  if(!confirm('Abmelden? Deine Daten bleiben im Konto und auf diesem Gerät erhalten.'))return;
+  if(!await ask('Deine Daten bleiben im Konto und auf diesem Gerät erhalten.',{title:'Abmelden?',ok:'Abmelden'}))return;
   if(navigator.onLine&&!CL.busy)await cloudSync(true); // letzter Abgleich vor dem Abmelden
   await signOutLocal();toast('Abgemeldet')};
 $('#acDelete').onclick=async()=>{
-  if(!confirm('Konto wirklich löschen? Deine E-Mail-Adresse und ALLE Daten im Konto werden unwiderruflich gelöscht. Die Daten auf diesem Gerät bleiben erhalten.'))return;
-  if(!confirm('Sicher? Das kann nicht rückgängig gemacht werden.'))return;
+  if(!await ask('Deine E-Mail-Adresse und ALLE Daten im Konto werden unwiderruflich gelöscht. Die Daten auf diesem Gerät bleiben erhalten.',{title:'Konto löschen?',ok:'Konto löschen',danger:true}))return;
+  if(!await ask('Das kann nicht rückgängig gemacht werden.',{title:'Wirklich sicher?',ok:'Endgültig löschen',danger:true}))return;
   const b=$('#acDelete');b.disabled=true;
   try{
     const sb=await sbInit(),{error}=await sb.rpc('delete_my_account');

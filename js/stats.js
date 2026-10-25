@@ -53,7 +53,7 @@ function dvg(r,avg){const d=Math.max(-1,Math.min(1,(r-avg)/.25)),base=[46,51,60]
   return'rgb('+base.map((x,i)=>Math.round(x+(to[i]-x)*k)).join(',')+')'}
 function dvgLegend(avg){return'<div class="legend"><span><i style="background:linear-gradient(90deg,'+dvg(avg-.25,avg)+','+dvg(avg,avg)+','+dvg(avg+.25,avg)+');width:60px"></i>unter · im · über deinem Schnitt ('+pct(avg)+')</span><span>blass = weniger als 5 Versuche</span></div>'}
 function svg(W,H,inner){return'<svg class="chart" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">'+inner+'</svg>'}
-function card(title,body,sub){return'<div class="card"><h2>'+title+'</h2>'+(sub?'<p class="hint" style="margin:-4px 0 10px">'+sub+'</p>':'')+body+'</div>'}
+function card(title,body,sub,cls){return'<div class="card'+(cls?' '+cls:'')+'"><h2>'+title+'</h2>'+(sub?'<p class="hint" style="margin:-4px 0 10px">'+sub+'</p>':'')+body+'</div>'}
 function legend(items){return'<div class="legend">'+items.map(([c,t,shape])=>'<span><i style="background:'+c+(shape==='line'?';height:3px;width:14px;border-radius:2px;vertical-align:3px':'')+(shape==='dot'?';border-radius:50%':'')+'"></i>'+t+'</span>').join('')+'</div>'}
 function bestRun(a){let b=0,c=0;for(const s of a){c=s.h?c+1:0;if(c>b)b=c}return b}
 function minutesOf(a){const m=new Map();for(const s of a){const x=m.get(s.s);if(!x)m.set(s.s,[s.t,s.t]);else{x[0]=Math.min(x[0],s.t);x[1]=Math.max(x[1],s.t)}}let t=0;for(const[x,y]of m.values())t+=(y-x)/60000+.3;return t}
@@ -219,7 +219,7 @@ function renderStats(){
   // Filter
   const ranges=[['last','Letzte'],['today','Heute'],['7','7 Tage'],['30','30 Tage'],['all','Alles']];
   $('#cPin').classList.toggle('hidden',!ST.session);
-  if(ST.session)chipsS($('#cPin'),[{v:'pin',t:'📌 Session '+fmtDate((sessMeta(ST.session)||{start:(all.find(z=>z.s===ST.session)||{t:Date.now()}).t}).start,true)+'  ✕'}],()=>true,()=>{ST.session=null});
+  if(ST.session)chipsS($('#cPin'),[{v:'pin',t:'Session '+fmtDate((sessMeta(ST.session)||{start:(all.find(z=>z.s===ST.session)||{t:Date.now()}).t}).start,true)+'  ✕'}],()=>true,()=>{ST.session=null});
   chipsS($('#cRange'),ranges.map(([v,t])=>({v,t})),v=>!ST.session&&ST.range===v,v=>{ST.session=null;ST.range=v});
   const present=Object.keys(DISC).filter(d=>all.some(z=>z.d===d));
   if(ST.disc!=='all'&&!present.includes(ST.disc))ST.disc='all';
@@ -232,11 +232,13 @@ function renderStats(){
   $('#cSTime').classList.toggle('hidden',!(hasSig&&hasFree));
   chipsS($('#cSTime'),[{v:'all',t:'Frei + Signal'},{v:'free',t:'Nur frei'},{v:'sig',t:'Nur auf Signal'}],v=>ST.timing===v,v=>ST.timing=v);
 
-  const W=Math.max(280,Math.min(728,$('#statsBody').clientWidth||document.documentElement.clientWidth-32)-30);
+  // iPad quer / breite Fenster: zwei Spalten. Hauptkarte, Verlauf und Sessions gehen über die volle Breite.
+  const two=window.innerWidth>=1000,sb=$('#statsBody');sb.classList.toggle('two',two);
+  const bw=sb.clientWidth||document.documentElement.clientWidth-32,Wf=Math.max(280,Math.min(two?1120:728,bw)-30),W=two?Math.floor((bw-12)/2)-30:Wf;
   const w=rangeWindow(),a=selShots(w),body=$('#statsBody');
   let html='';
   if(!a.length){
-    html=card('Keine Daten','<p class="hint" style="margin:0">Für diese Auswahl gibt es noch keine Einträge. Zeitraum oder Filter ändern.</p>');
+    html=card('Keine Daten','<p class="hint" style="margin:0">Für diese Auswahl gibt es noch keine Einträge. Zeitraum oder Filter ändern.</p>',null,'wide');
   }else{
     const b=agg(a),cmp=compareShots(w),single=!!w.sid||new Set(a.map(z=>z.s)).size===1;
     let delta='';
@@ -244,12 +246,12 @@ function renderStats(){
       delta='<div class="delta '+(d>0?'up':d<0?'down':'')+'">'+(d>0?'▲ +'+d:d<0?'▼ −'+(-d):'± 0')+' Pkt <span>ggü. '+cmp.label+' ('+pct(c.rate)+')</span></div>'}
     const scope=w.sid?(sessMeta(w.sid)?fmtDate(sessMeta(w.sid).start,true):'Session'):{today:'Heute','7':'Letzte 7 Tage','30':'Letzte 30 Tage',all:'Gesamter Zeitraum'}[ST.range];
     const rts=a.filter(z=>z.rt!=null);
-    html+='<div class="card"><h2>'+scope+(w.sid&&sessMeta(w.sid)&&sessMeta(w.sid).note?' · '+esc(sessMeta(w.sid).note):'')+'</h2><div class="hero"><div class="heronum">'+pct(b.rate)+'</div><div><div class="hl">Erfolgsquote · '+b.h+' von '+b.n+'</div>'+delta+'</div></div>'
+    html+='<div class="card wide"><h2>'+scope+(w.sid&&sessMeta(w.sid)&&sessMeta(w.sid).note?' · '+esc(sessMeta(w.sid).note):'')+'</h2><div class="hero"><div class="heronum">'+pct(b.rate)+'</div><div><div class="hl">Erfolgsquote · '+b.h+' von '+b.n+'</div>'+delta+'</div></div>'
       +'<div class="tiles" style="margin-top:14px"><div class="tile"><b>'+b.n+'</b><span>Aktionen</span></div>'
       +'<div class="tile"><b>'+new Set(a.map(z=>z.s)).size+'</b><span>Sessions</span></div>'
       +'<div class="tile"><b>'+Math.round(minutesOf(a))+'</b><span>Minuten</span></div>'
       +'<div class="tile"><b>'+(rts.length?fmt(rts.reduce((p,z)=>p+z.rt,0)/rts.length/1000):bestRun(a))+'</b><span>'+(rts.length?'Ø Reaktion (s)':'Beste Serie')+'</span></div></div></div>';
-    html+=card(single?'Verlauf in der Session':'Verlauf über Sessions',chartTrend(W,a,single));
+    html+=card(single?'Verlauf in der Session':'Verlauf über Sessions',chartTrend(Wf,a,single),null,'wide');
     const shots=a.filter(z=>z.st==='shot');
     if(shots.length){html+=chartGoal(W,shots);html+=chartMatrix(W,shots)}
     for(const g of groups(a)){
@@ -282,7 +284,7 @@ function renderSessionList(){
     h+='</div>';
   }
   if(total>ls.length)h+='<button class="big" data-act="more">Alle '+total+' Sessions zeigen</button>';
-  return card('Sessions',h||'<p class="hint" style="margin:0">Noch keine Sessions.</p>','Antippen für Details, Notiz, Ausschließen (z. B. Testläufe) oder Korrekturen');
+  return card('Sessions',h||'<p class="hint" style="margin:0">Noch keine Sessions.</p>','Antippen für Details, Notiz, Ausschließen (z. B. Testläufe) oder Korrekturen','wide');
 }
 function renderEntries(x){
   let h='<div class="entries">';
@@ -292,12 +294,12 @@ function renderEntries(x){
     if(seg){for(let n=1;n<=5;n++)h+='<button class="eb'+(z.l===n?(z.h?' on':' onm'):'')+'" data-act="set" data-i="'+idx+'" data-v="'+n+'">'+n+'</button>';
       h+='<button class="eb'+(z.l===0?' onm':'')+'" data-act="set" data-i="'+idx+'" data-v="0">✗</button>'}
     else h+='<button class="eb'+(z.h?' on':'')+'" data-act="hit" data-i="'+idx+'" data-v="1">✓</button><button class="eb'+(!z.h?' onm':'')+'" data-act="hit" data-i="'+idx+'" data-v="0">✗</button>';
-    h+='<button class="eb" data-act="rm" data-i="'+idx+'" aria-label="Eintrag löschen">🗑</button></div>';
+    h+='<button class="eb" data-act="rm" data-i="'+idx+'" aria-label="Eintrag löschen">'+icon('trash')+'</button></div>';
   });
   return h+'</div>';
 }
 function ensureMeta(id){let m=sessMeta(id);if(!m){const z=D.shots.find(s=>s.s===id);m={id,start:z?z.t:Date.now(),d:z?z.d:'s3'};D.sessions.push(m)}return m}
-$('#statsBody').addEventListener('click',e=>{
+$('#statsBody').addEventListener('click',async e=>{
   const t=e.target.closest('[data-tip]');
   if(t){showTip(t.dataset.tip,e.clientX,e.clientY);return}
   hideTip();
@@ -306,13 +308,13 @@ $('#statsBody').addEventListener('click',e=>{
   if(act==='open'){ST.open=ST.open===id?null:id;if(ST.open!==id)ST.edit=null}
   else if(act==='view'){ST.session=id;window.scrollTo(0,0)}
   else if(act==='edit'){ST.edit=ST.edit===id?null:id}
-  else if(act==='note'){const m=ensureMeta(id),v=prompt('Notiz zur Session',m.note||'');if(v===null)return;m.note=v.trim();save(LS_DATA,D)}
+  else if(act==='note'){const m=ensureMeta(id),v=await askText('Notiz zur Session',{value:m.note||'',placeholder:'z. B. neuer Ball, müde, Testlauf',max:120});if(v===null)return;m.note=v.trim();save(LS_DATA,D)}
   else if(act==='ex'){const m=ensureMeta(id);m.x=!m.x;save(LS_DATA,D);toast(m.x?'Session wird nicht mehr gezählt':'Session zählt wieder')}
-  else if(act==='del'){if(!confirm('Diese Session mit allen Einträgen löschen?'))return;D.shots=D.shots.filter(z=>z.s!==id);D.sessions=D.sessions.filter(z=>z.id!==id);cloudDelS(id);if(ST.session===id)ST.session=null;ST.open=null;save(LS_DATA,D);toast('Session gelöscht')}
+  else if(act==='del'){if(!await ask('Die Session wird mit allen Einträgen gelöscht.',{title:'Session löschen?',ok:'Löschen',danger:true}))return;D.shots=D.shots.filter(z=>z.s!==id);D.sessions=D.sessions.filter(z=>z.id!==id);cloudDelS(id);if(ST.session===id)ST.session=null;ST.open=null;save(LS_DATA,D);toast('Session gelöscht')}
   else if(act==='more'){ST.more=true}
   else if(act==='set'){const z=D.shots[i];if(!z)return;const v=+b.dataset.v;z.l=v;z.h=v>0&&v===z.g;z.fix=true;save(LS_DATA,D)}
   else if(act==='hit'){const z=D.shots[i];if(!z)return;z.h=b.dataset.v==='1';if(typeof z.l==='number'&&z.g>0)z.l=z.h?z.g:0;z.fix=true;save(LS_DATA,D)}
-  else if(act==='rm'){const z=D.shots[i];if(!z||!confirm('Eintrag löschen?'))return;D.shots.splice(i,1);cloudDelT(z);if(!D.shots.some(s=>s.s===z.s)){D.sessions=D.sessions.filter(m=>m.id!==z.s);cloudDelS(z.s);ST.open=null}save(LS_DATA,D)}
+  else if(act==='rm'){const z=D.shots[i];if(!z||!await ask('Dieser einzelne Eintrag wird gelöscht.',{title:'Eintrag löschen?',ok:'Löschen',danger:true}))return;D.shots.splice(i,1);cloudDelT(z);if(!D.shots.some(s=>s.s===z.s)){D.sessions=D.sessions.filter(m=>m.id!==z.s);cloudDelS(z.s);ST.open=null}save(LS_DATA,D)}
   const y=window.scrollY;renderStats();window.scrollTo(0,y);
 });
 function showTip(t,x,y){const el=$('#tip');el.textContent=t;el.classList.remove('hidden');const r=el.getBoundingClientRect();

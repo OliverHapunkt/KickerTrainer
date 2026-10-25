@@ -140,12 +140,11 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
 .say{font-size:44px;font-weight:800;text-align:center;margin:8px 0}
 .heard{text-align:center;color:var(--mute);min-height:1.4em;font-size:18px}
 .verdict{text-align:center;font-size:30px;font-weight:800;min-height:1.3em}
-.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + var(--tabh) + 96px);transform:translateX(-50%);background:#000;border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:20;font-size:15px;max-width:90vw}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + var(--tabh) + 20px);transform:translateX(-50%);background:#000;border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:20;font-size:15px;max-width:90vw}
 @media (max-width:420px){.tiles{grid-template-columns:repeat(2,1fr)}}
 
 /* ===== v3.3 Redesign ===== */
 .screen.tabbed{padding-bottom:calc(env(safe-area-inset-bottom) + var(--tabh) + 24px)}
-#home.tabbed{padding-bottom:calc(env(safe-area-inset-bottom) + var(--tabh) + 110px)}
 .ptitle{margin:4px 0 16px}.ptitle h1{margin:0}
 .brand{display:block;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}
 /* Segmented Control: eine Auswahl aus wenigen Optionen */
@@ -168,10 +167,6 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
 .prow .pmain b{display:block;font-size:17px}.prow .pmain small{display:block;font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .prow .pgo{width:52px;height:44px;border-radius:12px;border:0;background:var(--acc);color:#111;font-size:18px;font-weight:800;flex:none}
 .prow .pdel{width:40px;height:44px;border:0;background:none;color:var(--mute);font-size:22px;flex:none}
-/* Start-Leiste über der Tab-Leiste */
-.actionbar{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + var(--tabh));z-index:5;display:grid;grid-template-columns:2fr 1fr;gap:8px;
-  padding:16px max(16px,calc((100vw - 728px)/2)) 10px;background:linear-gradient(to bottom,rgba(14,16,19,0),var(--bg) 40%)}
-.actionbar .big{margin-top:0}
 /* Tab-Leiste */
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;justify-content:center;background:rgba(18,20,24,.94);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
   border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
@@ -230,3 +225,55 @@ input.sw:disabled{opacity:.4}
 .gwin.lvlup{background:rgba(255,176,32,.12);border-color:rgba(255,176,32,.5)}.gwin.lvlup span{color:var(--acc)}
 @keyframes gwin{0%{transform:scale(.92);opacity:0}60%{transform:scale(1.03)}100%{transform:scale(1);opacity:1}}
 .gxp{margin:14px 0 4px;text-align:center}.gxp>span{font-size:24px;font-weight:800;color:var(--acc)}.gxp small{color:var(--mute);font-size:13px}
+
+/* ===== v3.5 Paket 1 ===== */
+/* Icons */
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:middle}
+.ic .f{fill:currentColor;stroke:none}
+.tfoot .ic{width:24px;height:24px}
+.pgo .ic{width:20px;height:20px}.pdel .ic{width:20px;height:20px}
+.chico .ic{width:24px;height:24px;color:var(--acc)}
+.chev{width:22px;height:22px;color:var(--mute)}
+.gwin .ic{width:22px;height:22px}
+.streak{display:inline-flex;align-items:center;gap:2px;color:var(--acc);font-weight:700;margin-left:4px}.streak .ic{width:16px;height:16px}
+.eb .ic{width:18px;height:18px}
+/* Kopf Training: Titel + Level-Abzeichen */
+.phead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.lvlchip{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 14px 5px 5px;min-height:44px}
+.lvlc{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;color:#111;background:linear-gradient(135deg,#ffd166,var(--acc) 60%,#e8890c)}
+.lvlt{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--mute);text-align:left}
+.lvlt i{display:block;width:56px;height:5px;border-radius:3px;background:var(--panel2);overflow:hidden}.lvlt b{display:block;height:100%;background:var(--acc)}
+/* Hauptkarte */
+.qcard{border-color:#3a3220;background:linear-gradient(180deg,#1d1a14,var(--panel) 70%);padding:16px}
+.qcard .qsum{font-size:21px}
+.qbtns{margin-top:6px}.qbtns .big{margin-top:8px}
+/* Pass-Skizze */
+.pviz{display:flex;align-items:center;justify-content:center;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:6px}
+.pviz svg{width:100%;height:100%;max-height:100%}
+.pviz .field{fill:#13261b;stroke:#2c4a36;stroke-width:2}
+.pviz .rod{stroke:#3b4250;stroke-width:2}
+.pviz .arr{fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+.pviz .plbl{font-size:17px;font-weight:800;font-family:inherit}
+.area.split>.pviz{flex:1}
+/* Dialoge */
+.dlg{z-index:40;animation:dlgIn .15s ease-out}
+@keyframes dlgIn{from{opacity:0}to{opacity:1}}
+.dsheet{max-width:440px}
+.dtitle{margin:0 0 8px;font-size:20px}
+.dmsg{margin:0 0 6px;color:var(--mute);font-size:16px;line-height:1.45}.dmsg b{color:var(--text)}
+.dinput{display:block;width:100%;min-height:54px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;font-size:19px;padding:0 14px;margin-top:10px;-webkit-user-select:text;user-select:text;-webkit-appearance:none;appearance:none}
+.dinput:focus{outline:2px solid var(--acc);outline-offset:0}
+.dbtns{display:flex;flex-direction:column;gap:0;margin-top:8px}
+.dangerbtn{background:var(--miss);border-color:var(--miss);color:#111}
+.onbico{display:flex;justify-content:center;margin:4px 0 10px}.onbico .ic{width:56px;height:56px;color:var(--acc);stroke-width:1.5}
+.onbdots{display:flex;justify-content:center;gap:6px;margin:14px 0 4px}.onbdots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.onbdots i.on{background:var(--acc)}
+/* Auswertung: Inhalt scrollt, Buttons fest */
+#summaryBody{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.sumscroll{overflow:auto;padding:20px 20px 8px;-webkit-overflow-scrolling:touch}
+.sumfoot{padding:4px 20px calc(16px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--panel)}
+.sumhead{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.sumdet{margin-top:18px;padding-top:12px;border-top:1px solid var(--line)}.sumdet h2{margin-bottom:4px}
+/* Statistik zweispaltig (iPad quer) */
+@media (min-width:1000px){#stats.screen{max-width:1180px}}
+#statsBody.two{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;align-items:start}
+#statsBody.two>.card.wide{grid-column:1/-1}
