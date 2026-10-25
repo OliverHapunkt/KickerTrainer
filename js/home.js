@@ -121,6 +121,7 @@ function renderHome(){
   $('#cfgWrap').classList.toggle('hidden',!S.cfgOpen);
   $('#btnCfg').textContent=S.cfgOpen?'Fertig':'Anpassen';$('#btnCfg').setAttribute('aria-expanded',String(!!S.cfgOpen));
   renderPresets();
+  if(typeof renderGam==='function')renderGam();
   chips($('#cDisc'),Object.entries(DISC).map(([v,x])=>({v,t:x.n})),v=>c.d===v,v=>{
     c.d=v;const n=DISC[v];if(!n.techs.includes(c.tech))c.tech=n.techs[0];if(n.techs2&&!n.techs2.includes(c.tech2))c.tech2=n.techs2[0];c.wt=(c.wt||[]).filter(x=>n.techs.includes(x));if(!c.wt.length)c.wt=[c.tech];if(n.techs2){c.wt2=(c.wt2||[]).filter(x=>n.techs2.includes(x));if(!c.wt2.length)c.wt2=[c.tech2]}});
   const wk=c.order==='weak';
@@ -202,5 +203,6 @@ document.querySelectorAll('#tabbar button').forEach(b=>b.onclick=()=>{
   const t=b.dataset.tab;
   if(t==='stats'){ST.session=null;ST.open=null;ST.edit=null;show('stats');renderStats()}
   else if(t==='settings'){renderDataHint();show('settings')}
+  else if(t==='chal'){renderChal();show('chal')}
   else{renderHome();show('home')}});
 $('#btnTest').onclick=()=>{ensureAudio();renderTest();show('test')};

@@ -42,6 +42,7 @@ async function startSession(cfg,plan){
   R={id:Date.now().toString(36),cfg:clone(cfg),D:d,plan,entries:[],reps:0,stage:d.kind==='shot'?'shot':'pass',
      deckP:[],deckS:[],pending:null,phase:'idle',target:null,callAt:0,detectAt:null,phaseStart:performance.now(),phaseDur:0,
      timers:[],active:true,undo:null,lastHit:null,t0:Date.now()};
+  R.gam0=gamSnapshot(); // Stand vor der Session (XP, Challenges) für die Auswertung
   D.sessions.push({id:R.id,start:Date.now(),d:cfg.d,cfg:clone(cfg)});save(LS_DATA,D);
   show('train');renderTrain();wake(true);
   $('#mLive').classList.toggle('hidden',!S.mic);
@@ -115,7 +116,7 @@ function renderTrain(){
   $('#bYes').textContent=k==='pass'?'Gefangen':'Treffer';$('#bNo').textContent=k==='pass'?'Verloren':'Daneben';
   $('#tMode').textContent=R.D.n+' · '+curTech()+(R.D.kind==='combo'?' ('+(k==='pass'?'Pass':'Schuss')+')':'')+(R.plan?' · Plan '+(R.plan.i+1)+'/'+S.plan.length:'');
   const n=R.entries.length,h=R.entries.filter(s=>s.h).length;
-  $('#tRate').textContent=n?h+'/'+n+' · '+pct(h/n):'';
+  $('#tRate').textContent=n?h+'/'+n+' · '+pct(h/n)+gamStreak(R.entries):'';
   updateWeakLive();
 }
 let lastTxt='';
@@ -244,6 +245,7 @@ function showSummary(){
           .map(c=>kv(weakLabel(R.cfg,c,kind),Math.round(s0[c.k+'|'+c.g]||0)+' % → '+Math.round(c.share)+' %')).join('');
     }
   }
+  html+=gamSummary(R.gam0);
   html+='<p class="center" style="margin-top:12px">'+cfgLabel(R.cfg)+'</p>';
   const hasNext=R.plan&&R.plan.i+1<S.plan.length;
   if(hasNext)html+='<button class="big primary" id="sumNext">Weiter: Übung '+(R.plan.i+2)+'</button><p class="center">'+cfgLabel(S.plan[R.plan.i+1])+(S.voiceIn?' · oder „Ja“':'')+'</p>';
@@ -252,7 +254,7 @@ function showSummary(){
   const cfg=R.cfg,plan=R.plan;
   if(hasNext){$('#sumNext').onclick=()=>startSession(S.plan[plan.i+1],{i:plan.i+1});if(S.voiceIn)recStart()}
   $('#sumAgain').onclick=()=>startSession(cfg,plan);
-  $('#sumHome').onclick=()=>{recStop();$('#summary').classList.add('hidden');R=null;show('home')};
+  $('#sumHome').onclick=()=>{recStop();$('#summary').classList.add('hidden');R=null;renderHome();show('home')};
   $('#sumStats').onclick=()=>{const id=R.id;recStop();$('#summary').classList.add('hidden');R=null;ST.session=id;ST.open=id;ST.edit=null;ST.disc='all';ST.tech='all';ST.timing='all';show('stats');renderStats()};
   if(S.voiceOut){const all=agg(a);speak((hasNext?'Übung fertig. ':'Fertig. ')+all.h+' von '+all.n)}
 }
