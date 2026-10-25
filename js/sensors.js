@@ -127,7 +127,7 @@ function onImpulse(now){
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const WORDS={ja:'ready',jo:'ready',jep:'ready',bereit:'ready',los:'ready',
   eins:1,'1':1,zwei:2,'2':2,drei:3,'3':3,vier:4,'4':4,'fünf':5,'5':5,
-  treffer:'hit',tor:'hit',gefangen:'hit',daneben:0,verloren:0,nein:0,vorbei:0};
+  treffer:'hit',tor:'hit',gefangen:'hit',daneben:0,verloren:0,nein:0,vorbei:0,links:'ml',rechts:'mr'};
 const rec={r:null,want:false,seen:{},gen:0,onText:null};
 function recStart(){
   if(!SR)return false;
@@ -164,6 +164,7 @@ function onVoice(v,word){
   const seg=inputMode()==='seg';
   if(typeof v==='number'&&v>0){if(seg)input(v);return}
   if(v==='hit'){input(seg?(R.target||0)===0?null:R.target:'hit');return}
+  if(v==='ml'||v==='mr'){input(v);return}
   if(v===0)input(0);
 }
 

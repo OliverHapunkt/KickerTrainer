@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.5.0',d:'2026-10-25'};
+window.KT_VER={v:'3.6.0',d:'2026-10-25'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -39,14 +39,15 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <div class="sub"><label>Umfang</label><div class="chips sc" id="cAmtC"></div><div class="chips sc" id="cAmt" style="margin-top:8px"></div></div>
       <button class="big" id="btnPreset">Als eigene Übung speichern</button>
     </div>
-    <div class="two qbtns"><button class="big primary" id="btnStart">Start</button><button class="big" id="btnAddPlan">+ Plan</button></div>
+    <div class="two qbtns"><button class="big primary" id="btnStart">Start</button><button class="big" id="btnAddPlan">+ Station</button></div>
   </div>
   <div id="gamHome"></div>
 
   <div class="card hidden" id="presetCard"><h2>Meine Übungen</h2><div id="presetList"></div></div>
 
-  <div class="card hidden" id="planCard"><h2>Trainingsplan</h2><div id="planList"></div>
-    <div class="two"><button class="big primary" id="btnPlanStart">Plan starten</button><button class="big" id="btnPlanClear">Leeren</button></div></div>
+  <div class="card hidden" id="planCard"><div class="qhead"><h2 id="planTitle">Ablauf</h2><button class="link" id="btnPlanClear">Leeren</button></div><div id="planList"></div>
+    <div class="two"><button class="big primary" id="btnPlanStart">Ablauf starten</button><button class="big" id="btnPlanSave">Speichern</button></div>
+    <p class="hint" style="margin-bottom:0">Mehrere Stationen hintereinander. Weitere mit „+ Station“ hinzufügen.</p></div>
 
 </section>
 
@@ -61,11 +62,11 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <button class="readybtn hidden" id="readyBtn">BEREIT</button>
     <div class="segs hidden" id="segs"></div>
     <div class="pviz hidden" id="pviz"></div>
-    <div class="simple hidden" id="simple"><button class="sbtn yes" id="bYes">Treffer</button><button class="sbtn no" id="bNo">Daneben</button></div>
+    <div class="simple hidden" id="simple"><button class="sbtn no dir hidden" id="bNoL"><span>←</span><small>Daneben links</small></button><button class="sbtn yes" id="bYes">Treffer</button><button class="sbtn no" id="bNo">Daneben</button><button class="sbtn no dir hidden" id="bNoR"><span>→</span><small>Daneben rechts</small></button></div>
   </div>
   <div class="tfoot">
     <button id="btnUndo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><small>Rückgängig</small></button>
-    <button id="btnMiss" class="miss">Daneben</button>
+    <button id="btnMissL" class="miss mdir hidden">← Daneben</button><button id="btnMiss" class="miss">Daneben</button><button id="btnMissR" class="miss mdir hidden">Daneben →</button>
     <button id="btnEnd"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><small>Ende</small></button>
   </div>
 </section>
@@ -91,6 +92,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
   <header class="ptitle"><h1>Einstellungen</h1></header>
   <div class="card"><h2>Ansage &amp; Eingabe</h2>
     <label class="row"><span>Sprachansage<small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" class="sw" id="oVoiceOut"></label>
+    <label class="row"><span>Daneben mit Richtung<small>Teilt „Daneben“ bei Schüssen in links / rechts (aus Sicht des Schützen). Die Statistik zeigt dann, wohin du verziehst</small></span><input type="checkbox" class="sw" id="oMissDir"></label>
     <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" class="sw" id="oVoiceIn"></label>
   </div>
   <div class="card"><h2>Gamification</h2>

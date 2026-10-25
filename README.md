@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.5.0-green)
+![Version](https://img.shields.io/badge/version-3.6.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.5.0 · 2026-10-25`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.6.0 · 2026-10-25`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -14,7 +14,8 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.5.0 · 2026
 ### Bedienung
 - **Tab-Leiste:** Training · Challenges · Statistik · Einstellungen (während des Trainings ausgeblendet)
 - **Training:** Hauptkarte „Aktuelle Übung“ mit Start und „+ Plan“ ganz oben, Konfiguration über „Anpassen“; Level als Abzeichen neben der Überschrift (antippen = Details)
-- **Meine Übungen:** aktuelle Konfiguration unter einem Namen speichern, mit ▶ direkt starten oder antippen zum Laden
+- **Meine Übungen:** eine Übung hat eine oder mehrere Stationen. ▶ startet direkt (mehrere Stationen nacheinander), Antippen lädt sie
+- **Ablauf:** „+ Station“ hängt die aktuelle Übung an; Ablauf starten oder als Übung speichern
 - **Einstellungen:** Ansage, Spracheingabe, Schusserkennung, Konto, Sichern/Import
 - **Pass-Skizze** im Training: 5er→3er von oben, angesagtes Ziel (Wall/Lane) als Pfeil hervorgehoben
 - Eigene Dialoge statt Browser-Popups; kurze Einführung beim allerersten Start (nicht für bestehende Nutzer)
@@ -37,7 +38,13 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.5.0 · 2026
 - **Timing:** Freies Tempo oder **Auf Signal** (Ziel kommt zufällig innerhalb der Regelzeit, danach bleibt nur das Reaktionsfenster von 1 bis 3 s)
 - **Wertung Schuss:** Einfach (Treffer/Daneben) oder Genau (Segment tippen)
 - **Umfang:** 10/20/30/50 Wiederholungen oder 5/10/15 Minuten
-- **Trainingsplan:** Mehrere Konfigurationen hintereinander, Start mit „Plan starten“
+
+### Daneben mit Richtung (optional)
+- Einstellungen › „Daneben mit Richtung“ (Standard: aus). Teilt bei Schüssen „Daneben“ in **← links** und **rechts →** (aus Sicht des Schützen); bei Wertung „Genau“ entsprechend in der Fußleiste
+- Gespeichert als Feld `md` (`'l'`/`'r'`) am Eintrag, im Konto in `extra`
+- Auswertung: Karte „Fehlschüsse: links oder rechts?“ je Ziel mit Hinweis auf auffällige Tendenzen (≥ 70 % einer Seite bei ≥ 5 Fehlschüssen); bei „Genau“ fließt auch das danebengetroffene Segment ein. Korrektur in der Session-Liste, Spalte „Richtung“ im CSV
+- Spracheingabe: „links“ / „rechts“
+- Grundlage für spätere Schwachstellenanalyse, Technik-Tipps und Trainer-Auswertung (`missSide()` in `training.js`)
 
 ### Schusserkennung (optional)
 - Erkennung über **Ton**, **Erschütterung** (iPad direkt auf dem Tisch), **Ton + Erschütterung** oder **Ton oder Erschütterung**
@@ -109,6 +116,7 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.5.0 · 2026
 - Einzige externe Abhängigkeit: `supabase-js` (fest auf Version 2.118.0 gepinnt, mit Prüfsumme/SRI), per jsDelivr **erst nach der Anmeldung** geladen
 - Web Audio API (Signaltöne, Schusserkennung), Web Speech API (Ansage, Spracheingabe), DeviceMotion (Erschütterung)
 - Hosting: GitHub Pages, Deployment per GitHub Actions bei jedem Push auf `main` (`.github/workflows/deploy.yml`)
+- **Service Worker** (`sw.js`, registriert als `sw.js?v=<Version>`): Seite erst aus dem Netz (max. 3 s, am Browser-Cache vorbei), sonst aus dem Cache; CSS/JS aus dem Cache. Neue Version → neuer Service Worker → App lädt neu, außer mitten im Training (dann danach). **Neue JS-Dateien auch in `FILES` in `sw.js` eintragen**
 
 ### Datenspeicher
 
@@ -183,7 +191,7 @@ Mikrofon und Bewegungssensoren funktionieren nur über HTTPS oder `localhost`.
 
 ## Bekannte Einschränkungen
 
-- Kein Service Worker: Die App ist nicht garantiert offline nutzbar, und iOS cached Home-Screen-Apps teilweise hartnäckig (Version prüfen!)
+- Offline: Die App startet ohne Netz aus dem Cache des Service Workers. Anmeldung und Abgleich brauchen Netz
 - Ohne Konto sind Daten an Browser und Gerät gebunden; ohne regelmäßiges Sichern (JSON) gehen sie bei gelöschten Website-Daten verloren
 - Mit Konto werden Löschungen nicht auf andere Geräte übertragen, und bei Konflikten gewinnt das zuletzt abgleichende Gerät
 - Der Sync-Stand liegt ebenfalls im Browser-Speicher (bei sehr vielen Einträgen wächst er mit)
@@ -192,7 +200,6 @@ Mikrofon und Bewegungssensoren funktionieren nur über HTTPS oder `localhost`.
 
 ## Roadmap
 
-- Migration auf React als PWA (mit Service Worker und Offline-Betrieb)
 - Rangliste (freiwillig, nur zusammengefasste Werte, Server-Funktion) und Challenge-Stand im Konto speichern
 - Gruppen mit Einladungscode und gemeinsame Challenges (gleiche Konfiguration, Rangliste je Challenge)
 - Gespielte Partien erfassen (beide Seiten bestätigen) und daraus eine Elo-Rangliste berechnen (serverseitig)
