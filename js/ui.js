@@ -20,6 +20,7 @@ const ICP={
   stop:'<rect x="6" y="6" width="12" height="12" rx="2"/>',
   play:'<path d="M8 5v14l11-7z" class="f"/>',
   chevron:'<path d="M9 6l6 6-6 6"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
 };
 function icon(n,cls){return'<svg class="ic'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(ICP[n]||'')+'</svg>'}
 

@@ -283,8 +283,10 @@ function renderStats(){
     html+=chartFunnel(W,a);
     html+=chartReaction(W,a);
     const sig=a.filter(z=>z.sig),fr=a.filter(z=>!z.sig);
+    html+=chartFatigue(W,a);
     if(sig.length&&fr.length)html+=card('Frei vs. auf Signal','<div class="tiles" style="grid-template-columns:1fr 1fr"><div class="tile"><b>'+pct(agg(fr).rate)+'</b><span>freies Tempo · n='+fr.length+'</span></div><div class="tile"><b>'+pct(agg(sig).rate)+'</b><span>auf Signal · n='+sig.length+'</span></div></div>');
   }
+  html+=chartStd(W);
   html+=chartCalendar(W);
   html+=renderSessionList();
   body.innerHTML=html;

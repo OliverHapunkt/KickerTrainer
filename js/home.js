@@ -101,8 +101,9 @@ function cfgLabel(c){
   if(hasShot(c))p.push(c.tS.map(x=>tl(x,'shot')).join(''));
   p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',c.timing==='signal'?'Signal':'frei');
   if(hasShot(c))p.push(c.scoring==='exact'?'genau':'einfach');
+  if(prOn(c))p.push('Druck '+c.pr);
   p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
-  return p.join(' · ');
+  return(c.std?'Standardtest · ':'')+p.join(' · ');
 }
 /* Kurzbeschreibung der Übung für die Karte „Aktuelle Übung“ */
 function cfgSummary(c){
@@ -113,6 +114,7 @@ function cfgSummary(c){
   if(hasShot(c))p.push((c.tS.length===1&&c.tS[0]===0)?'Tor (egal)':'Ziele '+c.tS.join(' '));
   p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',c.timing==='signal'?'auf Signal':'freies Tempo');
   if(hasShot(c))p.push(c.scoring==='exact'?'genau':'einfach');
+  if(prOn(c))p.push('Druck '+c.pr+' in Folge');
   p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
   return{head,sub:p.join(' · ')}}
 function renderHome(){
@@ -122,6 +124,7 @@ function renderHome(){
   $('#btnCfg').textContent=S.cfgOpen?'Fertig':'Anpassen';$('#btnCfg').setAttribute('aria-expanded',String(!!S.cfgOpen));
   renderPresets();
   if(typeof renderGam==='function')renderGam();
+  if(typeof renderLp==='function')renderLp();
   chips($('#cDisc'),Object.entries(DISC).map(([v,x])=>({v,t:x.n})),v=>c.d===v,v=>{
     c.d=v;const n=DISC[v];if(!n.techs.includes(c.tech))c.tech=n.techs[0];if(n.techs2&&!n.techs2.includes(c.tech2))c.tech2=n.techs2[0];c.wt=(c.wt||[]).filter(x=>n.techs.includes(x));if(!c.wt.length)c.wt=[c.tech];if(n.techs2){c.wt2=(c.wt2||[]).filter(x=>n.techs2.includes(x));if(!c.wt2.length)c.wt2=[c.tech2]}});
   const wk=c.order==='weak';
@@ -155,6 +158,9 @@ function renderHome(){
   $('#wScore').classList.toggle('hidden',!hasShot(c));
   chips($('#cScore'),[{v:'simple',t:'Einfach'},{v:'exact',t:'Genau'}],v=>c.scoring===v,v=>c.scoring=v);
   $('#hScore').textContent=c.scoring==='exact'?'Du tippst das Segment, in dem der Ball landete – zeigt auch, wohin Fehlschüsse gehen.':'Du tippst nur Treffer oder Daneben.';
+  $('#wPr').classList.toggle('hidden',d.kind==='combo');
+  chips($('#cPr'),[0,3,5,8,10].map(n=>({v:n,t:n?String(n):'Aus'})),v=>(c.pr||0)===v,v=>c.pr=v);
+  $('#hPr').textContent=prHint(c);
   chips($('#cAmtC'),[10,20,30,50].map(n=>({v:n,t:n+'×'})),v=>c.amt==='count'&&c.count===v,v=>{c.amt='count';c.count=v});
   chips($('#cAmt'),[5,10,15].map(n=>({v:n,t:n+' min'})),v=>c.amt==='time'&&c.minutes===v,v=>{c.amt='time';c.minutes=v});
   // Plan
