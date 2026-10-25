@@ -104,17 +104,32 @@ function cfgLabel(c){
   p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
   return p.join(' · ');
 }
+/* Kurzbeschreibung der Übung für die Karte „Aktuelle Übung“ */
+function cfgSummary(c){
+  const d=DISC[c.d],wk=c.order==='weak',t1=wk?techList(c,1).join('/'):c.tech,t2=d.kind==='combo'?(wk?techList(c,2).join('/'):c.tech2):null;
+  const head=d.n+' · '+t1+(t2?' + '+t2:'');
+  const p=[];
+  if(hasPass(c))p.push('Pass: '+c.tP.map(x=>tl(x,'pass')).join('/'));
+  if(hasShot(c))p.push((c.tS.length===1&&c.tS[0]===0)?'Tor (egal)':'Ziele '+c.tS.join(' '));
+  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',c.timing==='signal'?'auf Signal':'freies Tempo');
+  if(hasShot(c))p.push(c.scoring==='exact'?'genau':'einfach');
+  p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
+  return{head,sub:p.join(' · ')}}
 function renderHome(){
   const c=S.cfg,d=DISC[c.d];
+  const sm=cfgSummary(c);$('#cfgSum').innerHTML=esc(sm.head)+'<small>'+esc(sm.sub)+'</small>';
+  $('#cfgWrap').classList.toggle('hidden',!S.cfgOpen);
+  $('#btnCfg').textContent=S.cfgOpen?'Fertig':'Anpassen';$('#btnCfg').setAttribute('aria-expanded',String(!!S.cfgOpen));
+  renderPresets();
   chips($('#cDisc'),Object.entries(DISC).map(([v,x])=>({v,t:x.n})),v=>c.d===v,v=>{
     c.d=v;const n=DISC[v];if(!n.techs.includes(c.tech))c.tech=n.techs[0];if(n.techs2&&!n.techs2.includes(c.tech2))c.tech2=n.techs2[0];c.wt=(c.wt||[]).filter(x=>n.techs.includes(x));if(!c.wt.length)c.wt=[c.tech];if(n.techs2){c.wt2=(c.wt2||[]).filter(x=>n.techs2.includes(x));if(!c.wt2.length)c.wt2=[c.tech2]}});
   const wk=c.order==='weak';
-  $('#lTech').textContent=(d.kind==='combo'?'Pass-Technik':'Technik')+(wk?' (mehrere möglich)':'');
+  $('#lTech').innerHTML=(d.kind==='combo'?'Pass-Technik':'Technik')+(wk?' <span class="lmulti">mehrere möglich</span>':'');$('#cTech').classList.toggle('multi',wk);$('#cTech2').classList.toggle('multi',wk);
   if(wk)chips($('#cTech'),d.techs.map(t=>({v:t,t})),v=>techList(c,1).includes(v),v=>toggleTech(c,1,v));
   else chips($('#cTech'),d.techs.map(t=>({v:t,t})),v=>c.tech===v,v=>c.tech=v);
   $('#wTech2').classList.toggle('hidden',d.kind!=='combo');
   if(d.techs2){
-    $('#wTech2').querySelector('label').textContent='Schuss-Technik'+(wk?' (mehrere möglich)':'');
+    $('#wTech2').querySelector('label').innerHTML='Schuss-Technik'+(wk?' <span class="lmulti">mehrere möglich</span>':'');
     if(wk)chips($('#cTech2'),d.techs2.map(t=>({v:t,t})),v=>techList(c,2).includes(v),v=>toggleTech(c,2,v));
     else chips($('#cTech2'),d.techs2.map(t=>({v:t,t})),v=>c.tech2===v,v=>c.tech2=v);
   }
@@ -124,7 +139,7 @@ function renderHome(){
   chips($('#cOrder'),[{v:'mix',t:'Gemischt'},{v:'series',t:'Serie'},{v:'weak',t:'Schwachstellen'}],v=>c.order===v,v=>c.order=v);
   $('#wWeak').classList.toggle('hidden',c.order!=='weak');
   if(c.order==='weak'){
-    chips($('#cWeakN'),[5,10,20].map(n=>({v:n,t:String(n)})),v=>c.weakN===v,v=>c.weakN=v);
+    chips($('#cWeakN'),[5,10,20].map(n=>({v:n,t:n+' Sessions'})),v=>c.weakN===v,v=>c.weakN=v);
     $('#hWeak').textContent=weakPreview(c);
   }
   chips($('#cTiming'),[{v:'free',t:'Freies Tempo'},{v:'signal',t:'Auf Signal'}],v=>c.timing===v,v=>c.timing=v);
@@ -137,10 +152,10 @@ function renderHome(){
   chips($('#cReady'),[{v:'tap',t:'Tippen'},{v:3,t:'Auto 3 s'},{v:5,t:'Auto 5 s'},{v:8,t:'Auto 8 s'}],
     v=>v==='tap'?c.ready==='tap':(c.ready==='auto'&&c.auto===v),v=>{if(v==='tap')c.ready='tap';else{c.ready='auto';c.auto=v}});
   $('#wScore').classList.toggle('hidden',!hasShot(c));
-  chips($('#cScore'),[{v:'simple',t:'Einfach: Treffer/Daneben'},{v:'exact',t:'Genau: Segment tippen'}],v=>c.scoring===v,v=>c.scoring=v);
-  chips($('#cAmt'),[10,20,30,50].map(n=>({v:'c'+n,t:n+'×'})).concat([5,10,15].map(n=>({v:'m'+n,t:n+' min'}))),
-    v=>v[0]==='c'?(c.amt==='count'&&c.count===+v.slice(1)):(c.amt==='time'&&c.minutes===+v.slice(1)),
-    v=>{if(v[0]==='c'){c.amt='count';c.count=+v.slice(1)}else{c.amt='time';c.minutes=+v.slice(1)}});
+  chips($('#cScore'),[{v:'simple',t:'Einfach'},{v:'exact',t:'Genau'}],v=>c.scoring===v,v=>c.scoring=v);
+  $('#hScore').textContent=c.scoring==='exact'?'Du tippst das Segment, in dem der Ball landete – zeigt auch, wohin Fehlschüsse gehen.':'Du tippst nur Treffer oder Daneben.';
+  chips($('#cAmtC'),[10,20,30,50].map(n=>({v:n,t:n+'×'})),v=>c.amt==='count'&&c.count===v,v=>{c.amt='count';c.count=v});
+  chips($('#cAmt'),[5,10,15].map(n=>({v:n,t:n+' min'})),v=>c.amt==='time'&&c.minutes===v,v=>{c.amt='time';c.minutes=v});
   // Plan
   $('#planCard').classList.toggle('hidden',!S.plan.length);
   $('#planList').innerHTML='';
@@ -150,7 +165,7 @@ function renderHome(){
   $('#oVoiceOut').checked=S.voiceOut;$('#oVoiceIn').checked=S.voiceIn;$('#oMic').checked=S.mic;$('#oSens').value=S.sens;
   $('#oVoiceIn').disabled=!SR;$('#oMSens').value=S.msens;
   $('#wDet').classList.toggle('hidden',!S.mic);
-  $('#oAuto').checked=S.autoCount;$('#wCorr').classList.toggle('hidden',!S.autoCount);$('#oAuto').disabled=false;
+  $('#oAuto').checked=S.autoCount;$('#wCorr').classList.toggle('hidden',!S.autoCount);$('#oAuto').disabled=!S.mic;$('#oAuto').closest('.row').style.opacity=S.mic?'':'.5';
   chips($('#cCorr'),[2,3,5].map(n=>({v:n,t:n+' s'})),v=>S.corrWin===v,v=>S.corrWin=v);
   chips($('#cDet'),[{v:'audio',t:'Ton'},{v:'motion',t:'Erschütterung'},{v:'both',t:'Ton + Erschütterung'},{v:'either',t:'Ton oder Erschütterung'}],v=>S.det===v,v=>{S.det=v;if(S.mic)detStart()});
 }
@@ -165,6 +180,27 @@ $('#btnStart').onclick=()=>startSession(S.cfg,null);
 $('#btnAddPlan').onclick=()=>{S.plan.push(clone(S.cfg));saveS();renderHome();toast('Zum Plan hinzugefügt')};
 $('#btnPlanStart').onclick=()=>{if(S.plan.length)startSession(S.plan[0],{i:0})};
 $('#btnPlanClear').onclick=()=>{if(confirm('Plan leeren?')){S.plan=[];saveS();renderHome()}};
-$('#btnStats').onclick=()=>{ST.session=null;ST.open=null;ST.edit=null;show('stats');renderStats()};
-$('#btnBack').onclick=()=>show('home');
+/* Meine Übungen (gespeicherte Konfigurationen) */
+function renderPresets(){
+  const el=$('#presetList');el.innerHTML='';
+  $('#presetEmpty').classList.toggle('hidden',S.presets.length>0);
+  S.presets.forEach((p,i)=>{
+    const r=document.createElement('div');r.className='prow';const sm=cfgSummary(p.cfg);
+    r.innerHTML='<button class="pmain"><b></b><small></small></button><button class="pgo" aria-label="Starten">▶</button><button class="pdel" aria-label="Löschen">×</button>';
+    r.querySelector('b').textContent=p.name;r.querySelector('small').textContent=sm.head+' · '+sm.sub;
+    r.querySelector('.pmain').onclick=()=>{S.cfg=Object.assign(clone(DEFCFG),clone(p.cfg));saveS();renderHome();toast('„'+p.name+'“ geladen')};
+    r.querySelector('.pgo').onclick=()=>startSession(Object.assign(clone(DEFCFG),p.cfg),null);
+    r.querySelector('.pdel').onclick=()=>{if(!confirm('„'+p.name+'“ löschen?'))return;S.presets.splice(i,1);saveS();renderHome()};
+    el.appendChild(r)});
+}
+$('#btnPreset').onclick=()=>{
+  const n=prompt('Name der Übung',cfgSummary(S.cfg).head);if(n===null)return;const name=n.trim().slice(0,40)||cfgSummary(S.cfg).head;
+  S.presets.push({name,cfg:clone(S.cfg)});saveS();renderHome();toast('Gespeichert')};
+$('#btnCfg').onclick=()=>{S.cfgOpen=!S.cfgOpen;saveS();renderHome()};
+/* Tab-Leiste */
+document.querySelectorAll('#tabbar button').forEach(b=>b.onclick=()=>{
+  const t=b.dataset.tab;
+  if(t==='stats'){ST.session=null;ST.open=null;ST.edit=null;show('stats');renderStats()}
+  else if(t==='settings'){renderDataHint();show('settings')}
+  else{renderHome();show('home')}});
 $('#btnTest').onclick=()=>{ensureAudio();renderTest();show('test')};

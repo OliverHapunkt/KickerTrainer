@@ -1,4 +1,6 @@
-:root{--bg:#0e1013;--panel:#171a1f;--panel2:#1e2229;--line:#2a2f37;--text:#e8eaed;--mute:#8b929c;--acc:#ffb020;--hit:#2ecc71;--miss:#ff4d4f}
+:root{--bg:#0e1013;--panel:#171a1f;--panel2:#1e2229;--line:#2a2f37;--text:#e8eaed;--mute:#9aa1ab;--acc:#ffb020;--hit:#2ecc71;--miss:#ff4d4f;
+  /* Segmentfarben: bewusst keine davon gleich der Akzentfarbe (Auswahl/Start) */
+  --s1:#4a96ee;--s2:#f0743a;--s3:#22b98a;--s4:#a07cf0;--s5:#e0609a;--tabh:64px}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,system-ui,"Segoe UI",sans-serif;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 button{font:inherit;color:inherit;cursor:pointer}
@@ -48,10 +50,10 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute
 .area>*{flex:1}
 .segs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .seg{border:3px solid var(--line);background:var(--panel);border-radius:16px;font-size:clamp(34px,9vw,84px);font-weight:800;color:var(--mute);display:flex;align-items:center;justify-content:center;transition:background .12s,opacity .2s}
-.off .seg,.off .sbtn{opacity:.3}
+.off .seg,.off .sbtn{opacity:.45}
 .seg{position:relative;overflow:hidden}
 .seg::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:var(--sc);opacity:.7}
-.seg:nth-child(1){--sc:#4a96ee}.seg:nth-child(2){--sc:#f0743a}.seg:nth-child(3){--sc:#22b98a}.seg:nth-child(4){--sc:#ffb020}.seg:nth-child(5){--sc:#e0609a}
+.seg:nth-child(1){--sc:var(--s1)}.seg:nth-child(2){--sc:var(--s2)}.seg:nth-child(3){--sc:var(--s3)}.seg:nth-child(4){--sc:var(--s4)}.seg:nth-child(5){--sc:var(--s5)}
 .seg.target{border-color:var(--sc);background:var(--sc);color:#111;box-shadow:0 0 36px var(--sc)}
 .seg.target::before{opacity:0}
 .segs.ro{pointer-events:none}
@@ -71,9 +73,10 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute
 .sbtn.no{background:#2a1517;border-color:#5a2226;color:#ff8a8c}
 .readybtn{border-radius:24px;border:3px dashed var(--acc);background:rgba(255,176,32,.08);color:var(--acc);font-size:clamp(40px,11vw,96px);font-weight:800}
 .tfoot{display:flex;gap:8px}
-.tfoot button{flex:1;min-height:64px;border-radius:16px;border:1px solid var(--line);background:var(--panel);font-size:19px;font-weight:600}
+.tfoot button{flex:1;min-height:64px;border-radius:16px;border:1px solid var(--line);background:var(--panel);font-size:19px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1.1}
+.tfoot .ico{font-size:22px}.tfoot small{font-size:13px;font-weight:600;color:var(--mute)}
 .tfoot .miss{flex:2.4;background:#2a1517;border-color:#5a2226;color:#ff8a8c;font-size:22px}
-.ver{text-align:center;font-size:11px;color:var(--mute);opacity:.45;margin:18px 0 0;letter-spacing:.04em}
+.ver{text-align:center;font-size:12px;color:var(--mute);opacity:.45;margin:18px 0 0;letter-spacing:.04em}
 .card input[type=email],.card input[type=text]{display:block;width:100%;min-height:54px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;font-size:19px;padding:0 14px;margin-top:6px;-webkit-user-select:text;user-select:text;-webkit-appearance:none;appearance:none}
 .card input[type=email]:focus,.card input[type=text]:focus{outline:2px solid var(--acc);outline-offset:0}
 #acToken{letter-spacing:.3em;text-align:center;font-size:26px}
@@ -93,7 +96,7 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute
 .shead button{background:none;border:0;color:var(--acc);font-size:18px;padding:8px 0}
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .tile{background:var(--panel2);border-radius:12px;padding:10px;text-align:center}
-.tile b{display:block;font-size:22px}.tile span{font-size:12px;color:var(--mute)}
+.tile b{display:block;font-size:22px}.tile span{font-size:13px;color:var(--mute)}
 .trend{display:flex;align-items:flex-end;gap:4px;height:120px;padding-top:6px}
 .trend div{flex:1;max-width:36px;background:var(--acc);border-radius:4px 4px 0 0;min-height:2px}
 table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
@@ -102,10 +105,10 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
 .hm td:first-child{text-align:left;background:none;color:var(--mute)}
 /* Statistik v3 */
 .filters{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
-@media (max-width:600px){.filters .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}.filters .chips::-webkit-scrollbar{display:none}.filters .chip{flex:none}}
+
 .filters .chip{min-height:38px;padding:8px 13px;font-size:15px}
 .chart{display:block;overflow:visible;max-width:100%}
-.chart text{fill:#8b929c;font-size:12px;font-family:inherit}
+.chart text{fill:#9aa1ab;font-size:12.5px;font-family:inherit}
 .chart .val{fill:#e8eaed;font-weight:600}
 .chart .grid{stroke:#2a2f37;stroke-width:1}
 .chart .ln{fill:none;stroke:#ffb020;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
@@ -135,5 +138,54 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
 .say{font-size:44px;font-weight:800;text-align:center;margin:8px 0}
 .heard{text-align:center;color:var(--mute);min-height:1.4em;font-size:18px}
 .verdict{text-align:center;font-size:30px;font-weight:800;min-height:1.3em}
-.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);background:#000;border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:20;font-size:15px;max-width:90vw}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + var(--tabh) + 96px);transform:translateX(-50%);background:#000;border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:20;font-size:15px;max-width:90vw}
 @media (max-width:420px){.tiles{grid-template-columns:repeat(2,1fr)}}
+
+/* ===== v3.3 Redesign ===== */
+.screen.tabbed{padding-bottom:calc(env(safe-area-inset-bottom) + var(--tabh) + 24px)}
+#home.tabbed{padding-bottom:calc(env(safe-area-inset-bottom) + var(--tabh) + 110px)}
+.ptitle{margin:4px 0 16px}.ptitle h1{margin:0}
+.brand{display:block;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}
+/* Segmented Control: eine Auswahl aus wenigen Optionen */
+.chips.sc{flex-wrap:nowrap;gap:3px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:3px}
+.chips.sc .chip{flex:1 1 0;min-width:0;min-height:44px;padding:8px 6px;border:0;border-radius:11px;background:transparent;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chips.sc .chip.on{background:var(--acc);color:#111}
+/* Mehrfachauswahl: Häkchen */
+.chips.multi .chip.on::before{content:"✓ ";font-weight:800}
+.lmulti{font-size:12px;color:var(--mute);opacity:.8;margin-left:6px}
+.sep{height:1px;background:var(--line);margin:16px -14px 2px}
+/* Aktuelle Übung */
+.qhead{display:flex;align-items:center;justify-content:space-between;gap:10px}.qhead h2{margin:0}
+.link{background:none;border:0;color:var(--acc);font-size:16px;font-weight:600;padding:8px 0 8px 12px;min-height:44px}
+.qsum{font-size:19px;font-weight:600;line-height:1.4;margin:6px 0 2px}
+.qsum small{display:block;font-size:14px;font-weight:400;color:var(--mute);margin-top:2px}
+#cfgWrap{margin-top:8px}
+/* Meine Übungen */
+.prow{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}.prow:last-child{border-bottom:0}
+.prow .pmain{flex:1;min-width:0;background:none;border:0;text-align:left;padding:6px 0;min-height:44px}
+.prow .pmain b{display:block;font-size:17px}.prow .pmain small{display:block;font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .pgo{width:52px;height:44px;border-radius:12px;border:0;background:var(--acc);color:#111;font-size:18px;font-weight:800;flex:none}
+.prow .pdel{width:40px;height:44px;border:0;background:none;color:var(--mute);font-size:22px;flex:none}
+/* Start-Leiste über der Tab-Leiste */
+.actionbar{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + var(--tabh));z-index:5;display:grid;grid-template-columns:2fr 1fr;gap:8px;
+  padding:16px max(16px,calc((100vw - 728px)/2)) 10px;background:linear-gradient(to bottom,rgba(14,16,19,0),var(--bg) 40%)}
+.actionbar .big{margin-top:0}
+/* Tab-Leiste */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;justify-content:center;background:rgba(18,20,24,.94);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar button{flex:1;max-width:200px;height:var(--tabh);background:none;border:0;color:var(--mute);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:600}
+.tabbar svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.tabbar svg .f{fill:currentColor}
+.tabbar button.on{color:var(--acc)}
+/* Schalter statt Checkbox */
+input.sw{-webkit-appearance:none;appearance:none;width:52px!important;height:32px!important;border-radius:16px;background:#3a404a;position:relative;flex:none;cursor:pointer;transition:background .2s;margin:0}
+input.sw::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+input.sw:checked{background:var(--hit)}input.sw:checked::after{transform:translateX(20px)}
+input.sw:disabled{opacity:.4}
+.danger{color:var(--miss)}
+.two.eq{grid-template-columns:1fr 1fr}
+.card .two .big{font-size:17px}
+/* Statistik: horizontal scrollbare Filter mit ausblendendem Rand */
+.filters .chips.sc .chip{min-height:40px;font-size:14px}
+.filters .chips.scroll{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(to right,#000 85%,transparent);mask-image:linear-gradient(to right,#000 85%,transparent);padding-right:24px}
+.filters .chips.scroll::-webkit-scrollbar{display:none}.filters .chips.scroll .chip{flex:none}
+.pinrow{display:flex;margin-bottom:8px}

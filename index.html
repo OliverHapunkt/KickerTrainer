@@ -11,44 +11,91 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.2.1',d:'2026-10-24'};
+window.KT_VER={v:'3.3.0',d:'2026-10-24'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
 <body>
 
-<section id="home" class="screen">
-  <h1>KickerTrainer</h1>
-  <div class="card">
-    <div class="sub"><label>Disziplin</label><div class="chips" id="cDisc"></div></div>
-    <div class="sub"><label id="lTech">Technik</label><div class="chips" id="cTech"></div></div>
-    <div class="sub" id="wTech2"><label>Schuss-Technik</label><div class="chips" id="cTech2"></div></div>
-    <div class="sub" id="wTP"><label>Pass-Ziele</label><div class="chips" id="cTP"></div></div>
-    <div class="sub" id="wTS"><label>Schuss-Ziele</label><div class="chips" id="cTS"></div></div>
+<section id="home" class="screen tabbed">
+  <header class="ptitle"><span class="brand">KickerTrainer</span><h1>Training</h1></header>
+
+  <div class="card qcard">
+    <div class="qhead"><h2>Aktuelle Übung</h2><button class="link" id="btnCfg" aria-expanded="false">Anpassen</button></div>
+    <p class="qsum" id="cfgSum"></p>
+    <div id="cfgWrap" class="hidden">
+      <div class="sub"><label>Disziplin</label><div class="chips" id="cDisc"></div></div>
+      <div class="sub"><label id="lTech">Technik</label><div class="chips" id="cTech"></div></div>
+      <div class="sub" id="wTech2"><label>Schuss-Technik</label><div class="chips" id="cTech2"></div></div>
+      <div class="sub" id="wTP"><label>Pass-Ziele <span class="lmulti">mehrere möglich</span></label><div class="chips multi" id="cTP"></div></div>
+      <div class="sub" id="wTS"><label>Schuss-Ziele <span class="lmulti">mehrere möglich</span></label><div class="chips multi" id="cTS"></div></div>
+      <div class="sep"></div>
+      <div class="sub"><label>Reihenfolge</label><div class="chips sc" id="cOrder"></div>
+        <div id="wWeak" class="hidden"><div class="sub"><label>Datenbasis: letzte Sessions dieser Disziplin</label><div class="chips sc" id="cWeakN"></div></div><p class="hint" id="hWeak"></p></div></div>
+      <div class="sub"><label>Timing</label><div class="chips sc" id="cTiming"></div><p class="hint" id="hTiming"></p></div>
+      <div class="sub" id="wWindow"><label>Reaktionsfenster nach Signal</label><div class="chips sc" id="cWindow"></div></div>
+      <div class="sub" id="wReady"><label>„Bereit“ auslösen</label><div class="chips sc" id="cReady"></div><p class="hint">Tippen geht immer. Mit Spracheingabe zusätzlich „Ja“.</p></div>
+      <div class="sub" id="wScore"><label>Wertung Schuss</label><div class="chips sc" id="cScore"></div><p class="hint" id="hScore"></p></div>
+      <div class="sub"><label>Umfang</label><div class="chips sc" id="cAmtC"></div><div class="chips sc" id="cAmt" style="margin-top:8px"></div></div>
+      <button class="big" id="btnPreset">Als eigene Übung speichern</button>
+    </div>
   </div>
-  <div class="card">
-    <div class="sub"><label>Reihenfolge</label><div class="chips" id="cOrder"></div>
-      <div id="wWeak" class="hidden"><div class="sub"><label>Datenbasis: letzte Sessions dieser Disziplin</label><div class="chips" id="cWeakN"></div></div><p class="hint" id="hWeak"></p></div></div>
-    <div class="sub"><label>Timing</label><div class="chips" id="cTiming"></div><p class="hint" id="hTiming"></p></div>
-    <div class="sub" id="wWindow"><label>Reaktionsfenster nach Signal</label><div class="chips" id="cWindow"></div></div>
-    <div class="sub" id="wReady"><label>„Bereit“ auslösen</label><div class="chips" id="cReady"></div><p class="hint">Tippen geht immer. Mit Spracheingabe zusätzlich „Ja“.</p></div>
-    <div class="sub" id="wScore"><label>Wertung Schuss</label><div class="chips" id="cScore"></div></div>
-    <div class="sub"><label>Umfang</label><div class="chips" id="cAmt"></div></div>
-  </div>
-  <div class="two"><button class="big primary" id="btnStart">Start</button><button class="big" id="btnAddPlan">+ Plan</button></div>
-  <div class="card hidden" id="planCard" style="margin-top:12px"><h2>Trainingsplan</h2><div id="planList"></div>
+
+  <div class="card" id="presetCard"><h2>Meine Übungen</h2><div id="presetList"></div>
+    <p class="hint hidden" id="presetEmpty" style="margin:0">Noch keine gespeicherten Übungen. Unter „Anpassen“ → „Als eigene Übung speichern“.</p></div>
+
+  <div class="card hidden" id="planCard"><h2>Trainingsplan</h2><div id="planList"></div>
     <div class="two"><button class="big primary" id="btnPlanStart">Plan starten</button><button class="big" id="btnPlanClear">Leeren</button></div></div>
-  <div class="card" style="margin-top:12px"><h2>Optionen</h2>
-    <label class="row"><span>Sprachansage<small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" id="oVoiceOut"></label>
-    <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" id="oVoiceIn"></label>
-    <label class="row"><span>Schusserkennung<small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" id="oMic"></label>
-    <label class="row"><span>Erkannten Schuss automatisch zählen<small>Zählt als Treffer – du korrigierst im Fenster. Nur mit Schusserkennung, nur bei Schüssen</small></span><input type="checkbox" id="oAuto"></label>
+
+  <div class="actionbar"><button class="big primary" id="btnStart">Start</button><button class="big" id="btnAddPlan">+ Plan</button></div>
+</section>
+
+<section id="train" class="hidden">
+  <div class="beam" id="beam"></div>
+  <div class="thead"><div id="tMode"></div><div id="tCount" class="count"></div><div id="tRate"></div></div>
+  <div class="status" id="tStatus"></div>
+  <div class="bar"><i id="tBar"></i></div>
+  <div class="wlive hidden" id="wLive"></div>
+  <div class="mlive hidden" id="mLive"><span>Ton</span><div class="meter mA"><i></i><b></b></div><span>Vibr.</span><div class="meter mM"><i></i><b></b></div><div class="mstate" id="mState"></div></div>
+  <div class="area" id="area">
+    <button class="readybtn hidden" id="readyBtn">BEREIT</button>
+    <div class="segs hidden" id="segs"></div>
+    <div class="simple hidden" id="simple"><button class="sbtn yes" id="bYes">Treffer</button><button class="sbtn no" id="bNo">Daneben</button></div>
+  </div>
+  <div class="tfoot">
+    <button id="btnUndo"><span class="ico">↶</span><small>Rückgängig</small></button>
+    <button id="btnMiss" class="miss">Daneben</button>
+    <button id="btnEnd"><span class="ico">■</span><small>Ende</small></button>
+  </div>
+</section>
+
+<section id="stats" class="screen tabbed hidden">
+  <header class="ptitle"><span class="brand">KickerTrainer</span><h1>Statistik</h1></header>
+  <div class="filters">
+    <div class="chips" id="cPin"></div>
+    <div class="chips sc" id="cRange"></div>
+    <div class="chips scroll" id="cSDisc"></div>
+    <div class="chips scroll" id="cSTech"></div>
+    <div class="chips scroll" id="cSTime"></div>
+  </div>
+  <div id="statsBody"></div>
+</section>
+
+<section id="settings" class="screen tabbed hidden">
+  <header class="ptitle"><span class="brand">KickerTrainer</span><h1>Einstellungen</h1></header>
+  <div class="card"><h2>Ansage &amp; Eingabe</h2>
+    <label class="row"><span>Sprachansage<small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" class="sw" id="oVoiceOut"></label>
+    <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" class="sw" id="oVoiceIn"></label>
+  </div>
+  <div class="card"><h2>Schusserkennung</h2>
+    <label class="row"><span>Schusserkennung<small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" class="sw" id="oMic"></label>
+    <label class="row"><span>Erkannten Schuss automatisch zählen<small>Zählt als Treffer – du korrigierst im Fenster. Nur mit Schusserkennung, nur bei Schüssen</small></span><input type="checkbox" class="sw" id="oAuto"></label>
     <div class="sub" id="wDet"><label>Erkennung über</label><div class="chips" id="cDet"></div>
-      <div class="sub" id="wCorr"><label>Korrekturfenster</label><div class="chips" id="cCorr"></div></div>
+      <div class="sub" id="wCorr"><label>Korrekturfenster</label><div class="chips sc" id="cCorr"></div></div>
       <p class="hint">„Ton + Erschütterung“ = beide müssen gleichzeitig ausschlagen: am wenigsten Fehlauslöser (Stimmen, Nachbartisch). Erschütterung braucht iPad direkt auf dem Tisch.</p></div>
     <button class="big" id="btnTest">Mikrofon &amp; Sprache testen</button>
   </div>
-  <div class="card" id="acct" style="margin-top:12px"><h2>Konto &amp; Sicherung</h2>
+  <div class="card" id="acct"><h2>Konto &amp; Sicherung</h2>
     <div id="acOut">
       <p class="hint" style="margin:0">Ohne Konto läuft alles wie bisher: Die Daten bleiben nur auf diesem Gerät (bitte regelmäßig sichern). Mit Konto werden sie gesichert und zwischen deinen Geräten abgeglichen.</p>
       <button class="big" id="acStart">Anmelden / Registrieren</button>
@@ -72,52 +119,26 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <div class="kv"><span>Abgleich</span><b id="acState"></b></div>
       <button class="big" id="acSync">Jetzt abgleichen</button>
       <button class="big" id="acOutBtn">Abmelden</button>
-      <button class="big" id="acDelete" style="color:var(--miss)">Konto löschen</button>
+      <button class="big danger" id="acDelete">Konto löschen</button>
       <p class="hint">Gelöschte Einträge werden nicht auf andere Geräte übertragen. Beim Konto löschen verschwinden E-Mail-Adresse und alle Daten im Konto, die Daten auf diesem Gerät bleiben.</p>
     </div>
   </div>
+  <div class="card"><h2>Daten</h2>
+    <div class="two eq"><button class="big" id="btnExport">Sichern (JSON)</button><button class="big" id="btnCSV">Tabelle (CSV)</button></div>
+    <button class="big" id="btnImport">Importieren (zusammenführen)</button>
+    <input type="file" id="fileImport" accept="application/json,.json" class="hidden">
+    <button class="big danger" id="btnReset">Alle Daten löschen</button>
+    <p class="hint" id="dataHint"></p>
+  </div>
   <p class="hint">Segment 1 = links aus Sicht des Schützen.</p>
-  <button class="big" id="btnStats">Statistik</button>
   <p class="ver" id="appVer"></p>
 </section>
 
-<section id="train" class="hidden">
-  <div class="beam" id="beam"></div>
-  <div class="thead"><div id="tMode"></div><div id="tCount" class="count"></div><div id="tRate"></div></div>
-  <div class="status" id="tStatus"></div>
-  <div class="bar"><i id="tBar"></i></div>
-  <div class="wlive hidden" id="wLive"></div>
-  <div class="mlive hidden" id="mLive"><span>Ton</span><div class="meter mA"><i></i><b></b></div><span>Vibr.</span><div class="meter mM"><i></i><b></b></div><div class="mstate" id="mState"></div></div>
-  <div class="area" id="area">
-    <button class="readybtn hidden" id="readyBtn">BEREIT</button>
-    <div class="segs hidden" id="segs"></div>
-    <div class="simple hidden" id="simple"><button class="sbtn yes" id="bYes">Treffer</button><button class="sbtn no" id="bNo">Daneben</button></div>
-  </div>
-  <div class="tfoot">
-    <button id="btnUndo">↶ Korr.</button>
-    <button id="btnMiss" class="miss">Daneben</button>
-    <button id="btnEnd">Ende</button>
-  </div>
-</section>
-
-<section id="stats" class="screen hidden">
-  <div class="shead"><button id="btnBack">‹ Zurück</button></div>
-  <h1>Statistik</h1>
-  <div class="filters">
-    <div class="chips" id="cRange"></div>
-    <div class="chips" id="cSDisc"></div>
-    <div class="chips" id="cSTech"></div>
-    <div class="chips" id="cSTime"></div>
-  </div>
-  <div id="statsBody"></div>
-  <div class="card"><h2>Daten</h2>
-    <div class="two"><button class="big" id="btnExport">Sichern (JSON)</button><button class="big" id="btnCSV">Tabelle (CSV)</button></div>
-    <button class="big" id="btnImport">Importieren (zusammenführen)</button>
-    <input type="file" id="fileImport" accept="application/json,.json" class="hidden">
-    <button class="big" id="btnReset" style="color:var(--miss)">Alle Daten löschen</button>
-    <p class="hint">Daten liegen nur auf diesem Gerät. iPad ↔ iPhone: exportieren (z. B. AirDrop) und drüben importieren – Duplikate werden erkannt. Tipp: App „Zum Home-Bildschirm“ hinzufügen, sonst kann Safari Daten nach 7 Tagen ohne Besuch löschen.</p>
-  </div>
-</section>
+<nav class="tabbar" id="tabbar">
+  <button data-tab="home"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" class="f"/></svg><span>Training</span></button>
+  <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Statistik</span></button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>Einstellungen</span></button>
+</nav>
 
 <section id="test" class="screen hidden">
   <div class="shead"><button id="btnTestBack">‹ Zurück</button></div>

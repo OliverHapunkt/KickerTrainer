@@ -87,7 +87,7 @@ function timeUp(){ // zwei tiefe Töne = Zeit abgelaufen
   if(!R||!R.active||R.detectAt!=null)return;
   beep(330,.22,.5);setTimeout(()=>beep(247,.35,.5),280);
 }
-const SEGC=[null,'#4a96ee','#f0743a','#22b98a','#ffb020','#e0609a'],PASSC={wall:'#4a96ee',lane:'#f0743a'};
+const SEGC=[null,'#4a96ee','#f0743a','#22b98a','#a07cf0','#e0609a'],PASSC={wall:'#4a96ee',lane:'#f0743a'}; // wie --s1…--s5 in app.css
 function targetColor(){const k=curKind();return k==='shot'?(R.target>0?SEGC[R.target]:null):(PASSC[R.target]||null)}
 function updateBeam(live){
   const b=$('#beam'),c=live&&!R.undo?targetColor():null;
@@ -97,6 +97,7 @@ function updateBeam(live){
     const sr=segs.children[R.target-1].getBoundingClientRect(),tr=$('#train').getBoundingClientRect();
     b.style.left=(sr.left-tr.left)+'px';b.style.width=sr.width+'px';
   }else{b.style.left='0';b.style.width='100%'}
+  const ar=$('#area').getBoundingClientRect(),tr2=$('#train').getBoundingClientRect();b.style.top=(ar.top-tr2.top)+'px';b.style.height=ar.height+'px';b.style.bottom='auto';
   b.style.setProperty('--bc',c);b.className='beam';void b.offsetWidth;b.className='beam on';
 }
 function pulse(){if(curKind()!=='shot'||!(R.target>0))return;const s=segs.children[R.target-1];s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse')}

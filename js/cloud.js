@@ -147,6 +147,7 @@ function renderAcct(){
     st.textContent=CL.busy?'Synchronisiere …':CL.err?CL.err:SY.at?'Zuletzt '+new Date(SY.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'Noch nicht abgeglichen';
     st.style.color=CL.err&&!CL.busy?'var(--miss)':'';
     $('#acSync').disabled=CL.busy}
+  if(typeof renderDataHint==='function')renderDataHint();
   $('#acResend').disabled=CL.cd>0;
   $('#acResend').textContent=CL.cd>0?'Neuen Code senden ('+CL.cd+')':'Neuen Code senden'}
 function acStep(s){CL.step=s;renderAcct()}

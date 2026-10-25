@@ -11,7 +11,8 @@ function renderTest(){
   $('#btnMicTest').textContent=(mic.on||mot.on)?'Sensoren aus':'Mikrofon + Erschütterung an';
   const b=micBlocker();if(b&&!mic.on){$('#micVerdict').textContent=b;$('#micVerdict').style.color='var(--miss)'}
 }
-$('#btnTestBack').onclick=()=>{testSR.active=false;rec.onText=null;recStop();show('home')};
+$('#btnTestBack').onclick=()=>{testSR.active=false;rec.onText=null;recStop();show('settings')};
+function renderDataHint(){$('#dataHint').textContent=(CL&&CL.user?'Deine Daten werden mit deinem Konto abgeglichen. Die Sicherung als Datei ist zusätzlich möglich.':'Daten liegen nur auf diesem Gerät. iPad ↔ iPhone: exportieren (z. B. AirDrop) und drüben importieren – Duplikate werden erkannt.')+' Tipp: App „Zum Home-Bildschirm“ hinzufügen, sonst kann Safari Daten nach 7 Tagen ohne Besuch löschen.'}
 $('#tsNum').onclick=()=>{ensureAudio();speak('Drei','de-DE',true)};
 $('#tsWall').onclick=()=>{ensureAudio();speak('wall','en-US',true)};
 $('#btnSR').onclick=()=>{
@@ -48,7 +49,7 @@ $('#fileImport').onchange=async e=>{
     D.shots.sort((a,b)=>a.t-b.t);
     const hs=new Set(D.sessions.map(x=>x.id));for(const x of(o.sessions||[]))if(!hs.has(x.id))D.sessions.push(x);
     D.sessions.sort((a,b)=>a.start-b.start);
-    save(LS_DATA,D);toast(add+' Einträge importiert');renderStats();
+    save(LS_DATA,D);toast(add+' Einträge importiert');renderHome();
   }catch(err){toast('Datei ungültig')}
   e.target.value='';
 };
@@ -59,5 +60,5 @@ $('#btnReset').onclick=async()=>{
     if(!confirm('Du bist angemeldet: Die Daten werden auch aus deinem Konto gelöscht. Andere Geräte behalten ihre lokale Kopie.\n\nFortfahren?'))return;
     try{await cloudWipe()}catch(e){toast(errText(e,'Löschen im Konto fehlgeschlagen, nichts gelöscht'));return}
   }else if(SY.uid){const u=SY.uid,m=SY.email;SY=SY0();SY.uid=u;SY.email=m;saveSY()}
-  D={v:2,sessions:[],shots:[]};save(LS_DATA,D);renderStats();toast('Gelöscht');
+  D={v:2,sessions:[],shots:[]};save(LS_DATA,D);renderHome();toast('Gelöscht');
 };
