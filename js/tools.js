@@ -31,9 +31,9 @@ $('#btnExport').onclick=async()=>{
 };
 $('#btnCSV').onclick=async()=>{
   const ex=exSet(),q=v=>v==null?'':String(v).includes(';')?'"'+String(v).replace(/"/g,'""')+'"':String(v);
-  const rows=[['Datum','Uhrzeit','Session','Disziplin','Phase','Technik','Ziel','Gelandet','Erfolg','Reaktion_ms','Signal','Korrigiert','Auto','Ausgeschlossen','Notiz']];
+  const rows=[['Datum','Uhrzeit','Session','Disziplin','Phase','Technik','Ziel','Gelandet','Erfolg','Richtung','Reaktion_ms','Signal','Korrigiert','Auto','Ausgeschlossen','Notiz']];
   for(const z of D.shots){const d=new Date(z.t),m=sessMeta(z.s)||{};
-    rows.push([d.toLocaleDateString('de-DE'),d.toLocaleTimeString('de-DE'),z.s,discName(z.d),z.st==='pass'?'Pass':'Schuss',z.k,tl(z.g,z.st),z.l==null?'':z.l===0?'daneben':z.l,z.h?1:0,z.rt,z.sig?1:0,z.fix?1:0,z.auto?1:0,ex.has(z.s)?1:0,m.note||''])}
+    rows.push([d.toLocaleDateString('de-DE'),d.toLocaleTimeString('de-DE'),z.s,discName(z.d),z.st==='pass'?'Pass':'Schuss',z.k,tl(z.g,z.st),z.l==null?'':z.l===0?'daneben':z.l,z.h?1:0,{l:'links',r:'rechts'}[missSide(z)]||'',z.rt,z.sig?1:0,z.fix?1:0,z.auto?1:0,ex.has(z.s)?1:0,m.note||''])}
   const csv='\ufeff'+rows.map(r=>r.map(q).join(';')).join('\r\n'),name='kickertrainer-'+new Date().toISOString().slice(0,10)+'.csv',blob=new Blob([csv],{type:'text/csv'});
   try{const f=new File([blob],name,{type:'text/csv'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'KickerTrainer Tabelle'});return}}catch(e){if(e&&e.name==='AbortError')return}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000);

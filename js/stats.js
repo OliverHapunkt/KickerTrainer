@@ -170,6 +170,27 @@ function chartTechBars(W,group){
   });
   return svg(W,H,s)+(split?legend(series.map(z=>[z[2],z[1]])):'');
 }
+/* Fehlschüsse links/rechts je Ziel (aus „Daneben mit Richtung“ und Wertung „Genau“) */
+function chartSides(W,a){
+  const sh=a.filter(z=>z.st==='shot'&&!z.h),all=sideCount(sh);if(all.n<3)return'';
+  const rows=[0,1,2,3,4,5].map(g=>({g,c:sideCount(sh.filter(z=>z.g===g))})).filter(r=>r.c.n);
+  const L=70,Rr=8,iw=W-L-Rr,bh=22,gap=12,H=rows.length*(bh+gap);let s='',tips=[];
+  rows.forEach((r,i)=>{
+    const Y=i*(bh+gap),wl=iw*r.c.l/r.c.n,mid=L+iw/2;
+    s+='<text x="'+(L-10)+'" y="'+(Y+bh/2+5)+'" text-anchor="end">'+(r.g?'Ziel '+r.g:'Tor egal')+'</text>';
+    s+='<rect x="'+L+'" y="'+Y+'" width="'+iw+'" height="'+bh+'" rx="5" fill="#1e2229"/>';
+    if(r.c.l)s+='<rect x="'+L+'" y="'+Y+'" width="'+wl.toFixed(1)+'" height="'+bh+'" rx="5" fill="'+C_S1+'"/>';
+    if(r.c.r)s+='<rect x="'+(L+wl).toFixed(1)+'" y="'+Y+'" width="'+(iw-wl).toFixed(1)+'" height="'+bh+'" rx="5" fill="'+C_S2+'"/>';
+    s+='<line x1="'+mid+'" x2="'+mid+'" y1="'+(Y-2)+'" y2="'+(Y+bh+2)+'" stroke="#e8eaed" stroke-opacity=".35" stroke-width="1.5"/>';
+    if(r.c.l)s+='<text class="val" x="'+(L+6)+'" y="'+(Y+bh/2+5)+'" style="fill:#111">'+r.c.l+'</text>';
+    if(r.c.r)s+='<text class="val" x="'+(L+iw-6)+'" y="'+(Y+bh/2+5)+'" text-anchor="end" style="fill:#111">'+r.c.r+'</text>';
+    s+='<rect class="hit" x="'+L+'" y="'+Y+'" width="'+iw+'" height="'+bh+'" data-tip="'+(r.g?'Ziel '+r.g:'Tor egal')+'\n'+r.c.l+'× links · '+r.c.r+'× rechts daneben"/>';
+    const p=Math.max(r.c.l,r.c.r)/r.c.n;if(r.c.n>=5&&p>=.7)tips.push({g:r.g,side:r.c.l>r.c.r?'links':'rechts',p,n:r.c.n});
+  });
+  tips.sort((x,y)=>y.p-x.p);
+  const note=tips.length?'<p class="hint">Auffällig: '+tips.slice(0,2).map(t=>'<b style="color:var(--text)">'+(t.g?'Ziel '+t.g:'Tor egal')+'</b> – '+Math.round(t.p*100)+' % der Fehlschüsse '+t.side+' ('+t.n+')').join(' · ')+'</p>':'';
+  return card('Fehlschüsse: links oder rechts?',svg(W,H,s)+legend([[C_S1,'links daneben'],[C_S2,'rechts daneben']])+note,'Aus Sicht des Schützen · '+all.n+' Fehlschüsse mit Richtung');
+}
 function chartFunnel(W,a){
   const k=a.filter(z=>z.d==='k53');if(!k.length)return'';
   const p=k.filter(z=>z.st==='pass'),c=p.filter(z=>z.h),g=k.filter(z=>z.st==='shot'&&z.h),sh=k.filter(z=>z.st==='shot');
@@ -258,6 +279,7 @@ function renderStats(){
       const tt=chartTechTarget(W,g),tb=chartTechBars(W,g);
       if(tt||tb)html+=card(g.title,(tb?'<div class="blockh" style="margin-top:0">Je Technik</div>'+tb:'')+(tt?'<div class="blockh">Technik × Ziel</div>'+tt:''));
     }
+    html+=chartSides(W,a);
     html+=chartFunnel(W,a);
     html+=chartReaction(W,a);
     const sig=a.filter(z=>z.sig),fr=a.filter(z=>!z.sig);
@@ -293,7 +315,8 @@ function renderEntries(x){
     h+='<div class="erow"><span>'+(i+1)+'. '+esc(z.k)+' → '+tl(z.g,z.st)+(z.st==='pass'&&DISC[z.d]&&DISC[z.d].kind==='combo'?' (Pass)':'')+(z.fix?' ✎':'')+'</span>';
     if(seg){for(let n=1;n<=5;n++)h+='<button class="eb'+(z.l===n?(z.h?' on':' onm'):'')+'" data-act="set" data-i="'+idx+'" data-v="'+n+'">'+n+'</button>';
       h+='<button class="eb'+(z.l===0?' onm':'')+'" data-act="set" data-i="'+idx+'" data-v="0">✗</button>'}
-    else h+='<button class="eb'+(z.h?' on':'')+'" data-act="hit" data-i="'+idx+'" data-v="1">✓</button><button class="eb'+(!z.h?' onm':'')+'" data-act="hit" data-i="'+idx+'" data-v="0">✗</button>';
+    else{h+='<button class="eb'+(z.h?' on':'')+'" data-act="hit" data-i="'+idx+'" data-v="1">✓</button><button class="eb'+(!z.h&&!z.md?' onm':'')+'" data-act="hit" data-i="'+idx+'" data-v="0">✗</button>';
+      if(z.st==='shot'&&(S.missDir||z.md))h+='<button class="eb'+(!z.h&&z.md==='l'?' onm':'')+'" data-act="md" data-i="'+idx+'" data-v="l" aria-label="links daneben">←✗</button><button class="eb'+(!z.h&&z.md==='r'?' onm':'')+'" data-act="md" data-i="'+idx+'" data-v="r" aria-label="rechts daneben">✗→</button>'}
     h+='<button class="eb" data-act="rm" data-i="'+idx+'" aria-label="Eintrag löschen">'+icon('trash')+'</button></div>';
   });
   return h+'</div>';
@@ -312,8 +335,9 @@ $('#statsBody').addEventListener('click',async e=>{
   else if(act==='ex'){const m=ensureMeta(id);m.x=!m.x;save(LS_DATA,D);toast(m.x?'Session wird nicht mehr gezählt':'Session zählt wieder')}
   else if(act==='del'){if(!await ask('Die Session wird mit allen Einträgen gelöscht.',{title:'Session löschen?',ok:'Löschen',danger:true}))return;D.shots=D.shots.filter(z=>z.s!==id);D.sessions=D.sessions.filter(z=>z.id!==id);cloudDelS(id);if(ST.session===id)ST.session=null;ST.open=null;save(LS_DATA,D);toast('Session gelöscht')}
   else if(act==='more'){ST.more=true}
-  else if(act==='set'){const z=D.shots[i];if(!z)return;const v=+b.dataset.v;z.l=v;z.h=v>0&&v===z.g;z.fix=true;save(LS_DATA,D)}
-  else if(act==='hit'){const z=D.shots[i];if(!z)return;z.h=b.dataset.v==='1';if(typeof z.l==='number'&&z.g>0)z.l=z.h?z.g:0;z.fix=true;save(LS_DATA,D)}
+  else if(act==='set'){const z=D.shots[i];if(!z)return;const v=+b.dataset.v;z.l=v;z.h=v>0&&v===z.g;delete z.md;z.fix=true;save(LS_DATA,D)}
+  else if(act==='md'){const z=D.shots[i];if(!z)return;z.h=false;z.md=b.dataset.v;if(typeof z.l==='number'&&z.g>0)z.l=0;z.fix=true;save(LS_DATA,D)}
+  else if(act==='hit'){const z=D.shots[i];if(!z)return;z.h=b.dataset.v==='1';delete z.md;if(typeof z.l==='number'&&z.g>0)z.l=z.h?z.g:0;z.fix=true;save(LS_DATA,D)}
   else if(act==='rm'){const z=D.shots[i];if(!z||!await ask('Dieser einzelne Eintrag wird gelöscht.',{title:'Eintrag löschen?',ok:'Löschen',danger:true}))return;D.shots.splice(i,1);cloudDelT(z);if(!D.shots.some(s=>s.s===z.s)){D.sessions=D.sessions.filter(m=>m.id!==z.s);cloudDelS(z.s);ST.open=null}save(LS_DATA,D)}
   const y=window.scrollY;renderStats();window.scrollTo(0,y);
 });

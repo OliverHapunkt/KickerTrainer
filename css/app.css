@@ -277,3 +277,10 @@ input.sw:disabled{opacity:.4}
 @media (min-width:1000px){#stats.screen{max-width:1180px}}
 #statsBody.two{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;align-items:start}
 #statsBody.two>.card.wide{grid-column:1/-1}
+
+/* ===== v3.6 Paket 2 ===== */
+/* Daneben mit Richtung: ← links | Treffer | rechts → (räumlich wie am Tor) */
+.simple.dir{grid-template-columns:1fr 1.5fr 1fr}
+.sbtn.dir{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:clamp(34px,8vw,64px);line-height:1;padding:6px}
+.sbtn.dir small{font-size:clamp(13px,2.6vw,20px);font-weight:700;line-height:1.15}
+.tfoot .mdir{flex:1.2;font-size:18px}

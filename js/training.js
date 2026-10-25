@@ -5,7 +5,9 @@ const segs=$('#segs');
 for(let n=1;n<=5;n++){const b=document.createElement('button');b.className='seg';b.textContent=n;
   b.addEventListener('pointerdown',e=>{e.preventDefault();input(n)});segs.appendChild(b)}
 function pd(el,fn){el.addEventListener('pointerdown',e=>{e.preventDefault();fn()})}
-pd($('#btnMiss'),()=>input(0));pd($('#bYes'),()=>input('hit'));pd($('#bNo'),()=>input(0));pd($('#readyBtn'),()=>input('ready'));
+pd($('#btnMiss'),()=>input(0));pd($('#bYes'),()=>input('hit'));pd($('#bNo'),()=>input(0));
+// Daneben mit Richtung (aus Sicht des Schützen): 'ml' = links, 'mr' = rechts
+pd($('#bNoL'),()=>input('ml'));pd($('#bNoR'),()=>input('mr'));pd($('#btnMissL'),()=>input('ml'));pd($('#btnMissR'),()=>input('mr'));pd($('#readyBtn'),()=>input('ready'));
 $('#btnUndo').onclick=()=>undo();
 $('#mLive').onclick=()=>{if(micHealth())detRestart()};
 $('#btnEnd').onclick=()=>finish();
@@ -16,6 +18,8 @@ function clearTimers(){if(R){R.timers.forEach(clearTimeout);R.timers=[]}}
 function curKind(){return R.D.kind==='combo'?R.stage:R.D.kind}
 function ruleMs(){return(R.D.kind==='combo'&&R.stage==='shot'?R.D.rule2:R.D.rule)*1000}
 function curTech(){return R.techNow||(R.D.kind==='combo'&&R.stage==='shot'?R.cfg.tech2:R.cfg.tech)}
+function dirOn(){return!!S.missDir&&curKind()==='shot'}
+function missEl(m,md){return md?(m==='seg'?$(md==='l'?'#btnMissL':'#btnMissR'):$(md==='l'?'#bNoL':'#bNoR')):(m==='seg'?$('#btnMiss'):$('#bNo'))}
 function inputMode(){return curKind()==='shot'&&R.cfg.scoring==='exact'?'seg':'simple'}
 function deckKey(){return curKind()==='shot'?'deckS':'deckP'}
 function makeDeck(t){
@@ -126,12 +130,14 @@ function renderTrain(){
   $('#pviz').classList.toggle('hidden',!showP);if(showP)renderPassViz(live);
   $('#area').classList.toggle('split',(showSeg&&m==='simple')||showP);
   $('#simple').classList.toggle('hidden',R.phase==='ready'||m!=='simple');
-  $('#btnMiss').classList.toggle('hidden',m!=='seg');
+  const dir=dirOn();
+  $('#btnMiss').classList.toggle('hidden',m!=='seg'||dir);$('#btnMissL').classList.toggle('hidden',m!=='seg'||!dir);$('#btnMissR').classList.toggle('hidden',m!=='seg'||!dir);
+  $('#bNo').classList.toggle('hidden',dir);$('#bNoL').classList.toggle('hidden',!dir);$('#bNoR').classList.toggle('hidden',!dir);$('#simple').classList.toggle('dir',dir);
   $('#area').classList.toggle('off',!live&&R.phase!=='ready'&&!R.corr);
   [...segs.children].forEach((s,i)=>s.classList.toggle('target',live&&R.target===i+1));
   updateBeam(live);
   $('#bYes').textContent=k==='pass'?'Gefangen':'Treffer';$('#bNo').textContent=k==='pass'?'Verloren':'Daneben';
-  $('#tMode').textContent=R.D.n+' · '+curTech()+(R.D.kind==='combo'?' ('+(k==='pass'?'Pass':'Schuss')+')':'')+(R.plan?' · Plan '+(R.plan.i+1)+'/'+S.plan.length:'');
+  $('#tMode').textContent=R.D.n+' · '+curTech()+(R.D.kind==='combo'?' ('+(k==='pass'?'Pass':'Schuss')+')':'')+(R.plan?' · Station '+(R.plan.i+1)+'/'+R.plan.steps.length:'');
   const n=R.entries.length,h=R.entries.filter(s=>s.h).length;
   $('#tRate').innerHTML=n?h+'/'+n+' · '+pct(h/n)+gamStreak(R.entries):'';
   updateWeakLive();
@@ -163,11 +169,12 @@ function tick(){
   requestAnimationFrame(tick);
 }
 function correct(v){
-  const e=R.corr.e,m=inputMode();let l=null,h;
+  const e=R.corr.e,m=inputMode();let l=null,h,md=null;
+  if(v==='ml'||v==='mr'){md=v[1];v=0}
   if(v==='hit')h=true;else if(v===0){h=false;if(m==='seg')l=0}else{l=v;h=e.g===0?true:v===e.g}
-  e.l=l;e.h=h;e.fix=true;save(LS_DATA,D);
+  e.l=l;e.h=h;e.fix=true;if(md)e.md=md;else delete e.md;save(LS_DATA,D);
   clearTimers();R.corr=null;R.lastHit=h;beep(h?1200:400,.07,.2);
-  const el=m==='seg'?(l>0?segs.children[l-1]:$('#btnMiss')):(h?$('#bYes'):$('#bNo'));
+  const el=m==='seg'?(l>0?segs.children[l-1]:missEl(m,md)):(h?$('#bYes'):missEl(m,md));
   el.classList.add(h?'fhit':'fmiss');setTimeout(()=>el.classList.remove('fhit','fmiss'),450);
   setPhase('result');later(startRep,800);
 }
@@ -177,7 +184,8 @@ function input(v,auto){
   if(R.phase==='result'&&R.corr){correct(v);return}
   if(!(R.phase==='aim'||R.phase==='call'))return;
   const k=curKind(),m=inputMode();
-  let l=null,h;
+  let l=null,h,md=null;
+  if(v==='ml'||v==='mr'){if(k!=='shot')return;md=v[1];v=0}
   if(v==='hit')h=true;
   else if(v===0){h=false;if(m==='seg')l=0}
   else{l=v;h=R.target===0?true:v===R.target}
@@ -187,11 +195,12 @@ function input(v,auto){
   const passOk=R.D.kind==='combo'&&R.stage==='pass'&&h,end=!passOk;
   const e={s:R.id,t:Date.now(),d:R.cfg.d,st:k,k:curTech(),g:R.target,l,h,rt,late,sig:R.cfg.timing==='signal',end};
   if(auto)e.auto=true;
+  if(md)e.md=md;
   R.entries.push(e);D.shots.push(e);save(LS_DATA,D);
   R.pending=null;clearTimers();R.lastHit=h;
   if(end){R.reps++;R.nextStage=R.D.kind==='combo'?'pass':R.stage}else R.nextStage='shot'; // Phasenwechsel erst beim nächsten Ziel, sonst stimmt die Anzeige im Korrekturfenster nicht
   beep(h?1200:400,.07,.2);
-  const el=m==='seg'?(l>0?segs.children[l-1]:$('#btnMiss')):(h?$('#bYes'):$('#bNo'));
+  const el=m==='seg'?(l>0?segs.children[l-1]:missEl(m,md)):(h?$('#bYes'):missEl(m,md));
   el.classList.add(h?'fhit':'fmiss');setTimeout(()=>el.classList.remove('fhit','fmiss'),450);
   if(auto){const w=S.corrWin*1000;R.corr={e};setPhase('result',w);later(startRep,w)}
   else{setPhase('result');later(startRep,550)}
@@ -225,6 +234,17 @@ function agg(a){
     dev:wrong.length?wrong.reduce((x,s)=>x+(s.l-s.g),0)/wrong.length:null,wrongN:wrong.length,
     outN:a.filter(s=>s.l===0).length};
 }
+/* Richtung eines Fehlschusses aus Sicht des Schützen: 'l', 'r' oder null.
+   Quelle 1: ausdrücklich erfasst (md, Einstellung „Daneben mit Richtung“).
+   Quelle 2: Wertung „Genau“ – getroffenes Segment links/rechts vom Ziel.
+   Grundlage für spätere Schwachstellenanalyse, Technik-Tipps und Trainer-Auswertung. */
+function missSide(z){
+  if(z.h||z.st!=='shot')return null;
+  if(z.md==='l'||z.md==='r')return z.md;
+  if(typeof z.l==='number'&&z.l>0&&typeof z.g==='number'&&z.g>0&&z.l!==z.g)return z.l<z.g?'l':'r';
+  return null;
+}
+function sideCount(a){let l=0,r=0;for(const z of a){const s=missSide(z);if(s==='l')l++;else if(s==='r')r++}return{l,r,n:l+r}}
 function tend(a){if(a.dev==null)return'–';if(a.dev<-.25)return'← eher links ('+fmt(a.dev,1)+')';if(a.dev>.25)return'eher rechts → (+'+fmt(a.dev,1)+')';return'ausgeglichen'}
 function kv(k,v){return'<div class="kv"><span>'+k+'</span><b>'+v+'</b></div>'}
 function targetRow(a,kind){
@@ -237,6 +257,7 @@ function detailKV(a,b){
   if(b.rtAvg!=null)x+=kv('Ø Reaktionszeit (Mikro)',fmt(b.rtAvg/1000)+' s ('+b.rtN+')');
   if(b.inWin!=null)x+=kv('Im Reaktionsfenster',pct(b.inWin));
   if(b.wrongN)x+=kv('Falsches Segment / daneben',b.wrongN+' / '+b.outN),x+=kv('Tendenz',tend(b));
+  const sc=sideCount(a.filter(z=>z.md));if(sc.n)x+=kv('Daneben links / rechts',sc.l+' / '+sc.r);
   return x;
 }
 function groups(a){
@@ -264,13 +285,13 @@ function showSummary(){
   }
   if(det)html+='<div class="sumdet"><h2>Details</h2>'+det+'</div>';
   html+='<p class="center" style="margin-top:12px">'+cfgLabel(R.cfg)+'</p>';
-  const hasNext=R.plan&&R.plan.i+1<S.plan.length;
+  const hasNext=R.plan&&R.plan.i+1<R.plan.steps.length,nextCfg=hasNext?R.plan.steps[R.plan.i+1]:null;
   let foot='';
-  if(hasNext)foot+='<p class="center" style="margin:0 0 2px">Nächste: '+cfgLabel(S.plan[R.plan.i+1])+(S.voiceIn?' · oder „Ja“':'')+'</p><button class="big primary" id="sumNext">Weiter: Übung '+(R.plan.i+2)+'</button>';
+  if(hasNext)foot+='<p class="center" style="margin:0 0 2px">Nächste: '+cfgLabel(nextCfg)+(S.voiceIn?' · oder „Ja“':'')+'</p><button class="big primary" id="sumNext">Weiter: Station '+(R.plan.i+2)+' von '+R.plan.steps.length+'</button>';
   foot+='<button class="big'+(hasNext?'':' primary')+'" id="sumAgain">Nochmal</button><div class="two eq"><button class="big" id="sumStats">Details / korrigieren</button><button class="big" id="sumHome">Menü</button></div>';
   $('#summaryBody').innerHTML='<div class="sumscroll">'+html+'</div><div class="sumfoot">'+foot+'</div>';$('#summary').classList.remove('hidden');
   const cfg=R.cfg,plan=R.plan;
-  if(hasNext){$('#sumNext').onclick=()=>startSession(S.plan[plan.i+1],{i:plan.i+1});if(S.voiceIn)recStart()}
+  if(hasNext){$('#sumNext').onclick=()=>startSession(nextCfg,{i:plan.i+1,steps:plan.steps,name:plan.name});if(S.voiceIn)recStart()}
   $('#sumAgain').onclick=()=>startSession(cfg,plan);
   $('#sumHome').onclick=()=>{recStop();$('#summary').classList.add('hidden');R=null;renderHome();show('home')};
   $('#sumStats').onclick=()=>{const id=R.id;recStop();$('#summary').classList.add('hidden');R=null;ST.session=id;ST.open=id;ST.edit=null;ST.disc='all';ST.tech='all';ST.timing='all';show('stats');renderStats()};

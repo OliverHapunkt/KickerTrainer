@@ -159,11 +159,12 @@ function renderHome(){
   chips($('#cAmt'),[5,10,15].map(n=>({v:n,t:n+' min'})),v=>c.amt==='time'&&c.minutes===v,v=>{c.amt='time';c.minutes=v});
   // Plan
   $('#planCard').classList.toggle('hidden',!S.plan.length);
+  $('#planTitle').textContent='Ablauf · '+S.plan.length+(S.plan.length===1?' Station':' Stationen');
   $('#planList').innerHTML='';
   S.plan.forEach((p,i)=>{const r=document.createElement('div');r.className='planitem';
-    r.innerHTML='<b>'+(i+1)+'</b><span></span><button>×</button>';r.querySelector('span').textContent=cfgLabel(p);
+    r.innerHTML='<b>'+(i+1)+'</b><span></span><button aria-label="Station entfernen">'+icon('x')+'</button>';r.querySelector('span').textContent=cfgLabel(p);
     r.querySelector('button').onclick=()=>{S.plan.splice(i,1);saveS();renderHome()};$('#planList').appendChild(r)});
-  $('#oVoiceOut').checked=S.voiceOut;$('#oVoiceIn').checked=S.voiceIn;$('#oMic').checked=S.mic;$('#oSens').value=S.sens;
+  $('#oVoiceOut').checked=S.voiceOut;$('#oMissDir').checked=!!S.missDir;$('#oVoiceIn').checked=S.voiceIn;$('#oMic').checked=S.mic;$('#oSens').value=S.sens;
   $('#oVoiceIn').disabled=!SR;$('#oMSens').value=S.msens;
   $('#wDet').classList.toggle('hidden',!S.mic);
   $('#oAuto').checked=S.autoCount;$('#wCorr').classList.toggle('hidden',!S.autoCount);$('#oAuto').disabled=!S.mic;$('#oAuto').closest('.row').style.opacity=S.mic?'':'.5';
@@ -171,6 +172,7 @@ function renderHome(){
   chips($('#cDet'),[{v:'audio',t:'Ton'},{v:'motion',t:'Erschütterung'},{v:'both',t:'Ton + Erschütterung'},{v:'either',t:'Ton oder Erschütterung'}],v=>S.det===v,v=>{S.det=v;if(S.mic)detStart()});
 }
 $('#oVoiceOut').onchange=e=>{S.voiceOut=e.target.checked;saveS()};
+$('#oMissDir').onchange=e=>{S.missDir=e.target.checked;saveS()};
 $('#oVoiceIn').onchange=e=>{S.voiceIn=e.target.checked;saveS()};
 $('#oMic').onchange=async e=>{S.mic=e.target.checked;saveS();if(!S.mic){detStop();$('#wDet').classList.add('hidden');return}
   if(!await detStart()){S.mic=false;saveS();e.target.checked=false}else toast('Schusserkennung aktiv ✓');renderHome()};
@@ -178,25 +180,35 @@ $('#oAuto').onchange=e=>{S.autoCount=e.target.checked;saveS();renderHome()};
 $('#oMSens').oninput=e=>{S.msens=+e.target.value;saveS()};
 $('#oSens').oninput=e=>{S.sens=+e.target.value;saveS()};
 $('#btnStart').onclick=()=>startSession(S.cfg,null);
-$('#btnAddPlan').onclick=()=>{S.plan.push(clone(S.cfg));saveS();renderHome();toast('Zum Plan hinzugefügt')};
-$('#btnPlanStart').onclick=()=>{if(S.plan.length)startSession(S.plan[0],{i:0})};
-$('#btnPlanClear').onclick=async()=>{if(await ask('Alle Stationen werden aus dem Plan entfernt.',{title:'Plan leeren?',ok:'Leeren'})){S.plan=[];saveS();renderHome()}};
+/* Ablauf = mehrere Stationen hintereinander; als Übung speicherbar */
+function startSteps(steps,name){
+  steps=steps.map(c=>Object.assign(clone(DEFCFG),clone(c)));
+  if(steps.length===1)startSession(steps[0],null);else startSession(steps[0],{i:0,steps,name:name||null});
+}
+$('#btnAddPlan').onclick=()=>{S.plan.push(clone(S.cfg));saveS();renderHome();toast('Station '+S.plan.length+' hinzugefügt')};
+$('#btnPlanStart').onclick=()=>{if(S.plan.length)startSteps(S.plan)};
+$('#btnPlanClear').onclick=async()=>{if(await ask('Alle Stationen werden aus dem Ablauf entfernt.',{title:'Ablauf leeren?',ok:'Leeren'})){S.plan=[];saveS();renderHome()}};
+$('#btnPlanSave').onclick=async()=>{
+  const n=await askText('Name des Ablaufs',{value:'Ablauf '+(S.presets.length+1),max:40});if(n===null)return;
+  S.presets.push({name:n.trim().slice(0,40)||'Ablauf',steps:clone(S.plan)});saveS();renderHome();toast('Als Übung gespeichert')};
 /* Meine Übungen (gespeicherte Konfigurationen) */
 function renderPresets(){
   const el=$('#presetList');el.innerHTML='';
   $('#presetCard').classList.toggle('hidden',!S.presets.length);
   S.presets.forEach((p,i)=>{
-    const r=document.createElement('div');r.className='prow';const sm=cfgSummary(p.cfg);
+    const r=document.createElement('div');r.className='prow';const multi=p.steps.length>1,sm=cfgSummary(p.steps[0]);
     r.innerHTML='<button class="pmain"><b></b><small></small></button><button class="pgo" aria-label="Starten">'+icon('play')+'</button><button class="pdel" aria-label="Löschen">'+icon('x')+'</button>';
-    r.querySelector('b').textContent=p.name;r.querySelector('small').textContent=sm.head+' · '+sm.sub;
-    r.querySelector('.pmain').onclick=()=>{S.cfg=Object.assign(clone(DEFCFG),clone(p.cfg));saveS();renderHome();toast('„'+p.name+'“ geladen')};
-    r.querySelector('.pgo').onclick=()=>startSession(Object.assign(clone(DEFCFG),p.cfg),null);
+    r.querySelector('b').textContent=p.name;
+    r.querySelector('small').textContent=multi?p.steps.length+' Stationen · '+p.steps.map(c=>DISC[c.d]?DISC[c.d].n:c.d).join(' → '):sm.head+' · '+sm.sub;
+    // Antippen lädt: einzelne Übung in „Aktuelle Übung“, Ablauf zusätzlich in den Ablauf
+    r.querySelector('.pmain').onclick=()=>{S.cfg=Object.assign(clone(DEFCFG),clone(p.steps[0]));if(multi)S.plan=clone(p.steps);saveS();renderHome();toast('„'+p.name+'“ geladen')};
+    r.querySelector('.pgo').onclick=()=>startSteps(p.steps,p.name);
     r.querySelector('.pdel').onclick=async()=>{if(!await ask('Die gespeicherte Übung wird entfernt.',{title:'„'+p.name+'“ löschen?',ok:'Löschen',danger:true}))return;S.presets.splice(i,1);saveS();renderHome()};
     el.appendChild(r)});
 }
 $('#btnPreset').onclick=async()=>{
   const n=await askText('Name der Übung',{value:cfgSummary(S.cfg).head,max:40});if(n===null)return;const name=n.trim().slice(0,40)||cfgSummary(S.cfg).head;
-  S.presets.push({name,cfg:clone(S.cfg)});saveS();renderHome();toast('Gespeichert')};
+  S.presets.push({name,steps:[clone(S.cfg)]});saveS();renderHome();toast('Gespeichert')};
 $('#btnCfg').onclick=()=>{S.cfgOpen=!S.cfgOpen;saveS();renderHome()};
 /* Tab-Leiste */
 document.querySelectorAll('#tabbar button').forEach(b=>b.onclick=()=>{
