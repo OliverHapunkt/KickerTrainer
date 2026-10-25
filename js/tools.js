@@ -54,10 +54,10 @@ $('#fileImport').onchange=async e=>{
   e.target.value='';
 };
 $('#btnReset').onclick=async()=>{
-  if(!confirm('Wirklich ALLE Trainingsdaten löschen?'))return;
-  if(!confirm('Sicher? Das kann nicht rückgängig gemacht werden.'))return;
+  if(!await ask('Alle Sessions und Einträge auf diesem Gerät werden gelöscht.',{title:'Alle Trainingsdaten löschen?',ok:'Löschen',danger:true}))return;
+  if(!await ask('Das kann nicht rückgängig gemacht werden. Tipp: vorher „Sichern (JSON)“.',{title:'Wirklich sicher?',ok:'Endgültig löschen',danger:true}))return;
   if(CL.user){
-    if(!confirm('Du bist angemeldet: Die Daten werden auch aus deinem Konto gelöscht. Andere Geräte behalten ihre lokale Kopie.\n\nFortfahren?'))return;
+    if(!await ask('Du bist angemeldet: Die Daten werden auch aus deinem Konto gelöscht. Andere Geräte behalten ihre lokale Kopie.',{title:'Auch im Konto löschen',ok:'Fortfahren',danger:true}))return;
     try{await cloudWipe()}catch(e){toast(errText(e,'Löschen im Konto fehlgeschlagen, nichts gelöscht'));return}
   }else if(SY.uid){const u=SY.uid,m=SY.email;SY=SY0();SY.uid=u;SY.email=m;saveSY()}
   D={v:2,sessions:[],shots:[]};save(LS_DATA,D);renderHome();toast('Gelöscht');

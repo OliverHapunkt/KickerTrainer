@@ -92,14 +92,29 @@ const SEGC=[null,'#4a96ee','#f0743a','#22b98a','#a07cf0','#e0609a'],PASSC={wall:
 function targetColor(){const k=curKind();return k==='shot'?(R.target>0?SEGC[R.target]:null):(PASSC[R.target]||null)}
 function updateBeam(live){
   const b=$('#beam'),c=live&&!R.undo?targetColor():null;
-  if(!c){b.className='beam';b.dataset.t='';return}
+  // Nur bei Schüssen auf ein bestimmtes Segment, und nur hinter genau diesem Segment (nie über den Buttons)
+  if(!c||curKind()!=='shot'||!(R.target>0)||segs.classList.contains('hidden')){b.className='beam';b.dataset.t='';return}
   const key=R.callAt+'|'+R.target;if(b.dataset.t===key)return;b.dataset.t=key;
-  if(curKind()==='shot'&&!segs.classList.contains('hidden')){
-    const sr=segs.children[R.target-1].getBoundingClientRect(),tr=$('#train').getBoundingClientRect();
-    b.style.left=(sr.left-tr.left)+'px';b.style.width=sr.width+'px';
-  }else{b.style.left='0';b.style.width='100%'}
-  const ar=$('#area').getBoundingClientRect(),tr2=$('#train').getBoundingClientRect();b.style.top=(ar.top-tr2.top)+'px';b.style.height=ar.height+'px';b.style.bottom='auto';
+  const sr=segs.children[R.target-1].getBoundingClientRect(),tr=$('#train').getBoundingClientRect();
+  b.style.left=(sr.left-tr.left)+'px';b.style.width=sr.width+'px';b.style.top=(sr.top-tr.top)+'px';b.style.height=sr.height+'px';b.style.bottom='auto';
   b.style.setProperty('--bc',c);b.className='beam';void b.offsetWidth;b.className='beam on';
+}
+/* Pass-Skizze: Draufsicht aus Sicht des Spielers. Unten eigene 5er, Mitte gegnerische 5er, oben eigene 3er.
+   Wall = entlang der Bande, Lane = durch die Lücke zwischen den gegnerischen Figuren. */
+function renderPassViz(live){
+  const el=$('#pviz'),t=R.target,key=t+'|'+live;if(el.dataset.k===key)return;el.dataset.k=key;
+  const W=PASSC.wall,L=PASSC.lane,on=g=>live&&(t===g||t===0),op=g=>on(g)?1:.22;
+  // Ausschnitt: linke Tischhälfte (Ball an der Bande), Spielfeld läuft rechts aus dem Bild
+  const men=(y,xs,c)=>'<line x1="6" x2="170" y1="'+y+'" y2="'+y+'" class="rod"/>'+xs.map(x=>'<rect x="'+(x-8)+'" y="'+(y-10)+'" width="16" height="20" rx="4" fill="'+c+'"/>').join('');
+  el.innerHTML='<svg viewBox="0 0 150 232" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
+    +'<rect x="6" y="4" width="170" height="224" rx="10" class="field"/>'
+    +men(56,[50,110],'#e8eaed')+men(132,[30,70,110,150],'#5b6270')+men(206,[30,70,110,150],'#e8eaed')
+    +'<circle cx="30" cy="188" r="7" fill="#ffb020"/>'
+    +'<g opacity="'+op('wall')+'"><path d="M17 180 V64" stroke="'+W+'" class="arr"/><path d="M9 74 L17 60 L25 74" stroke="'+W+'" class="arr"/>'
+    +'<text x="10" y="30" fill="'+W+'" class="plbl">WALL</text></g>'
+    +'<g opacity="'+op('lane')+'"><path d="M38 180 C48 150 50 110 54 70" stroke="'+L+'" class="arr"/><path d="M46 78 L55 64 L62 79" stroke="'+L+'" class="arr"/>'
+    +'<text x="76" y="30" fill="'+L+'" class="plbl">LANE</text></g>'
+    +'</svg>';
 }
 function pulse(){if(curKind()!=='shot'||!(R.target>0))return;const s=segs.children[R.target-1];s.classList.remove('pulse');void s.offsetWidth;s.classList.add('pulse')}
 function renderTrain(){
@@ -107,7 +122,9 @@ function renderTrain(){
   $('#readyBtn').classList.toggle('hidden',R.phase!=='ready');
   const showSeg=R.phase!=='ready'&&(m==='seg'||(k==='shot'&&(R.target>0||R.cfg.tS.some(x=>x>0))));
   segs.classList.toggle('hidden',!showSeg);segs.classList.toggle('ro',m!=='seg');
-  $('#area').classList.toggle('split',showSeg&&m==='simple');
+  const showP=k==='pass'&&R.phase!=='ready';
+  $('#pviz').classList.toggle('hidden',!showP);if(showP)renderPassViz(live);
+  $('#area').classList.toggle('split',(showSeg&&m==='simple')||showP);
   $('#simple').classList.toggle('hidden',R.phase==='ready'||m!=='simple');
   $('#btnMiss').classList.toggle('hidden',m!=='seg');
   $('#area').classList.toggle('off',!live&&R.phase!=='ready'&&!R.corr);
@@ -116,7 +133,7 @@ function renderTrain(){
   $('#bYes').textContent=k==='pass'?'Gefangen':'Treffer';$('#bNo').textContent=k==='pass'?'Verloren':'Daneben';
   $('#tMode').textContent=R.D.n+' · '+curTech()+(R.D.kind==='combo'?' ('+(k==='pass'?'Pass':'Schuss')+')':'')+(R.plan?' · Plan '+(R.plan.i+1)+'/'+S.plan.length:'');
   const n=R.entries.length,h=R.entries.filter(s=>s.h).length;
-  $('#tRate').textContent=n?h+'/'+n+' · '+pct(h/n)+gamStreak(R.entries):'';
+  $('#tRate').innerHTML=n?h+'/'+n+' · '+pct(h/n)+gamStreak(R.entries):'';
   updateWeakLive();
 }
 let lastTxt='';
@@ -231,26 +248,27 @@ function groups(a){
 function chainRate(a){const ends=a.filter(s=>s.d==='k53'&&s.end);return ends.length?{n:ends.length,h:ends.filter(s=>s.st==='shot'&&s.h).length}:null}
 function nextPlanBtn(){return $('#sumNext')}
 function showSummary(){
-  const a=R.entries;let html='';
-  for(const g of groups(a)){
-    const b=agg(g.arr);
-    html+='<div class="blockh">'+g.title+'</div><div class="bigpct">'+pct(b.rate)+'</div><p class="center">'+b.h+' von '+b.n+'</p>'+targetRow(g.arr,g.st)+detailKV(g.arr,b);
-  }
+  // Reihenfolge: Ergebnis → Belohnung (XP, Challenges) → Details. Buttons fest am unteren Rand.
+  const a=R.entries,gs=groups(a);let html='',det='';
+  html+='<div class="sumhead">'+gs.map(g=>{const b=agg(g.arr);return'<div><div class="blockh">'+g.title+'</div><div class="bigpct">'+pct(b.rate)+'</div><p class="center">'+b.h+' von '+b.n+'</p></div>'}).join('')+'</div>';
   const ch=chainRate(a);if(ch)html+=kv('Kette Pass → Tor',ch.h+' / '+ch.n+' ('+pct(ch.h/ch.n)+')');
+  html+=gamSummary(R.gam0);
+  for(const g of gs){const b=agg(g.arr),x=targetRow(g.arr,g.st)+detailKV(g.arr,b);if(x)det+=(gs.length>1?'<div class="blockh">'+g.title+'</div>':'')+x}
   if(R.cfg.order==='weak'&&R.share0){
     for(const kind of weakKinds(R.cfg)){
       const ws=weakShares(R.cfg,kind),s0=R.share0[kind]||{};
-      html+='<div class="blockh">Fokus-Verschiebung'+(weakKinds(R.cfg).length>1?' ('+(kind==='pass'?'Pass':'Schuss')+')':'')+'</div>'
+      det+='<div class="blockh">Fokus-Verschiebung'+(weakKinds(R.cfg).length>1?' ('+(kind==='pass'?'Pass':'Schuss')+')':'')+'</div>'
         +ws.list.slice().sort((a,b)=>(s0[b.k+'|'+b.g]||0)-(s0[a.k+'|'+a.g]||0)).slice(0,3)
           .map(c=>kv(weakLabel(R.cfg,c,kind),Math.round(s0[c.k+'|'+c.g]||0)+' % → '+Math.round(c.share)+' %')).join('');
     }
   }
-  html+=gamSummary(R.gam0);
+  if(det)html+='<div class="sumdet"><h2>Details</h2>'+det+'</div>';
   html+='<p class="center" style="margin-top:12px">'+cfgLabel(R.cfg)+'</p>';
   const hasNext=R.plan&&R.plan.i+1<S.plan.length;
-  if(hasNext)html+='<button class="big primary" id="sumNext">Weiter: Übung '+(R.plan.i+2)+'</button><p class="center">'+cfgLabel(S.plan[R.plan.i+1])+(S.voiceIn?' · oder „Ja“':'')+'</p>';
-  html+='<button class="big'+(hasNext?'':' primary')+'" id="sumAgain">Nochmal</button><div class="two" style="grid-template-columns:1fr 1fr"><button class="big" id="sumStats">Details / korrigieren</button><button class="big" id="sumHome">Menü</button></div>';
-  $('#summaryBody').innerHTML=html;$('#summary').classList.remove('hidden');
+  let foot='';
+  if(hasNext)foot+='<p class="center" style="margin:0 0 2px">Nächste: '+cfgLabel(S.plan[R.plan.i+1])+(S.voiceIn?' · oder „Ja“':'')+'</p><button class="big primary" id="sumNext">Weiter: Übung '+(R.plan.i+2)+'</button>';
+  foot+='<button class="big'+(hasNext?'':' primary')+'" id="sumAgain">Nochmal</button><div class="two eq"><button class="big" id="sumStats">Details / korrigieren</button><button class="big" id="sumHome">Menü</button></div>';
+  $('#summaryBody').innerHTML='<div class="sumscroll">'+html+'</div><div class="sumfoot">'+foot+'</div>';$('#summary').classList.remove('hidden');
   const cfg=R.cfg,plan=R.plan;
   if(hasNext){$('#sumNext').onclick=()=>startSession(S.plan[plan.i+1],{i:plan.i+1});if(S.voiceIn)recStart()}
   $('#sumAgain').onclick=()=>startSession(cfg,plan);

@@ -180,22 +180,22 @@ $('#oSens').oninput=e=>{S.sens=+e.target.value;saveS()};
 $('#btnStart').onclick=()=>startSession(S.cfg,null);
 $('#btnAddPlan').onclick=()=>{S.plan.push(clone(S.cfg));saveS();renderHome();toast('Zum Plan hinzugefügt')};
 $('#btnPlanStart').onclick=()=>{if(S.plan.length)startSession(S.plan[0],{i:0})};
-$('#btnPlanClear').onclick=()=>{if(confirm('Plan leeren?')){S.plan=[];saveS();renderHome()}};
+$('#btnPlanClear').onclick=async()=>{if(await ask('Alle Stationen werden aus dem Plan entfernt.',{title:'Plan leeren?',ok:'Leeren'})){S.plan=[];saveS();renderHome()}};
 /* Meine Übungen (gespeicherte Konfigurationen) */
 function renderPresets(){
   const el=$('#presetList');el.innerHTML='';
-  $('#presetEmpty').classList.toggle('hidden',S.presets.length>0);
+  $('#presetCard').classList.toggle('hidden',!S.presets.length);
   S.presets.forEach((p,i)=>{
     const r=document.createElement('div');r.className='prow';const sm=cfgSummary(p.cfg);
-    r.innerHTML='<button class="pmain"><b></b><small></small></button><button class="pgo" aria-label="Starten">▶</button><button class="pdel" aria-label="Löschen">×</button>';
+    r.innerHTML='<button class="pmain"><b></b><small></small></button><button class="pgo" aria-label="Starten">'+icon('play')+'</button><button class="pdel" aria-label="Löschen">'+icon('x')+'</button>';
     r.querySelector('b').textContent=p.name;r.querySelector('small').textContent=sm.head+' · '+sm.sub;
     r.querySelector('.pmain').onclick=()=>{S.cfg=Object.assign(clone(DEFCFG),clone(p.cfg));saveS();renderHome();toast('„'+p.name+'“ geladen')};
     r.querySelector('.pgo').onclick=()=>startSession(Object.assign(clone(DEFCFG),p.cfg),null);
-    r.querySelector('.pdel').onclick=()=>{if(!confirm('„'+p.name+'“ löschen?'))return;S.presets.splice(i,1);saveS();renderHome()};
+    r.querySelector('.pdel').onclick=async()=>{if(!await ask('Die gespeicherte Übung wird entfernt.',{title:'„'+p.name+'“ löschen?',ok:'Löschen',danger:true}))return;S.presets.splice(i,1);saveS();renderHome()};
     el.appendChild(r)});
 }
-$('#btnPreset').onclick=()=>{
-  const n=prompt('Name der Übung',cfgSummary(S.cfg).head);if(n===null)return;const name=n.trim().slice(0,40)||cfgSummary(S.cfg).head;
+$('#btnPreset').onclick=async()=>{
+  const n=await askText('Name der Übung',{value:cfgSummary(S.cfg).head,max:40});if(n===null)return;const name=n.trim().slice(0,40)||cfgSummary(S.cfg).head;
   S.presets.push({name,cfg:clone(S.cfg)});saveS();renderHome();toast('Gespeichert')};
 $('#btnCfg').onclick=()=>{S.cfgOpen=!S.cfgOpen;saveS();renderHome()};
 /* Tab-Leiste */
