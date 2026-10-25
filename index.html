@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.6.0',d:'2026-10-25'};
+window.KT_VER={v:'3.7.0',d:'2026-10-25'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -36,12 +36,14 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <div class="sub" id="wWindow"><label>Reaktionsfenster nach Signal</label><div class="chips sc" id="cWindow"></div></div>
       <div class="sub" id="wReady"><label>„Bereit“ auslösen</label><div class="chips sc" id="cReady"></div><p class="hint">Tippen geht immer. Mit Spracheingabe zusätzlich „Ja“.</p></div>
       <div class="sub" id="wScore"><label>Wertung Schuss</label><div class="chips sc" id="cScore"></div><p class="hint" id="hScore"></p></div>
+      <div class="sub" id="wPr"><label>Druckmodus</label><div class="chips sc" id="cPr"></div><p class="hint" id="hPr"></p></div>
       <div class="sub"><label>Umfang</label><div class="chips sc" id="cAmtC"></div><div class="chips sc" id="cAmt" style="margin-top:8px"></div></div>
       <button class="big" id="btnPreset">Als eigene Übung speichern</button>
     </div>
     <div class="two qbtns"><button class="big primary" id="btnStart">Start</button><button class="big" id="btnAddPlan">+ Station</button></div>
   </div>
   <div id="gamHome"></div>
+  <div id="lpHome"></div>
 
   <div class="card hidden" id="presetCard"><h2>Meine Übungen</h2><div id="presetList"></div></div>
 
@@ -94,6 +96,10 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <label class="row"><span>Sprachansage<small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" class="sw" id="oVoiceOut"></label>
     <label class="row"><span>Daneben mit Richtung<small>Teilt „Daneben“ bei Schüssen in links / rechts (aus Sicht des Schützen). Die Statistik zeigt dann, wohin du verziehst</small></span><input type="checkbox" class="sw" id="oMissDir"></label>
     <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" class="sw" id="oVoiceIn"></label>
+  </div>
+  <div class="card"><h2>Trainingshilfen</h2>
+    <label class="row"><span>Lernpfad<small>Zeigt auf der Trainingsseite, welche Stufe (Serie, Gemischt, Auf Signal) als Nächstes dran ist</small></span><input type="checkbox" class="sw" id="oLp"></label>
+    <label class="row"><span>Standardtest-Erinnerung<small>Einmal im Monat derselbe Test, damit du Fortschritt wirklich vergleichen kannst</small></span><input type="checkbox" class="sw" id="oStd"></label>
   </div>
   <div class="card"><h2>Gamification</h2>
     <label class="row"><span>Gamification<small>Level, XP und Challenges. Aus = App wie bisher</small></span><input type="checkbox" class="sw" id="gOn"></label>
@@ -185,7 +191,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <div id="summary" class="overlay hidden"><div class="sheet" id="summaryBody"></div></div>
 <script>
 // Skripte in fester Reihenfolge laden (async=false), alle teilen sich denselben globalen Gültigkeitsbereich
-['core','ui','sensors','home','training','stats','gamification','tools','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
+['core','ui','sensors','home','training','stats','gamification','learn','tools','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
 </script>
 </body>
 </html>

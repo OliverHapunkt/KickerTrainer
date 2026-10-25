@@ -39,6 +39,7 @@ function drawTarget(){
 function isDone(){return R.cfg.amt==='count'?R.reps>=R.cfg.count:Date.now()-R.t0>=R.cfg.minutes*60000}
 
 async function startSession(cfg,plan){
+  if(!prOn(cfg)&&cfg.pr)cfg=Object.assign({},cfg,{pr:0}); // Druckmodus gibt es nicht bei Kombi
   const micP=S.mic?detStart():null; // im Tap anfragen
   ensureAudio();speak(' ');beep(660,.08,.2); // im Tap → entsperrt Audio auf iOS
   $('#summary').classList.add('hidden');
@@ -46,6 +47,7 @@ async function startSession(cfg,plan){
   R={id:Date.now().toString(36),cfg:clone(cfg),D:d,plan,entries:[],reps:0,stage:d.kind==='shot'?'shot':'pass',
      deckP:[],deckS:[],pending:null,phase:'idle',target:null,callAt:0,detectAt:null,phaseStart:performance.now(),phaseDur:0,
      timers:[],active:true,undo:null,lastHit:null,t0:Date.now()};
+  R.lp0=DISC[cfg.d].kind==='combo'?null:lpState(cfg.d,cfg.tech).cur; // Lernpfad-Stufe vor der Session
   R.gam0=gamSnapshot(); // Stand vor der Session (XP, Challenges) für die Auswertung
   D.sessions.push({id:R.id,start:Date.now(),d:cfg.d,cfg:clone(cfg)});save(LS_DATA,D);
   show('train');renderTrain();wake(true);
@@ -62,6 +64,7 @@ function startRep(){
   clearTimers();R.corr=null;R.detectAt=null;R.undo=null;
   if(R.nextStage){R.stage=R.nextStage;R.nextStage=null}
   const first=R.D.kind==='shot'?'shot':'pass';
+  if(prGoal()&&prState().ok)return finish(); // Druckmodus: Serie geschafft
   if(R.stage===first&&isDone())return finish();
   R.target=drawTarget();
   const needReady=R.cfg.timing==='signal'||(R.D.kind==='combo'&&R.stage==='shot');
@@ -81,9 +84,10 @@ function call(){
   R.callAt=performance.now();R.detectAt=null;
   setPhase(sig?'call':'aim',sig?R.cfg.window*1000:ruleMs());
   if(sig)beep();
-  const k=curKind(),t=R.target;
-  if(k==='shot'&&t>0)speak(NUM[t]);
-  else if(k==='pass'&&t)speak(t,'en-US');
+  const k=curKind(),t=R.target,mb=prMatch()?'Matchball. ':'';
+  if(k==='shot'&&t>0)speak(mb+NUM[t]);
+  else if(k==='pass'&&t)speak(mb+t,'en-US');
+  else if(mb)speak('Matchball');
   else if(!sig)beep();
   pulse();
   later(timeUp,sig?R.cfg.window*1000:ruleMs());
@@ -139,7 +143,8 @@ function renderTrain(){
   $('#bYes').textContent=k==='pass'?'Gefangen':'Treffer';$('#bNo').textContent=k==='pass'?'Verloren':'Daneben';
   $('#tMode').textContent=R.D.n+' · '+curTech()+(R.D.kind==='combo'?' ('+(k==='pass'?'Pass':'Schuss')+')':'')+(R.plan?' · Station '+(R.plan.i+1)+'/'+R.plan.steps.length:'');
   const n=R.entries.length,h=R.entries.filter(s=>s.h).length;
-  $('#tRate').innerHTML=n?h+'/'+n+' · '+pct(h/n)+gamStreak(R.entries):'';
+  const pg=prGoal();
+  $('#tRate').innerHTML=pg?'Serie '+prState().streak+' / '+pg+(n?' · '+h+'/'+n:''):n?h+'/'+n+' · '+pct(h/n)+gamStreak(R.entries):'';
   updateWeakLive();
 }
 let lastTxt='';
@@ -158,9 +163,11 @@ function tick(){
     case 'result':txt=R.lastHit?(k==='pass'?'Gefangen':'Treffer'):(k==='pass'?'Verloren':'Daneben');cls=R.lastHit?'ok':'late';
       if(R.corr){txt+=' · falsch? tippen';frac=Math.max(0,rem/R.phaseDur)}break;
   }
+  const mb=prMatch()&&!R.undo&&(R.phase==='call'||R.phase==='aim');
+  if(mb){txt='MATCHBALL · '+txt;if(!cls.includes('late'))cls='alert'}
   if(S.mic&&R.detectAt!=null&&!R.undo&&(R.phase==='call'||R.phase==='aim'))txt+=' · ⚡ '+fmt((R.detectAt-R.callAt)/1000)+' s';
   const key=txt+cls;
-  const sc=(R.phase==='aim'||R.phase==='call')&&!R.undo&&!cls.includes('late')&&curKind()==='shot'?targetColor():null;
+  const sc=(R.phase==='aim'||R.phase==='call')&&!R.undo&&!cls.includes('late')&&!mb&&curKind()==='shot'?targetColor():null;
   if(key+sc!==lastTxt){const st=$('#tStatus');st.textContent=txt;st.className='status '+cls;st.style.color=sc||'';lastTxt=key+sc}
   $('#tBar').style.width=(frac*100)+'%';
   // Zähler
@@ -219,7 +226,7 @@ function finish(){
   if(!R)return;
   clearTimers();R.active=false;wake(false);recStop();
   if(!R.entries.length){D.sessions=D.sessions.filter(x=>x.id!==R.id);cloudDelS(R.id);save(LS_DATA,D);const p=R.plan;R=null;show('home');return}
-  const sess=D.sessions.find(x=>x.id===R.id);if(sess){sess.end=Date.now();sess.reps=R.reps}
+  const sess=D.sessions.find(x=>x.id===R.id);if(sess){sess.end=Date.now();sess.reps=R.reps;if(prGoal()){const p=prState();sess.pr={g:p.g,ok:p.ok,best:p.best,n:p.n}}}
   save(LS_DATA,D);
   beep(880,.15,.3);
   showSummary();
@@ -272,7 +279,10 @@ function showSummary(){
   // Reihenfolge: Ergebnis → Belohnung (XP, Challenges) → Details. Buttons fest am unteren Rand.
   const a=R.entries,gs=groups(a);let html='',det='';
   html+='<div class="sumhead">'+gs.map(g=>{const b=agg(g.arr);return'<div><div class="blockh">'+g.title+'</div><div class="bigpct">'+pct(b.rate)+'</div><p class="center">'+b.h+' von '+b.n+'</p></div>'}).join('')+'</div>';
+  html+=prSummary();
   const ch=chainRate(a);if(ch)html+=kv('Kette Pass → Tor',ch.h+' / '+ch.n+' ('+pct(ch.h/ch.n)+')');
+  html+=stdSummary();
+  html+=lpSummary();
   html+=gamSummary(R.gam0);
   for(const g of gs){const b=agg(g.arr),x=targetRow(g.arr,g.st)+detailKV(g.arr,b);if(x)det+=(gs.length>1?'<div class="blockh">'+g.title+'</div>':'')+x}
   if(R.cfg.order==='weak'&&R.share0){
@@ -295,5 +305,5 @@ function showSummary(){
   $('#sumAgain').onclick=()=>startSession(cfg,plan);
   $('#sumHome').onclick=()=>{recStop();$('#summary').classList.add('hidden');R=null;renderHome();show('home')};
   $('#sumStats').onclick=()=>{const id=R.id;recStop();$('#summary').classList.add('hidden');R=null;ST.session=id;ST.open=id;ST.edit=null;ST.disc='all';ST.tech='all';ST.timing='all';show('stats');renderStats()};
-  if(S.voiceOut){const all=agg(a);speak((hasNext?'Übung fertig. ':'Fertig. ')+all.h+' von '+all.n)}
+  if(S.voiceOut){const all=agg(a),ps=prState();speak((ps.g?(ps.ok?'Geschafft. ':'Nicht geschafft. '):hasNext?'Übung fertig. ':'Fertig. ')+all.h+' von '+all.n)}
 }

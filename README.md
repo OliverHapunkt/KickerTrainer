@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.6.0-green)
+![Version](https://img.shields.io/badge/version-3.7.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.6.0 · 2026-10-25`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.7.0 · 2026-10-25`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -38,6 +38,12 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.6.0 · 2026
 - **Timing:** Freies Tempo oder **Auf Signal** (Ziel kommt zufällig innerhalb der Regelzeit, danach bleibt nur das Reaktionsfenster von 1 bis 3 s)
 - **Wertung Schuss:** Einfach (Treffer/Daneben) oder Genau (Segment tippen)
 - **Umfang:** 10/20/30/50 Wiederholungen oder 5/10/15 Minuten
+
+### Besser trainieren (v3.7)
+- **Lernpfad** (Einstellungen › Trainingshilfen, Standard: an): Karte auf der Trainingsseite für die gewählte Disziplin und Technik. Drei Stufen: **Serie** → **Gemischt** → **Signal**. Eine Stufe gilt als geschafft, wenn die letzten 30 Aktionen auf dieser Stufe (in mindestens 2 Sessions) über der Schwelle liegen: 75 % / 65 % / 55 %. Die Schwellen sind erste Schätzwerte (`LP` in `js/learn.js`) und werden mit echten Daten nachjustiert. „Stufe starten“ stellt die Übung passend ein und beginnt. Der Stand wird aus den Einträgen berechnet, nicht gespeichert. Standardtests und Druckserien zählen nicht mit. Nicht für Kombi
+- **Druckmodus** (Anpassen › Druckmodus: Aus / 3 / 5 / 8 / 10): Fehlschuss = Serie zurück auf 0. Ende, sobald die Serie erreicht ist oder der Umfang aufgebraucht. Ein Treffer vor dem Ziel kommt die Ansage „Matchball“ (Anzeige „MATCHBALL“). Die Konfiguration zeigt aus deiner bisherigen Quote, wie viele Versuche eine Serie im Schnitt braucht. Ergebnis (geschafft / beste Serie) in der Auswertung und an der Session (`pr`). Nicht für Kombi
+- **Standardtest** (monatlich, Erinnerung abschaltbar): zwei Stationen mit festen Bedingungen: Schuss 3er (Technik Frei, Ziele 1–5, 25×, Wertung einfach) und Pass 5er→3er (Frei, Wall/Lane, 20×). Sessions tragen `cfg.std = 1` (Protokoll-Version). Zählt nur vollständig gespielt, je Monat der letzte Durchlauf. Karte auf der Trainingsseite (ab 30 erfassten Aktionen), Vergleich zum Vormonat in der Auswertung, „Standardtest-Verlauf“ in der Statistik. Änderungen am Protokoll nur mit neuer Versionsnummer
+- **Ermüdungskurve** (Statistik): Quote nach Aktionsnummer im Trainingsblock (Pause über 20 Minuten = neuer Block), Gruppen zu je 20 Aktionen, ab 20 Aktionen je Gruppe. Eine Aussage („Quote fällt“ / „wird besser“) erscheint nur, wenn der Unterschied über der Zufallsstreuung liegt (Zwei-Stichproben-z-Test, 90 %); sonst steht dort ausdrücklich „kein klarer Verlauf“. Druckserien sind ausgenommen (enden am Treffer)
 
 ### Daneben mit Richtung (optional)
 - Einstellungen › „Daneben mit Richtung“ (Standard: aus). Teilt bei Schüssen „Daneben“ in **← links** und **rechts →** (aus Sicht des Schützen); bei Wertung „Genau“ entsprechend in der Fußleiste
@@ -80,6 +86,7 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.6.0 · 2026
 - Kombi: Auswertung Pass → Tor
 - Reaktionszeit-Auswertung
 - Vergleich „frei vs. auf Signal“
+- Ermüdungskurve und Standardtest-Verlauf
 - Kalenderansicht und Session-Liste mit Notizen; einzelne Sessions können aus der Wertung ausgeschlossen werden
 
 ### Daten
@@ -109,6 +116,7 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.6.0 · 2026
   | `training.js` | Trainingsablauf, Eingabe, Korrektur, Auswertung nach der Session |
   | `stats.js` | Statistikseite und Diagramme |
   | `gamification.js` | XP, Level, Challenges |
+  | `learn.js` | Lernpfad, Druckmodus, Standardtest, Ermüdungskurve |
   | `tools.js` | Testseite, Export/Import, Alle Daten löschen |
   | `cloud.js` | Anmeldung und Cloud-Sync |
   | `main.js` | Start (läuft als letzte Datei) |
