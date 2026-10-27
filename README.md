@@ -212,7 +212,13 @@ Entwurf und Begründungen stehen im Projekt-Dokument „Paket 4 – Datenmodell"
 
 ### Datenschutz
 - Gespeichert werden E-Mail-Adresse, Sessions und Einträge, nichts davon wird ohne Anmeldung übertragen
-- Vor dem Einladen anderer Nutzer fehlen noch: Datenschutzerklärung, vermutlich Impressum, Auftragsverarbeitungsvertrag mit Supabase und die Prüfung der Projekt-Region
+- **`impressum.html` und `datenschutz.html`** liegen als eigene Seiten im Wurzelverzeichnis und sind aus der App unter *Mehr › Rechtliches* verlinkt
+- **Vor dem Teilen mit anderen noch zu erledigen** (in beiden Seiten als Kasten markiert):
+  1. Verantwortlichen im Impressum eintragen – ladungsfähige Anschrift, keine erfundenen Angaben
+  2. Auftragsverarbeitungsvertrag mit Supabase abschließen
+  3. Versand der Anmelde-Codes: läuft derzeit über ein privates Google-Mail-Konto, dafür gibt es keinen AV-Vertrag
+- Projekt-Region Supabase: erledigt, EU (Frankfurt)
+- Der Service Worker legt die Rechtsseiten unter ihrer eigenen Adresse ab; sonst käme offline unter `/impressum.html` die App-Startseite
 
 ---
 

@@ -11,11 +11,13 @@ nachgeprüft werden kann, ob der Ablauf noch funktioniert, bevor etwas live geht
 ```bash
 npm i playwright && npx playwright install chromium
 node local-tests/spiel-erfassen.test.js
+node local-tests/rechtliches.test.js
 ```
 
 | Datei | Inhalt |
 |---|---|
 | `spiel-erfassen.test.js` | Nickname, Gäste, Aufstellung, Zählen, Eigentor, Tausch, Satz- und Spielende, Auswertung, Offline-Warteschlange, Abbruch |
+| `rechtliches.test.js` | Impressum und Datenschutz: Darstellung, Querverlinkung, Verlinkung aus der App, und dass die Pflichtangaben wirklich drinstehen und keine echten Kontaktdaten versehentlich veröffentlicht werden |
 | `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal` |
 
 ## Grenzen

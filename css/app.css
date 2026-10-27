@@ -392,3 +392,5 @@ body.play{--acc:#1fb8a6}
 .swapbtn .ic{width:20px;height:20px}
 .tfoot .own{background:var(--panel2);border-color:var(--line);font-size:17px}
 .tfoot .own.on{background:var(--acc);border-color:var(--acc);color:#111;font-weight:700}
+/* Links, die wie Knöpfe aussehen (Impressum, Datenschutz) */
+.linkbtn{display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--text)}

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1013">
+<title>Datenschutz · KickerTrainer</title>
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .legal{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 40px)}
+  .legal h1{font-size:26px;margin:0 0 6px}
+  .legal h2{font-size:17px;text-transform:none;letter-spacing:0;color:var(--text);margin:28px 0 8px;font-weight:700}
+  .legal h3{font-size:15px;color:var(--mute);margin:18px 0 6px;font-weight:600}
+  .legal p,.legal li{font-size:16px;line-height:1.55;margin:0 0 10px}
+  .legal ul{padding-left:22px;margin:0 0 12px}
+  .legal a{color:var(--acc)}
+  .legal .back{display:inline-block;margin-bottom:18px;color:var(--mute);font-size:15px}
+  .legal table{width:100%;border-collapse:collapse;margin:10px 0 14px;font-size:15px}
+  .legal th,.legal td{text-align:left;padding:8px 10px 8px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  .legal th{color:var(--mute);font-weight:600}
+  .todo{border:2px dashed var(--acc);border-radius:14px;padding:14px;margin:14px 0;background:rgba(255,176,32,.07)}
+  .todo b{color:var(--acc)}
+  .key{border-left:3px solid var(--acc);padding-left:14px;margin:14px 0}
+</style>
+</head>
+<body>
+<main class="legal">
+<a class="back" href="./">‹ Zurück zur App</a>
+<h1>Datenschutzerklärung</h1>
+<p class="hint" style="margin-top:0">KickerTrainer · Stand 27.10.2026</p>
+
+<!-- ======================================================================
+     VOR DEM TEILEN MIT ANDEREN ERLEDIGEN:
+     1. Verantwortlichen im Impressum und hier ausfüllen
+     2. Auftragsverarbeitungsvertrag mit Supabase abschließen
+     3. Entscheiden, wie Anmelde-Codes verschickt werden (Abschnitt 6)
+     ====================================================================== -->
+<div class="todo">
+  <p><b>Noch offen.</b> Vor dem Teilen der App müssen der Verantwortliche eingetragen
+  und der Auftragsverarbeitungsvertrag mit Supabase geschlossen sein. Abschnitt 6
+  beschreibt außerdem einen Punkt, der noch zu klären ist.</p>
+</div>
+
+<h2>1. Verantwortlicher</h2>
+<p>Verantwortlich im Sinne der DSGVO ist die im <a href="impressum.html">Impressum</a>
+genannte Person. Dort stehen auch die Kontaktdaten für alle Fragen zum Datenschutz.</p>
+
+<h2>2. Der Grundsatz: ohne Konto verlässt nichts dein Gerät</h2>
+<div class="key">
+<p>KickerTrainer lässt sich vollständig ohne Konto nutzen. In diesem Fall bleiben alle
+Trainingsdaten im Speicher deines Browsers (<code>localStorage</code>). Es wird nichts
+übertragen, nichts ausgewertet und keine externe Bibliothek nachgeladen.</p>
+</div>
+<p>Erst wenn du dich anmeldest, werden Daten an einen Server übertragen. Alles Folgende
+betrifft daher überwiegend den Betrieb <em>mit</em> Konto.</p>
+
+<h2>3. Aufruf der Seite (Hosting)</h2>
+<p>Die App wird über <strong>GitHub Pages</strong> ausgeliefert (GitHub, Inc., ein
+Unternehmen von Microsoft). Beim Aufruf verarbeitet GitHub technisch notwendige
+Verbindungsdaten, darunter deine <strong>IP-Adresse</strong>, Zeitpunkt des Zugriffs,
+angeforderte Datei und Browserkennung. Darauf habe ich keinen Einfluss und erhalte davon
+keine Auswertung.</p>
+<p>Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO – das berechtigte Interesse, die Seite
+überhaupt ausliefern zu können. Eine Übermittlung in die USA ist dabei nicht
+ausgeschlossen.</p>
+
+<h2>4. Konto und Datenabgleich (Supabase)</h2>
+<p>Mit Konto werden deine Daten bei <strong>Supabase</strong> gespeichert. Das Projekt
+liegt in der <strong>Region EU (Frankfurt am Main)</strong>.</p>
+<table>
+  <tr><th>Was</th><th>Wozu</th></tr>
+  <tr><td>E-Mail-Adresse</td><td>Anmeldung und Zuordnung deiner Daten. Sie wird anderen Spielern nie angezeigt</td></tr>
+  <tr><td>Trainingsdaten (Sessions, einzelne Schüsse und Pässe)</td><td>Sicherung und Abgleich zwischen deinen eigenen Geräten</td></tr>
+  <tr><td>Nickname</td><td>Damit Mitspieler dich erkennen</td></tr>
+  <tr><td>Spieldaten (Spiele, Aufstellung, Tore, Bestätigungen)</td><td>Gemeinsame Spiele und später die Wertungen</td></tr>
+</table>
+<p>Rechtsgrundlage für Konto und Abgleich ist Art. 6 Abs. 1 lit. b DSGVO (Erfüllung des
+Nutzungsverhältnisses, das du mit der Anmeldung eingehst).</p>
+<p>Supabase ist Auftragsverarbeiter. Ein Auftragsverarbeitungsvertrag nach Art. 28 DSGVO
+ist dafür erforderlich.</p>
+
+<h2>5. Nachgeladene Bibliothek (jsDelivr)</h2>
+<p>Für die Verbindung zum Konto wird die Bibliothek <code>supabase-js</code> über das
+Content Delivery Network <strong>jsDelivr</strong> geladen – aber <strong>erst nach der
+Anmeldung</strong>, nie beim bloßen Üben. Dabei erfährt der Betreiber des CDN deine
+IP-Adresse. Die Datei ist auf eine feste Version samt Prüfsumme festgelegt, damit nichts
+anderes ausgeliefert werden kann.</p>
+<p>Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO. Dieser Aufruf ließe sich vermeiden, indem
+die Datei mit der App zusammen ausgeliefert wird.</p>
+
+<h2>6. Versand der Anmelde-Codes</h2>
+<p>Zur Anmeldung wird ein sechsstelliger Code an deine E-Mail-Adresse geschickt. Der
+Versand läuft derzeit über ein privates <strong>Google-Mail-Konto</strong> (SMTP). Dabei
+verarbeitet Google deine E-Mail-Adresse und den Inhalt der Nachricht.</p>
+<div class="todo">
+  <p><b>Zu klären:</b> Für diesen Weg besteht kein Auftragsverarbeitungsvertrag. Solange
+  nur der Betreiber selbst die App nutzt, ist das ohne praktische Bedeutung. Bevor andere
+  Personen Konten anlegen, sollte auf einen E-Mail-Dienst mit AV-Vertrag umgestellt
+  werden.</p>
+</div>
+
+<h2>7. Was andere Spieler von dir sehen</h2>
+<div class="key">
+<p>Für andere sichtbar ist <strong>ausschließlich dein Nickname</strong>. Nicht sichtbar
+sind: deine E-Mail-Adresse, der Zeitpunkt deiner Anmeldung und sämtliche
+<strong>Trainingsdaten</strong>. Trainingsdaten werden grundsätzlich nicht geteilt – auch
+nicht innerhalb einer Gruppe.</p>
+</div>
+<p>Deinen Nickname sieht nicht jeder, sondern nur:</p>
+<ul>
+  <li>Personen, mit denen du in einem Spiel warst</li>
+  <li>Mitglieder deiner Gruppen</li>
+  <li>alle Nutzer, falls du der allgemeinen Rangliste ausdrücklich zustimmst</li>
+</ul>
+<p>Die Zustimmung zur allgemeinen Rangliste ist freiwillig (Art. 6 Abs. 1 lit. a DSGVO)
+und jederzeit widerrufbar. Nach dem Widerruf verschwindet dein Eintrag aus der Rangliste;
+die Spiele selbst bleiben bestehen, weil sie auch zu den Mitspielern gehören.</p>
+
+<h2>8. Gäste – Daten anderer Personen</h2>
+<p>Mitspieler ohne eigenes Konto können als „Gast“ mit einem Namen eingetragen werden.
+Wer das tut, gibt damit Daten einer anderen Person ein und ist dafür mitverantwortlich.
+Die App schlägt deshalb Vorname oder Kürzel vor, nicht den vollen Namen. Gastnamen sind
+nur für Mitspieler derselben Spiele beziehungsweise für die Gruppe sichtbar.</p>
+
+<h2>9. Löschen – und was dabei bestehen bleibt</h2>
+<div class="key">
+<p><strong>Trainingsdaten</strong> gehören nur dir und werden vollständig gelöscht.</p>
+<p><strong>Spieldaten bleiben bestehen.</strong> Deine Person wird darin anonymisiert: Der
+Nickname wird durch „Gelöschter Spieler“ ersetzt und die Verbindung zum Konto entfernt.
+Spiel, Tore und Wertungen bleiben erhalten.</p>
+</div>
+<p>Der Grund: Ein Spiel gehört allen Beteiligten gemeinsam. Würde es mit einem Konto
+verschwinden, wäre die Bilanz der Mitspieler nachträglich falsch. Das ist das berechtigte
+Interesse der anderen Beteiligten nach Art. 6 Abs. 1 lit. f DSGVO und zugleich eine
+Einschränkung des Löschanspruchs nach Art. 17 Abs. 3 DSGVO.</p>
+<p>In der App: <em>Mehr › Konto &amp; Sicherung › Konto löschen</em> entfernt E-Mail-Adresse
+und Trainingsdaten. <em>Mehr › Daten › Alle Daten löschen</em> löscht die Trainingsdaten,
+ohne das Konto aufzugeben.</p>
+
+<h2>10. Kein Tracking</h2>
+<p>Die App setzt <strong>keine Cookies</strong>, bindet keine Analysedienste ein, zeigt
+keine Werbung und erstellt keine Profile. Gespeichert wird nur im Speicher deines
+Browsers, und zwar:</p>
+<table>
+  <tr><th>Eintrag</th><th>Inhalt</th></tr>
+  <tr><td><code>kt2_data</code></td><td>Trainingsdaten (Sessions, Schüsse und Pässe)</td></tr>
+  <tr><td><code>kt2_settings</code></td><td>Einstellungen, eigene Übungen, Challenge-Stand</td></tr>
+  <tr><td><code>kt2_sync</code></td><td>Stand des Abgleichs mit dem Konto</td></tr>
+  <tr><td><code>kt2_play</code></td><td>Spielerprofil, Gästeliste, noch nicht gespeicherte Tipps</td></tr>
+  <tr><td><code>sb-…-auth-token</code></td><td>Anmeldung (nur mit Konto)</td></tr>
+</table>
+<p>Diese Einträge sind für den Betrieb erforderlich, ein Einwilligungsbanner ist dafür
+nicht nötig. Du kannst sie jederzeit über die Website-Einstellungen deines Browsers
+löschen – dann sind auch die lokalen Trainingsdaten weg.</p>
+
+<h2>11. Speicherdauer</h2>
+<ul>
+  <li>Konto, Trainings- und Spieldaten: bis zur Löschung durch dich (Spieldaten danach anonymisiert, siehe Abschnitt 9)</li>
+  <li>Offene Spiel-Lobbys mit Beitrittscode: verfallen nach 12 Stunden</li>
+  <li>Verbindungsdaten beim Hosting: nach den Fristen von GitHub, auf die ich keinen Einfluss habe</li>
+</ul>
+
+<h2>12. Deine Rechte</h2>
+<p>Du hast das Recht auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17),
+Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch
+(Art. 21 DSGVO). Eine erteilte Einwilligung kannst du jederzeit mit Wirkung für die
+Zukunft widerrufen.</p>
+<p>Deine Daten kannst du dir jederzeit selbst herausgeben: <em>Mehr › Daten › Sichern
+(JSON)</em> oder <em>Tabelle (CSV)</em>.</p>
+<p>Außerdem steht dir ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde zu,
+regelmäßig bei der Behörde deines Wohnsitzes.</p>
+
+<h2>13. Änderungen</h2>
+<p>Ändert sich die App, wird diese Erklärung angepasst. Maßgeblich ist die beim Aufruf
+hier veröffentlichte Fassung. Der Stand steht oben.</p>
+
+<p class="hint" style="margin-top:28px">
+<a href="impressum.html">Impressum</a> · <a href="./">Zurück zur App</a></p>
+</main>
+</body>
+</html>
