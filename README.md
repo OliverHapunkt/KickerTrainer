@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.11.0-green)
+![Version](https://img.shields.io/badge/version-3.12.1-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.11.0 · 2026-10-27`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.12.1 · 2026-10-27`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -177,7 +177,7 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Das Schema liegt als Migrationen in `supabase/migrations/`. Die GitHub-Integration von Supabase spielt neue Migrationen beim Merge nach `main` ein – ein Merge verändert also sofort die echte Datenbank
 - Tabellen **Üben** (Phase 1): `profiles`, `sessions`, `shots`
 - Tabellen **Spielen** (Paket 4): `players`, `groups`, `group_members`, `matches`, `match_players`, `match_sets`, `goals`, `match_confirmations`
-- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `match_state()` – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
+- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()` – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
 - Konto löschen läuft über die Funktion `delete_my_account()`
 - Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 173 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
 - Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
@@ -207,7 +207,18 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Bei falschem Code kommt immer dieselbe Meldung – sonst ließe sich herauslesen, welche Codes existieren
 - Solange die Lobby offen ist, wird alle 3 s nachgesehen, wer dazugekommen ist; während des Spiels alle 15 s
 - Spiele erscheinen auch bei Mitspielern in der Liste, gekennzeichnet als „als Mitspieler"
-- Noch nicht dabei: Bestätigung (4), Wertungen (5), Gruppen und Ranglisten (6). QR-Code und Scanner stehen im Backlog
+- Noch nicht dabei: Wertungen (5), Gruppen und Ranglisten (6). QR-Code und Scanner stehen im Backlog
+
+### Spielen: Ergebnis bestätigen und korrigieren (v3.12, Schritt 4)
+
+Nur der Host zählt die Tore. Damit ein Spiel gewertet werden kann, braucht es eine Gegenprobe – sonst stünde das Elo aller Beteiligten auf dem Wort einer einzigen Person.
+
+- **Ein Team gilt als bestätigt**, wenn der Host darin spielt (er hat es selbst eingetragen), wenn niemand darin ein Konto hat (reine Gäste – sonst wäre ein Gästespiel nie wertbar), oder wenn ein Konto-Spieler daraus zustimmt. Beide Teams bestätigt → `confirmed`
+- **Widerspruch** von irgendjemandem → `disputed`, mit optionalem Hinweis für den Host. Das Spiel wird nicht gewertet
+- **Karte „Warten auf dich"** auf dem Spiel-Bildschirm führt zu allen Spielen, die noch auf das eigene Wort warten
+- **Korrektur:** Der Host nimmt das Spiel innerhalb von **2 Stunden** nach Spielende wieder auf (`reopen_match`), ändert mit Zählen und Zurücknehmen und beendet erneut. `matches.rev` zählt dabei hoch – alle Bestätigungen der alten Fassung verfallen, bleiben aber als Verlauf erhalten. Nach 2 Stunden ist das Ergebnis endgültig
+- Ein Spiel aus Host und Gästen steht **sofort** auf `confirmed`; `record_goal` wertet die Lage am Spielende selbst aus (`settle_match`)
+- Zurücknehmen (`undo_goal`) ist die Korrektur: Es geht auch bei `confirmed`/`disputed`, solange die 2 Stunden laufen, und zählt `rev` hoch
 
 ### Spielen: Datenmodell (Paket 4)
 

@@ -42,7 +42,16 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute
 #train{position:fixed;inset:0;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 12px);gap:10px}
 .thead{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;font-size:16px;color:var(--mute)}
 .thead>div{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#tRate{text-align:right}
-@media (max-width:500px){.thead{font-size:13px}}
+/* Schmal (iPhone): Übungsname links über die volle Breite und umbrechend statt
+   abgeschnitten, Zähler rechts daneben, Serie/Quote darunter. Drei gleich breite
+   Drittel ließen dem Namen nur ~140 px. */
+@media (max-width:500px){
+  .thead{grid-template-columns:1fr auto;grid-template-areas:"mode count" "rate rate";font-size:14px;row-gap:2px}
+  .thead>div:nth-child(1){grid-area:mode;white-space:normal;line-height:1.25}
+  .thead>div:nth-child(2){grid-area:count}
+  .thead>#tRate{grid-area:rate;text-align:left}
+  .thead>div:empty{display:none}
+}
 .thead .count{font-size:22px;color:var(--text);font-weight:700;white-space:nowrap}
 .status{text-align:center;font-size:clamp(30px,8vw,68px);font-weight:800;min-height:1.25em;line-height:1.25}
 .status.alert{color:var(--acc)}.status.late{color:var(--miss)}.status.ok{color:var(--hit)}
@@ -406,3 +415,6 @@ body.play{--acc:#1fb8a6}
   color:var(--mute);font-size:14px;flex:none}
 .lbtn.del{color:var(--miss);min-width:40px;padding:0 10px}
 .lpos{color:var(--mute);font-size:14px;flex:none}
+/* Offene Bestätigungen hervorheben */
+.card.todo{border-color:var(--acc);background:rgba(31,184,166,.06)}
+.card.todo .mrow{cursor:pointer}
