@@ -44,7 +44,7 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.8.0 · 2026
 - **Wertung „Genau“**: Fußleiste mit **← links daneben · Daneben (unklar) · rechts daneben →** (aus Schützensicht), dazu die Segmente 1–5. Gespeichert wie bisher: `l` (Segment, 0 = nicht im Tor) und `md` (`'l'`/`'r'` = Wand links/rechts). **Unklar** = `l = 0` ohne `md`
   - Unklar zählt in der Quote als Fehlschuss, steht aber **nicht** in „Wohin geht der Ball?“ (dort nur bekannte Orte, Hinweis mit Anzahl)
   - „Wohin geht der Ball?“ hat die Spalten 1–5, ← und →
-  - Ein erkannter Schuss wird bei „Genau“ **nie still als Treffer gezählt**: er liefert nur die Reaktionszeit, du meldest, wohin der Ball ging, und kannst dir beliebig Zeit lassen. Bei „Einfach“ gilt weiter Auto-Treffer mit Korrekturfenster
+  - **Auto-Treffer** (Einstellungen, vorher „Erkannten Schuss automatisch zählen“) gilt auch bei „Genau“: Der erkannte Schuss zählt als Treffer auf das angesagte Segment, das Korrekturfenster (2/3/5 s) zeigt „Auto-Treffer · Segment n · falsch? … · Restzeit“. Überschreiben per Segment, links, rechts, „Miss“ (sagen oder tippen), „Ja“ bestätigt. Ohne Auto-Treffer meldest du jedes Ergebnis selbst, ohne Zeitdruck
   - „Daneben mit Richtung“ betrifft nur noch die Wertung „Einfach“
 - **Sprach-Wörterbuch** (`WORDS` in `sensors.js`, Hilfe-Tabelle wird daraus erzeugt): „Ja“ je nach Phase = bereit / Treffer bzw. gefangen / Zielsegment / Korrektur bestätigt. „Bereit“, „Los“ = nur bereit. „Miss“ (auch „daneben“, „nein“, „verloren“) = daneben bzw. verloren. „Links“/„Rechts“ = neben dem Tor. Bei Wortgruppen wie „links daneben“ zählt nur das erste Wort. „Ja“ in den ersten 0,7 s der Aufbauzeit wird ignoriert (spät erkannte Ergebnis-Wörter)
 - **Erklärungen (ⓘ)**: `TIPS` in `ui.js`, ein Knopf `tipBtn('schlüssel')` öffnet die Erklärung (Sprachbefehle, Segmente, Daneben, Wertung, Timing, Aufbauzeit, Schusserkennung, Auto-Zählen, Torkarte, Wohin geht der Ball). Neue Erklärung = neuer Eintrag in `TIPS`
@@ -66,7 +66,7 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.8.0 · 2026
 ### Schusserkennung (optional)
 - Erkennung über **Ton**, **Erschütterung** (iPad direkt auf dem Tisch), **Ton + Erschütterung** oder **Ton oder Erschütterung**
 - „Ton + Erschütterung“ löst am seltensten fälschlich aus (Stimmen, Nachbartisch)
-- Bei Wertung „Einfach“ zählen erkannte Schüsse automatisch als Treffer, im Korrekturfenster (2/3/5 s) wird korrigiert („Ja“ bestätigt und geht weiter). Bei „Genau“ nie (siehe v3.8)
+- **Auto-Treffer** (optional): Erkannte Schüsse zählen als Treffer auf das angesagte Ziel, im Korrekturfenster (2/3/5 s) wird korrigiert („Ja“ bestätigt und geht weiter). Gilt bei „Einfach“ und „Genau“
 - Reaktionszeiten werden nur mit aktiver Schusserkennung gemessen
 - Empfindlichkeit für Ton und Erschütterung einstellbar
 - Testseite für Mikrofon, Sprachansage und Spracheingabe

@@ -171,7 +171,9 @@ function tick(){
     case 'call':txt=rem>0?tgt+' – JETZT':tgt+' · Zeit um';cls=rem>0?'alert':'late';frac=Math.max(0,rem/R.phaseDur);break;
     case 'aim':txt=tgt+' · '+(rem>0?Math.ceil(rem/1000)+' s':'Zeit um');frac=Math.max(0,rem/R.phaseDur);if(rem<=0)cls='late';break;
     case 'result':txt=R.lastHit?(k==='pass'?'Gefangen':'Treffer'):(k==='pass'?'Verloren':'Daneben');cls=R.lastHit?'ok':'late';
-      if(R.corr){txt+=' · falsch? tippen';frac=Math.max(0,rem/R.phaseDur)}break;
+      if(R.corr){ // Auto-Treffer: deutlich als vorläufig kennzeichnen, Balken zeigt die Restzeit zum Überschreiben
+        txt=(R.corr.e.auto?'Auto-Treffer':txt)+(inputMode()==='seg'&&R.corr.e.l>0?' · Segment '+R.corr.e.l:'')+' · falsch? '+(S.voiceIn?'sagen oder tippen':'tippen')+' · '+Math.max(1,Math.ceil(rem/1000))+' s';
+        frac=Math.max(0,rem/R.phaseDur)}break;
   }
   const mb=prMatch()&&!R.undo&&(R.phase==='call'||R.phase==='aim');
   if(mb){txt='MATCHBALL · '+txt;if(!cls.includes('late'))cls='alert'}
