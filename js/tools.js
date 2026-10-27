@@ -1,7 +1,7 @@
 'use strict';
 /* KickerTrainer · Testseite, Export und Import */
 /* ---------- Test ---------- */
-const testSR={active:false,i:0,seq:[['Ja','ready'],['Drei',3],['Daneben',0],['Treffer','hit'],['Fünf',5]],
+const testSR={active:false,i:0,seq:[['Ja','yes'],['Drei',3],['Miss',0],['Links','ml'],['Rechts','mr'],['Fünf',5],['Bereit','ready'],['Nein',0]],
   heard(v,w){const exp=this.seq[this.i][1],ok=v===exp;
     $('#sVerdict').textContent=ok?'✓ erkannt':'✗ „'+w+'“';$('#sVerdict').style.color=ok?'var(--hit)':'var(--miss)';
     if(ok){beep(1200,.07,.2);setTimeout(()=>{this.i=(this.i+1)%this.seq.length;$('#sSay').textContent='Sag: „'+this.seq[this.i][0]+'“';$('#sVerdict').textContent=''},900)}}};

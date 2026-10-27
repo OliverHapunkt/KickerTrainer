@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.7.0-green)
+![Version](https://img.shields.io/badge/version-3.8.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.7.0 · 2026-10-25`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.8.0 · 2026-10-27`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -39,14 +39,25 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.7.0 · 2026
 - **Wertung Schuss:** Einfach (Treffer/Daneben) oder Genau (Segment tippen)
 - **Umfang:** 10/20/30/50 Wiederholungen oder 5/10/15 Minuten
 
+### Aufbauzeit, Eingabe und Erklärungen (v3.8)
+- **Aufbauzeit** (Anpassen › „Aufbauzeit / Bereit“, gilt für Schuss und Pass, auch bei freiem Tempo): Nach jedem Versuch bleibt Zeit für Ball holen, hinlegen, Griffe. **Auto 3/5/8 s** = Countdown, „Ja“ oder Tippen auf BEREIT beendet ihn früher. **Tippen** = wartet auf „Ja“/Tippen. **Aus** = Ziel kommt sofort (nur bei freiem Tempo). Nach „Bereit“ folgen **0,5 s Griffzeit**, dann kommt die Ansage. Bei „Auf Signal“ und beim Schuss der Kombi ist die Aufbauzeit Pflicht (nie „Aus“). Der Standardtest bleibt mit `ready:'off'` unverändert (Protokoll v1)
+- **Wertung „Genau“**: Fußleiste mit **← links daneben · Daneben (unklar) · rechts daneben →** (aus Schützensicht), dazu die Segmente 1–5. Gespeichert wie bisher: `l` (Segment, 0 = nicht im Tor) und `md` (`'l'`/`'r'` = Wand links/rechts). **Unklar** = `l = 0` ohne `md`
+  - Unklar zählt in der Quote als Fehlschuss, steht aber **nicht** in „Wohin geht der Ball?“ (dort nur bekannte Orte, Hinweis mit Anzahl)
+  - „Wohin geht der Ball?“ hat die Spalten 1–5, ← und →
+  - **Auto-Treffer** (Einstellungen, vorher „Erkannten Schuss automatisch zählen“) gilt auch bei „Genau“: Der erkannte Schuss zählt als Treffer auf das angesagte Segment, das Korrekturfenster (2/3/5 s) zeigt „Auto-Treffer · Segment n · falsch? … · Restzeit“. Überschreiben per Segment, links, rechts, „Miss“ (sagen oder tippen), „Ja“ bestätigt. Ohne Auto-Treffer meldest du jedes Ergebnis selbst, ohne Zeitdruck
+  - „Daneben mit Richtung“ betrifft nur noch die Wertung „Einfach“
+- **Sprach-Wörterbuch** (`WORDS` in `sensors.js`, Hilfe-Tabelle wird daraus erzeugt): „Ja“ je nach Phase = bereit / Treffer bzw. gefangen / Zielsegment / Korrektur bestätigt. „Bereit“, „Los“ = nur bereit. „Miss“ (auch „daneben“, „nein“, „verloren“) = daneben bzw. verloren. „Links“/„Rechts“ = neben dem Tor. Bei Wortgruppen wie „links daneben“ zählt nur das erste Wort. „Ja“ in den ersten 0,7 s der Aufbauzeit wird ignoriert (spät erkannte Ergebnis-Wörter)
+- **Erklärungen (ⓘ)**: `TIPS` in `ui.js`, ein Knopf `tipBtn('schlüssel')` öffnet die Erklärung (Sprachbefehle, Segmente, Daneben, Wertung, Timing, Aufbauzeit, Schusserkennung, Auto-Zählen, Torkarte, Wohin geht der Ball). Neue Erklärung = neuer Eintrag in `TIPS`
+- **Hinweise zur Verfügbarkeit** der Spracheingabe (Internet, Diktierfunktion, Mikrofon-Konflikt) in den Einstellungen und als Meldung bei Fehlern der Spracherkennung
+
 ### Besser trainieren (v3.7)
 - **Lernpfad** (Einstellungen › Trainingshilfen, Standard: an): Karte auf der Trainingsseite für die gewählte Disziplin und Technik. Drei Stufen: **Serie** → **Gemischt** → **Signal**. Eine Stufe gilt als geschafft, wenn die letzten 30 Aktionen auf dieser Stufe (in mindestens 2 Sessions) über der Schwelle liegen: 75 % / 65 % / 55 %. Die Schwellen sind erste Schätzwerte (`LP` in `js/learn.js`) und werden mit echten Daten nachjustiert. „Stufe starten“ stellt die Übung passend ein und beginnt. Der Stand wird aus den Einträgen berechnet, nicht gespeichert. Standardtests und Druckserien zählen nicht mit. Nicht für Kombi
 - **Druckmodus** (Anpassen › Druckmodus: Aus / 3 / 5 / 8 / 10): Fehlschuss = Serie zurück auf 0. Ende, sobald die Serie erreicht ist oder der Umfang aufgebraucht. Ein Treffer vor dem Ziel kommt die Ansage „Matchball“ (Anzeige „MATCHBALL“). Die Konfiguration zeigt aus deiner bisherigen Quote, wie viele Versuche eine Serie im Schnitt braucht. Ergebnis (geschafft / beste Serie) in der Auswertung und an der Session (`pr`). Nicht für Kombi
 - **Standardtest** (monatlich, Erinnerung abschaltbar): zwei Stationen mit festen Bedingungen: Schuss 3er (Technik Frei, Ziele 1–5, 25×, Wertung einfach) und Pass 5er→3er (Frei, Wall/Lane, 20×). Sessions tragen `cfg.std = 1` (Protokoll-Version). Zählt nur vollständig gespielt, je Monat der letzte Durchlauf. Karte auf der Trainingsseite (ab 30 erfassten Aktionen), Vergleich zum Vormonat in der Auswertung, „Standardtest-Verlauf“ in der Statistik. Änderungen am Protokoll nur mit neuer Versionsnummer
 - **Ermüdungskurve** (Statistik): Quote nach Aktionsnummer im Trainingsblock (Pause über 20 Minuten = neuer Block), Gruppen zu je 20 Aktionen, ab 20 Aktionen je Gruppe. Eine Aussage („Quote fällt“ / „wird besser“) erscheint nur, wenn der Unterschied über der Zufallsstreuung liegt (Zwei-Stichproben-z-Test, 90 %); sonst steht dort ausdrücklich „kein klarer Verlauf“. Druckserien sind ausgenommen (enden am Treffer)
 
-### Daneben mit Richtung (optional)
-- Einstellungen › „Daneben mit Richtung“ (Standard: aus). Teilt bei Schüssen „Daneben“ in **← links** und **rechts →** (aus Sicht des Schützen); bei Wertung „Genau“ entsprechend in der Fußleiste
+### Daneben mit Richtung
+- Bei Wertung „Genau“ immer vorhanden (siehe v3.8). Einstellungen › „Daneben mit Richtung“ (Standard: aus) gilt nur noch für Wertung „Einfach“: teilt „Daneben“ in **← links** und **rechts →** (aus Sicht des Schützen)
 - Gespeichert als Feld `md` (`'l'`/`'r'`) am Eintrag, im Konto in `extra`
 - Auswertung: Karte „Fehlschüsse: links oder rechts?“ je Ziel mit Hinweis auf auffällige Tendenzen (≥ 70 % einer Seite bei ≥ 5 Fehlschüssen); bei „Genau“ fließt auch das danebengetroffene Segment ein. Korrektur in der Session-Liste, Spalte „Richtung“ im CSV
 - Spracheingabe: „links“ / „rechts“
@@ -55,13 +66,13 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.7.0 · 2026
 ### Schusserkennung (optional)
 - Erkennung über **Ton**, **Erschütterung** (iPad direkt auf dem Tisch), **Ton + Erschütterung** oder **Ton oder Erschütterung**
 - „Ton + Erschütterung“ löst am seltensten fälschlich aus (Stimmen, Nachbartisch)
-- Erkannte Schüsse zählen automatisch als Treffer, im Korrekturfenster (2/3/5 s) wird korrigiert
+- **Auto-Treffer** (optional): Erkannte Schüsse zählen als Treffer auf das angesagte Ziel, im Korrekturfenster (2/3/5 s) wird korrigiert („Ja“ bestätigt und geht weiter). Gilt bei „Einfach“ und „Genau“
 - Reaktionszeiten werden nur mit aktiver Schusserkennung gemessen
 - Empfindlichkeit für Ton und Erschütterung einstellbar
 - Testseite für Mikrofon, Sprachansage und Spracheingabe
 
 ### Spracheingabe (Beta)
-- Erkannte Wörter: „Ja“, „eins“ bis „fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“
+- Wörterbuch siehe v3.8 (in der App: ⓘ im Training oder bei Spracheingabe)
 - Nur verfügbar, wenn der Browser Spracherkennung unterstützt
 
 ### Gamification (abschaltbar, Standard: an)
@@ -203,7 +214,7 @@ Mikrofon und Bewegungssensoren funktionieren nur über HTTPS oder `localhost`.
 - Ohne Konto sind Daten an Browser und Gerät gebunden; ohne regelmäßiges Sichern (JSON) gehen sie bei gelöschten Website-Daten verloren
 - Mit Konto werden Löschungen nicht auf andere Geräte übertragen, und bei Konflikten gewinnt das zuletzt abgleichende Gerät
 - Der Sync-Stand liegt ebenfalls im Browser-Speicher (bei sehr vielen Einträgen wächst er mit)
-- Spracheingabe ist Beta und browserabhängig
+- Spracheingabe ist Beta und browserabhängig: braucht bei Safari Internet, kann mit dem Mikrofon der Schusserkennung kollidieren. Wie gut „miss“ erkannt wird, ist nicht getestet (Testseite nutzen)
 - Erschütterungserkennung setzt voraus, dass das iPad direkt auf dem Tisch liegt
 
 ## Roadmap

@@ -96,9 +96,10 @@ function lpSummary(){
 /* ================= Standardtest ================= */
 // Immer gleiche Bedingungen, damit Monat für Monat und später Spieler untereinander vergleichbar sind.
 // Änderungen am Protokoll nur mit neuer Versionsnummer (std), alte Ergebnisse bleiben dann getrennt.
+// ready:'off' = wie bisher keine Aufbauzeit, damit das Protokoll v1 unverändert bleibt (v3.8 führt die Aufbauzeit auch bei freiem Tempo ein).
 const STD={v:1,steps:[
-  {d:'s3',tech:'Frei',wt:['Frei'],tS:[1,2,3,4,5],order:'mix',timing:'free',scoring:'simple',amt:'count',count:25,pr:0,std:1},
-  {d:'p53',tech:'Frei',wt:['Frei'],tP:['wall','lane'],order:'mix',timing:'free',amt:'count',count:20,pr:0,std:1}]};
+  {d:'s3',tech:'Frei',wt:['Frei'],tS:[1,2,3,4,5],order:'mix',timing:'free',ready:'off',scoring:'simple',amt:'count',count:25,pr:0,std:1},
+  {d:'p53',tech:'Frei',wt:['Frei'],tP:['wall','lane'],order:'mix',timing:'free',ready:'off',amt:'count',count:20,pr:0,std:1}]};
 const monthKey=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
 const monthName=(k,long)=>new Date(+k.slice(0,4),+k.slice(5)-1,1).toLocaleDateString('de-DE',{month:long?'long':'short',year:'numeric'});
 // Je Monat der jeweils letzte vollständige Durchlauf von Schuss- und Pass-Teil

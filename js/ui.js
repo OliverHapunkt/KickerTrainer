@@ -58,7 +58,7 @@ function info(title,html){return dlg('<h3 class="dtitle">'+esc(title)+'</h3>'+ht
 
 /* ---------- Einführung beim ersten Start ---------- */
 const ONB=[
-  ['target','Zielen und eintragen','Die App sagt ein Ziel an und lässt es aufleuchten. Nach dem Schuss tippst du <b>Treffer</b> oder <b>Daneben</b> (bei „Genau“ das Segment, in dem der Ball landete).<br><br><b>Segment 1 = links aus Sicht des Schützen.</b>'],
+  ['target','Zielen und eintragen','Die App sagt ein Ziel an und lässt es aufleuchten. Nach dem Schuss tippst du <b>Treffer</b> oder <b>Daneben</b> (bei „Genau“ das Segment, in dem der Ball landete, oder links/rechts neben dem Tor).<br><br><b>Segment 1 = links aus Sicht des Schützen.</b> Das ⓘ im Training erklärt alle Eingaben.'],
   ['repeat','Übung wählen','Unter <b>Training</b> siehst du die aktuelle Übung. Mit „Anpassen“ wählst du Disziplin, Technik, Ziele, Tempo und Umfang. Gute Kombinationen speicherst du als eigene Übung.'],
   ['trophy','Fortschritt','<b>Statistik</b> zeigt deine Schwachstellen, <b>Challenges</b> geben dir Ziele. Ein Konto ist freiwillig – ohne Konto bleibt alles auf diesem Gerät.<br><br>Tipp: App über „Teilen › Zum Home-Bildschirm“ hinzufügen.'],
 ];
@@ -77,3 +77,51 @@ function maybeOnboarding(){
   if(D.shots.length){S.onb=true;saveS();return} // bestehende Nutzer: nicht mehr zeigen
   setTimeout(onboarding,400);
 }
+
+/* ---------- Erklärungen (ⓘ) ---------- */
+// Ein Knopf mit data-tip-k="schlüssel" öffnet die passende Erklärung. Neue Erklärung = neuer Eintrag in TIPS, Knopf mit tipBtn('schlüssel') einbauen.
+// (data-tip ohne -k gehört den Diagrammen in der Statistik und ist etwas anderes.)
+function tipBtn(k){return'<button type="button" class="tipb" data-tip-k="'+k+'" aria-label="Erklärung">ⓘ</button>'}
+// Wörter zu einer Bedeutung, direkt aus dem Wörterbuch (WORDS in sensors.js), damit Hilfe und Verhalten nicht auseinanderlaufen
+function vw(t){return Object.keys(WORDS).filter(w=>WORDS[w]===t&&!/^\d$/.test(w)).map(w=>'„'+w+'“').join(' ')}
+function vocabHtml(){
+  const row=(w,m)=>'<tr><td>'+w+'</td><td>'+m+'</td></tr>';
+  return'<table class="vt">'
+    +'<tr><th colspan="2">Aufbauzeit</th></tr>'+row(vw('yes')+' '+vw('ready'),'bereit – beendet die Aufbauzeit früher (wie Tippen auf BEREIT)')
+    +'<tr><th colspan="2">Schuss · Wertung „Genau“</th></tr>'
+    +row('„eins“ … „fünf“','Ball landete in diesem Segment')
+    +row(vw('ml'),'Ball ging <b>links neben</b> das Tor (aus Sicht des Schützen)')
+    +row(vw('mr'),'Ball ging <b>rechts neben</b> das Tor')
+    +row('„miss“ („daneben“, „nein“ …)','daneben, unklar wohin – kommt nicht in die genaue Auswertung')
+    +row('„ja“','Zielsegment getroffen (nur wenn ein bestimmtes Ziel angesagt war)')
+    +'<tr><th colspan="2">Schuss · Wertung „Einfach“</th></tr>'
+    +row('„ja“ („treffer“)','Treffer')+row('„miss“ („daneben“ …)','Daneben')
+    +'<tr><th colspan="2">Pass</th></tr>'
+    +row('„ja“ („gefangen“)','gefangen')+row('„miss“ („nein“, „verloren“)','verloren')
+    +'<tr><th colspan="2">Nach einem erkannten Schuss</th></tr>'
+    +row('„ja“','stimmt so, weiter ohne Restzeit des Korrekturfensters')
+    +'</table>'
+    +'<p class="dmsg">Ein Wort pro Ergebnis genügt. Bei Wortgruppen wie „links daneben“ zählt nur das erste Wort. Antippen geht immer.</p>'
+    +'<p class="dmsg">Alle erkannten Wörter: '+Object.keys(WORDS).filter(w=>!/^\d$/.test(w)).map(w=>'„'+w+'“').join(' ')+'</p>'
+    +'<p class="dmsg">Wie gut „miss“ erkannt wird, hängt von iOS ab. Probier es auf der Testseite (Einstellungen › Mikrofon &amp; Sprache testen).</p>';
+}
+const TIPS={
+  vocab:{t:'Sprachbefehle',h:vocabHtml},
+  voiceAvail:{t:'Spracheingabe: Verfügbarkeit',h:'<p class="dmsg">Safari erkennt Sprache teils über Apple-Server. Dafür braucht die App <b>Internet</b>. Ohne Netz oder (evtl.) bei ausgeschalteter Diktierfunktion (iOS: Einstellungen › Allgemein › Tastatur) fällt sie aus, dann bleibt nur <b>Tippen</b>.</p><p class="dmsg">Außerdem kann iOS Mikrofon (Schusserkennung) und Spracheingabe nicht immer gleichzeitig bedienen. Zeigt die Schusserkennung „Mikrofon stumm“, tippe auf die Anzeige zum Neustart.</p><p class="dmsg">Tippen funktioniert immer und gleichwertig.</p>'},
+  segs:{t:'Segmente 1–5',h:'<p class="dmsg">Das Tor ist in fünf Segmente geteilt, von links nach rechts <b>aus Sicht des Schützen</b>: <b>1</b> = ganz links, <b>5</b> = ganz rechts.</p><p class="dmsg">Bei der Wertung „Genau“ meldest du das Segment, in dem der Ball landete – nicht das angesagte Ziel.</p>'},
+  miss:{t:'Daneben: links, rechts, unklar',h:'<p class="dmsg"><b>← links</b> und <b>rechts →</b>: Der Ball ging neben dem Tor in die Wand. Links/rechts immer aus Sicht des Schützen.</p><p class="dmsg"><b>Daneben (unklar)</b> bzw. „Miss“: Fehlschuss, du weißt oder willst nicht sagen, wohin. Er zählt in der Quote als Fehlschuss, kommt aber nicht in „Wohin geht der Ball?“.</p>'},
+  scoring:{t:'Wertung Schuss',h:'<p class="dmsg"><b>Einfach</b>: Du meldest Treffer („Ja“) oder Daneben („Miss“). Ein erkannter Schuss kann automatisch als Treffer zählen.</p><p class="dmsg"><b>Genau</b>: Du meldest, wohin der Ball ging (1–5, links, rechts, Miss). Daraus entsteht die Auswertung „Wohin geht der Ball?“. Ohne Auto-Treffer kannst du dir beliebig Zeit lassen.</p>'},
+  setup:{t:'Aufbauzeit',h:'<p class="dmsg">Nach jedem Versuch bleibt Zeit zum Aufbauen: Ball holen, hinlegen, positionieren, Hände an die Griffe.</p><p class="dmsg"><b>Auto</b>: Ein Countdown läuft. „Ja“ oder Tippen auf BEREIT beendet ihn früher. <b>Tippen</b>: Die App wartet auf „Ja“ oder Tippen. <b>Aus</b>: Das Ziel kommt sofort (nur bei freiem Tempo).</p><p class="dmsg">Nach „Bereit“ folgen 0,5 s Griffzeit, dann kommt die Ansage. Bei „Auf Signal“ kommt danach noch eine Zufallszeit.</p>'},
+  timing:{t:'Timing',h:'<p class="dmsg"><b>Freies Tempo</b>: Nach der Aufbauzeit wird das Ziel angesagt, du spielst in deinem Rhythmus.</p><p class="dmsg"><b>Auf Signal</b>: Nach „Bereit“ kommt das Ziel zu einem zufälligen Zeitpunkt. Du reagierst darauf, es zählt nur das Reaktionsfenster. Das trainiert Reaktion statt Ablauf.</p>'},
+  detect:{t:'So erkennt die App Schüsse',h:'<p class="dmsg"><b>Ton</b>: Das Mikrofon misst laufend die Lautstärke. Die Schwelle liegt ein Vielfaches (Regler) über dem Umgebungspegel, der sich langsam anpasst. Der Knall von Ball an Bande oder Tor liegt darüber.</p><p class="dmsg"><b>Erschütterung</b>: Der Bewegungssensor misst plötzliche Änderungen der Beschleunigung. Ein Schuss lässt den Tisch zucken. Das iPad muss direkt auf dem Tisch liegen.</p><p class="dmsg"><b>Ton + Erschütterung</b>: Beides innerhalb von 0,25 s. Das löst am seltensten falsch aus (Stimmen, Nachbartisch).</p><p class="dmsg">Nach einer Erkennung ist 0,4 s Pause. Eigene Signaltöne und Sprachansagen werden ignoriert. Erkannt wird nur, solange ein Ziel läuft, nicht beim Aufbauen. Das Ergebnis ist die <b>Reaktionszeit</b> ab Ansage.</p>'},
+  autocount:{t:'Auto-Treffer',h:'<p class="dmsg"><b>Schusserkennung</b> misst nur die Reaktionszeit. <b>Auto-Treffer</b> geht einen Schritt weiter: Ein erkannter Schuss zählt sofort als Treffer auf das <b>angesagte Ziel</b> (bei „Genau“ auf dessen Segment).</p><p class="dmsg">Danach läuft das <b>Korrekturfenster</b> (2/3/5 s, mit Restzeit in der Statusleiste). Stimmt es nicht, überschreibst du den Eintrag: Segment, links, rechts oder „Miss“ sagen bzw. antippen. „Ja“ bestätigt und geht sofort weiter. Ohne Eingabe bleibt es ein Treffer.</p><p class="dmsg">Achtung: Wer im Fenster nichts sagt, bestätigt damit einen Treffer. Willst du jedes Ergebnis bewusst melden, schalte Auto-Treffer aus.</p>'},
+  missdir:{t:'Daneben mit Richtung',h:'<p class="dmsg">Gilt für Wertung „Einfach“: „Daneben“ wird in <b>← links</b> und <b>rechts →</b> geteilt (aus Sicht des Schützen), damit die Statistik zeigt, wohin du verziehst. Bei Wertung „Genau“ sind links, rechts und unklar immer da.</p>'},
+  voiceOut:{t:'Sprachansage',h:'<p class="dmsg">Schuss: nur die Zahl des Segments. Pass: „wall“ oder „lane“. Bei „Auf Signal“ kommt zusätzlich ein Ton, bei Ziel „egal“ nur ein Ton.</p>'},
+  torkarte:{t:'Torkarte',h:'<p class="dmsg">Trefferquote je <b>angesagtem</b> Zielsegment. Segment 1 = links aus Sicht des Schützen. Blass = weniger als 5 Versuche. Daneben-Schüsse zählen als nicht getroffen.</p>'},
+  matrix:{t:'Wohin geht der Ball?',h:'<p class="dmsg">Jede Zeile ist ein angesagtes Ziel, jede Spalte der Ort, an dem der Ball landete: Segment 1–5, <b>←</b> links neben dem Tor, <b>→</b> rechts neben dem Tor (aus Schützensicht). Die Werte sind Prozent der Zeile. Der Rahmen markiert den Treffer.</p><p class="dmsg">„Miss“ ohne Angabe wohin ist hier nicht enthalten, zählt aber in der Trefferquote als Fehlschuss.</p><p class="dmsg">Der Pfeil rechts zeigt, auf welche Seite die Fehlschüsse dieses Ziels eher gehen.</p>'},
+};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-tip-k]');if(!b)return;
+  e.preventDefault();e.stopPropagation();
+  const x=TIPS[b.dataset.tipK];if(x)info(x.t,typeof x.h==='function'?x.h():x.h);
+});
