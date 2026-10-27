@@ -34,6 +34,7 @@ Am Ende steht je Prüfung `PASS` oder `FAIL`.
 | `10_test_rls.sql` | 81 Prüfungen: Spielerprofile, Sichtbarkeit, Gruppen und Rollen, Spielablauf, Bestätigung und Korrektur, kein Zugriff ohne Anmeldung, Kontolöschung |
 | `20_test_matches.sql` | 43 Prüfungen der Spiel-Funktionen: Aufstellung prüfen, Tore zählen, Eigentor, Satz- und Spielende, Rückgängig über das Satzende hinweg, einfache Erfassung ohne Tor-Zeilen |
 | `30_test_lobby.sql` | 49 Prüfungen zu Lobby und Beitritt: Code, Teamverteilung, volle Lobby, Starten erst bei vollständiger Aufstellung, Verlassen, Entfernen durch den Host |
+| `40_test_bestaetigung.sql` | 57 Prüfungen zu Bestätigung und Korrektur: automatische Bestätigung bei Host und Gästen, Zustimmung der Gegenseite, Widerspruch, Wiederaufnahme innerhalb von 2 Stunden samt Verfall der alten Bestätigungen, abgelaufene Korrekturzeit, Sichtbarkeit |
 
 Ein Hinweis zur Testform: Wer beitreten will, darf das Spiel vorher **nicht** sehen
 dürfen. Der Beitrittscode wird in den Tests deshalb als Superuser in einer

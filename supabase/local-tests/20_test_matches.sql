@@ -169,8 +169,11 @@ select fjson('Satz 2 Tor 2', :'H',
   $$select record_goal((select id from t2 where name='Spiel'), 1::smallint)$$, 'score1', '2');
 select fjson('Satz 2 Tor 3 beendet das Spiel', :'H',
   $$select record_goal((select id from t2 where name='Spiel'), 1::smallint)$$, 'match_done', 'true');
-select fnum('Spiel steht auf finished', 'super',
-  $$select count(*) from matches where state='finished' and finished_at is not null$$, 1);
+-- Ab Schritt 4 steht ein Spiel aus Host und Gästen sofort auf 'confirmed':
+-- Beide Teams gelten automatisch als bestätigt, es gibt niemanden, der noch
+-- zustimmen müsste. Vor Schritt 4 blieb es auf 'finished' stehen.
+select fnum('Spiel ist durch und gilt als bestätigt', 'super',
+  $$select count(*) from matches where state='confirmed' and finished_at is not null$$, 1);
 select fnum('Kein dritter Satz angelegt', 'super', $$select count(*) from match_sets$$, 2);
 select ftst('Im beendeten Spiel kein weiteres Tor', :'H',
   $$select record_goal((select id from t2 where name='Spiel'), 1::smallint)$$, 'err');

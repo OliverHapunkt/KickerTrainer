@@ -208,7 +208,7 @@ function renderPlayHome(){
     h += '<button class="big primary" id="pStart"' + (ready ? '' : ' disabled') + '>Spiel starten</button>';
     if(!ready) h += '<p class="hint" style="margin-bottom:0">Alle Plätze besetzen – du musst selbst dabei sein.</p>';
   }
-  h += '</div><div id="pRunning"></div>'
+  h += '</div><div id="pTodo"></div><div id="pRunning"></div>'
      + '<div class="card"><h2>Mitspielen</h2><p class="lead">Jemand anderes hostet? Dann brauchst du nur seinen sechsstelligen Code.</p>'
      + '<button class="big" id="pJoinBtn">Einem Spiel beitreten</button></div>'
      + '<div id="pRecent"></div>';
@@ -234,7 +234,7 @@ function renderPlayHome(){
     ? 'Die App zeigt einen Code. Wer ihn eingibt, spielt mit eigenem Konto mit. Freie Plätze kannst du mit Gästen auffüllen.'
     : 'Du trägst alle Mitspieler selbst ein, das Spiel beginnt sofort.';
   $('#pJoinBtn').onclick = pJoin;
-  if(c.invite){ $('#pLobby').onclick = pOpenLobbyNew; pLoadRunning(); pLoadRecent();
+  if(c.invite){ $('#pLobby').onclick = pOpenLobbyNew; pLoadTodo(); pLoadRunning(); pLoadRecent();
     if(!pMeLoaded){ pMeLoaded = true; pLoadMe().then(()=>pLoadGuests()).then(()=>renderPlayHome()).catch(()=>{}) }
     return; }
   $('#pLineup').innerHTML = pSlots().map(i=>{
@@ -245,6 +245,7 @@ function renderPlayHome(){
   $('#pLineup').onclick = e=>{ const b = e.target.closest('[data-slot]'); if(b) pPick(+b.dataset.slot) };
   $('#pStart').onclick = pStart;
 
+  pLoadTodo();
   pLoadRunning();
   pLoadRecent();
   if(!pMeLoaded){ pMeLoaded = true; pLoadMe().then(()=>pLoadGuests()).then(()=>renderPlayHome()).catch(()=>{}) }
@@ -296,7 +297,7 @@ async function pLoadRecent(){
     if(!ids.length){ el.innerHTML=''; return }
     const {data} = await sb.from('matches')
       .select('id,host_id,mode,detail,state,finished_at,match_sets(set_no,score1,score2,winner_team)')
-      .in('id', ids).in('state',['finished','confirmed'])
+      .in('id', ids).in('state',['finished','confirmed','disputed'])
       .order('finished_at',{ascending:false}).limit(10);
     if(!data || !data.length){ el.innerHTML=''; return }
     el.innerHTML = '<div class="card"><h2>Letzte Spiele</h2>' + data.map(m=>{
@@ -305,9 +306,10 @@ async function pLoadRecent(){
       return '<div class="mrow" data-mid="' + m.id + '"><div><b>' + w1 + ' : ' + w2 + '</b>'
         + '<small>' + (m.mode==='single'?'Einzel':'Doppel')
         + (m.host_id === PL.me.id ? '' : ' · als Mitspieler') + ' · '
-        + s.map(x=>x.score1+':'+x.score2).join('  ') + '</small></div>'
+        + s.map(x=>x.score1+':'+x.score2).join('  ') + ' · ' + pStateText(m.state) + '</small></div>'
         + '<span>' + (m.finished_at ? fmtDate(Date.parse(m.finished_at), true) : '') + '</span></div>';
     }).join('') + '</div>';
+    el.querySelectorAll('[data-mid]').forEach(r=>r.onclick = ()=>pOpenLobby(r.dataset.mid));
   }catch(e){ /* offline */ }
 }
 
@@ -342,10 +344,15 @@ async function pOpen(id){
     if(m.error) throw m.error; if(mp.error) throw mp.error; if(st.error) throw st.error;
     // Namen der Mitspieler: Gäste stehen evtl. noch nicht im lokalen Puffer
     const ids = mp.data.map(x=>x.player_id);
-    const {data:names} = await sb.from('players').select('id,nickname').in('id', ids);
-    const nm = {}; (names||[]).forEach(p=>nm[p.id]=p.nickname);
+    // kind wird gebraucht, um zu wissen, wer überhaupt bestätigen kann.
+    // user_id wird bewusst NICHT geladen – die geht Mitspieler nichts an.
+    const {data:names} = await sb.from('players').select('id,nickname,kind,deleted_at').in('id', ids);
+    const nm = {}; (names||[]).forEach(p=>nm[p.id]=p);
     P = {id, mode:m.data.mode, detail:m.data.detail, gps:m.data.goals_per_set, stw:m.data.sets_to_win,
-         players:mp.data.map(x=>Object.assign({}, x, {nickname:nm[x.player_id]||'?'})),
+         host:m.data.host_id, rev:m.data.rev, finished_at:m.data.finished_at,
+         players:mp.data.map(x=>Object.assign({}, x, {
+           nickname:(nm[x.player_id]||{}).nickname||'?',
+           kind:(nm[x.player_id]||{}).kind, deleted_at:(nm[x.player_id]||{}).deleted_at})),
          st:st.data, own:false};
     PL.queue = PL.queue.filter(q=>q.match === id); savePL();
     wake(true); renderMatch(); show('match');
@@ -466,6 +473,12 @@ async function pRefresh(){
 /* ---------- Auswertung ---------- */
 async function pSummary(){
   if(!P) return;
+  // Zustand und Spielende frisch holen: Beides entsteht erst mit dem letzten Tor,
+  // und davon hängt ab, ob noch korrigiert werden darf.
+  try{ const {sb} = await pSb();
+    const {data} = await sb.from('matches').select('state,finished_at,rev').eq('id', P.id).single();
+    if(data){ P.state = data.state; P.finished_at = data.finished_at; P.rev = data.rev }
+  }catch(e){}
   let goals = [];
   if(P.detail === 'full'){
     try{ const {sb} = await pSb();
@@ -495,10 +508,31 @@ async function pSummary(){
     const unk = goals.filter(x=>!x.scorer_id).length;
     if(unk) h += kv('Ohne Torschütze', unk);
   }
+  // Bestätigungslage: Ein Spiel aus Host und Gästen steht sofort auf 'confirmed'.
+  // Sonst fehlt noch das Wort der Gegenseite.
+  if(P.state === 'confirmed'){
+    h += '<div class="blockh">Wertung</div>' + kv('Stand', 'bestätigt und wertbar');
+  } else if(P.state === 'finished'){
+    const warte = P.players.filter(p=>p.kind === 'account' && !p.deleted_at
+      && p.player_id !== P.host && p.team !== (P.players.find(x=>x.player_id===P.host)||{}).team);
+    h += '<div class="blockh">Wertung</div>'
+      + kv('Stand', 'wartet auf Bestätigung')
+      + '<p class="hint">' + (warte.length
+        ? esc(warte.map(p=>p.nickname).join(' oder ')) + ' muss das Ergebnis noch bestätigen, damit es zählt.'
+        : 'Die Gegenseite muss das Ergebnis noch bestätigen.') + '</p>';
+  } else if(P.state === 'disputed'){
+    h += '<div class="blockh">Wertung</div>' + kv('Stand', 'strittig')
+      + '<p class="hint">Jemand hat widersprochen. Korrigiere das Ergebnis, damit es gewertet werden kann.</p>';
+  }
+
+  const left = pFixLeft();
+  let foot = '<button class="big primary" id="msumDone">Fertig</button>';
+  if(left > 0) foot = '<button class="big" id="msumFix">Ergebnis korrigieren</button>' + foot;
   $('#msumBody').innerHTML = '<div class="sumscroll">' + h + '</div>'
-    + '<div class="sumfoot"><button class="big primary" id="msumDone">Fertig</button></div>';
+    + '<div class="sumfoot">' + foot + '</div>';
   $('#msummary').classList.remove('hidden');
   $('#msumDone').onclick = ()=>{ $('#msummary').classList.add('hidden'); pClose() };
+  const fx = $('#msumFix'); if(fx) fx.onclick = pReopen;
 }
 
 function pClose(){
@@ -586,22 +620,64 @@ async function pJoin(){
 async function pLobbyLoad(id){
   const {sb} = await pSb();
   const [m, mp] = await Promise.all([
-    sb.from('matches').select('id,host_id,mode,detail,goals_per_set,sets_to_win,state,join_code').eq('id', id).single(),
+    sb.from('matches').select('id,host_id,mode,detail,goals_per_set,sets_to_win,state,join_code,rev,finished_at').eq('id', id).single(),
     sb.from('match_players').select('player_id,team,position,is_host').eq('match_id', id)]);
   if(m.error) throw m.error; if(mp.error) throw mp.error;
   const ids = mp.data.map(x=>x.player_id);
   const nm = {};
   if(ids.length){
-    const {data:names} = await sb.from('players').select('id,nickname').in('id', ids);
-    (names||[]).forEach(p=>nm[p.id]=p.nickname);
+    const {data:names} = await sb.from('players').select('id,nickname,kind,deleted_at').in('id', ids);
+    (names||[]).forEach(p=>nm[p.id]=p);
   }
   L = {id, host:m.data.host_id, mode:m.data.mode, detail:m.data.detail,
        gps:m.data.goals_per_set, stw:m.data.sets_to_win, state:m.data.state,
-       code:m.data.join_code,
-       players:mp.data.map(x=>Object.assign({}, x, {nickname:nm[x.player_id]||'?'}))};
+       code:m.data.join_code, rev:m.data.rev, finished_at:m.data.finished_at,
+       players:mp.data.map(x=>Object.assign({}, x, {
+         nickname:(nm[x.player_id]||{}).nickname||'?',
+         kind:(nm[x.player_id]||{}).kind, deleted_at:(nm[x.player_id]||{}).deleted_at}))};
+  // Für ein durchgespieltes Spiel zusätzlich Ergebnis und Bestätigungen
+  if(['finished','confirmed','disputed'].includes(L.state)){
+    const [ss, cc] = await Promise.all([
+      sb.from('match_sets').select('set_no,score1,score2,winner_team').eq('match_id', id).order('set_no'),
+      sb.from('match_confirmations').select('player_id,rev,decision,comment,at').eq('match_id', id)]);
+    L.sets = ss.data || [];
+    L.confs = (cc.data || []).filter(c=>c.rev === L.rev);
+  }
   return L;
 }
 function pIsHost(){ return !!(L && PL.me && L.host === PL.me.id) }
+
+/* Wann gilt ein Team als bestätigt – dieselbe Regel wie team_confirmed() auf dem
+   Server. Hier nur zur Anzeige; maßgeblich bleibt der Server. */
+function pTeamDone(t){
+  if(!L) return false;
+  const ps = L.players.filter(p=>p.team===t);
+  if(ps.some(p=>p.player_id === L.host)) return true;           // Team des Hosts
+  const able = ps.filter(p=>p.kind === 'account' && !p.deleted_at);
+  if(!able.length) return true;                                  // nur Gäste
+  return (L.confs||[]).some(c=>c.decision==='ok' && able.some(a=>a.player_id===c.player_id));
+}
+function pMyConf(){ return (L.confs||[]).find(c=>PL.me && c.player_id === PL.me.id) }
+function pMyTeam(){ const p = L.players.find(x=>PL.me && x.player_id === PL.me.id); return p ? p.team : null }
+function pCanConfirm(){
+  if(!L || !PL.me) return false;
+  if(!['finished','disputed'].includes(L.state)) return false;
+  if(pMyConf()) return false;
+  const t = pMyTeam();
+  return !!t && !pTeamDone(t);
+}
+/* Noch wie lange darf der Host korrigieren? Minuten, oder 0. */
+function pFixLeft(){
+  const src = (L && L.finished_at) || (P && P.finished_at);
+  if(!src) return 0;
+  return Math.max(0, Math.ceil((Date.parse(src) + 7200000 - Date.now()) / 60000));
+}
+function pStateText(st){
+  return st === 'confirmed' ? 'bestätigt'
+    : st === 'disputed' ? 'strittig'
+    : st === 'finished' ? 'wartet auf Bestätigung'
+    : st === 'cancelled' ? 'abgebrochen' : st;
+}
 
 async function pOpenLobby(id){
   try{
@@ -645,11 +721,38 @@ function renderLobby(){
   } else if(L.state === 'running'){
     h += '<div class="card"><h2>Das Spiel läuft</h2><p class="lead">Der Host zählt die Tore. '
       + 'Sobald das Spiel vorbei ist, findest du es in deiner Liste.</p></div>';
+  } else if(L.state === 'cancelled'){
+    h += '<div class="card"><h2>Abgebrochen</h2>'
+      + '<p class="lead">Der Host hat das Spiel abgebrochen, es wird nicht gewertet.</p></div>';
   } else {
-    h += '<div class="card"><h2>' + (L.state === 'cancelled' ? 'Abgebrochen' : 'Beendet') + '</h2>'
-      + '<p class="lead">' + (L.state === 'cancelled'
-        ? 'Der Host hat das Spiel abgebrochen, es wird nicht gewertet.'
-        : 'Das Spiel ist durch.') + '</p></div>';
+    // Ergebnis und Bestätigungslage
+    const ss = L.sets || [];
+    const w1 = ss.filter(x=>x.winner_team===1).length, w2 = ss.filter(x=>x.winner_team===2).length;
+    h += '<div class="card"><h2>Ergebnis</h2>'
+      + '<div class="bigpct">' + w1 + ' : ' + w2 + '</div>'
+      + '<p class="center">' + (ss.length ? ss.map(x=>x.score1+':'+x.score2).join(' · ') : '') + '</p>'
+      + '<div class="blockh">Stand</div>'
+      + kv('Team 1', pTeamDone(1) ? 'bestätigt' : 'offen')
+      + kv('Team 2', pTeamDone(2) ? 'bestätigt' : 'offen');
+    const rej = (L.confs||[]).filter(c=>c.decision==='reject');
+    if(rej.length){
+      const who = rej.map(c=>{const p=L.players.find(x=>x.player_id===c.player_id);return p?p.nickname:'Jemand'});
+      h += '<p class="hint">Widerspruch von ' + esc(who.join(', ')) + '. Das Spiel wird nicht gewertet, '
+        + 'bis der Host das Ergebnis korrigiert.</p>';
+      const cm = rej.find(c=>c.comment);
+      if(cm) h += '<p class="hint">„' + esc(cm.comment) + '“</p>';
+    }
+    h += '</div>';
+
+    if(pCanConfirm()){
+      h += '<div class="card"><h2>Stimmt das Ergebnis?</h2>'
+        + '<p class="lead">Bestätige es, damit das Spiel gewertet werden kann. Stimmt etwas nicht, '
+        + 'widersprich – dann kann der Host es korrigieren.</p>'
+        + '<button class="big primary" id="lobOk">Ergebnis bestätigen</button>'
+        + '<button class="big danger" id="lobNo">Stimmt nicht</button></div>';
+    } else if(pMyConf()){
+      h += '<p class="hint">Du hast ' + (pMyConf().decision === 'ok' ? 'bestätigt' : 'widersprochen') + '.</p>';
+    }
   }
 
   // Aufstellung, je Team
@@ -692,6 +795,16 @@ function renderLobby(){
       h += '<button class="big" id="lobLeave">Spiel verlassen</button>';
     }
   } else {
+    if(pIsHost() && ['finished','confirmed','disputed'].includes(L.state)){
+      const left = pFixLeft();
+      if(left > 0){
+        h += '<button class="big" id="lobFix">Ergebnis korrigieren</button>'
+          + '<p class="hint">Noch ' + left + ' Minute' + (left===1?'':'n') + ' lang möglich. '
+          + 'Danach ist das Ergebnis endgültig.</p>';
+      } else {
+        h += '<p class="hint">Die Korrekturzeit von 2 Stunden ist abgelaufen – das Ergebnis ist endgültig.</p>';
+      }
+    }
     h += '<button class="big" id="lobBack">Zurück</button>';
   }
   $('#lobBody').innerHTML = h;
@@ -701,6 +814,9 @@ function renderLobby(){
   on('lobCancel', pCancelLobby);
   on('lobLeave', pLeaveMatch);
   on('lobBack', ()=>{ L = null; pLobbyStop(); go('play') });
+  on('lobOk', ()=>pConfirm('ok'));
+  on('lobNo', ()=>pConfirm('reject'));
+  on('lobFix', pReopen);
 }
 
 $('#lobBody').addEventListener('click', async e=>{
@@ -783,4 +899,78 @@ async function pLeaveMatch(){
   try{ const {sb} = await pSb(); const {error} = await sb.rpc('leave_match', {p_match:L.id}); if(error) throw error }
   catch(e){ toast(errText(e, 'Nicht möglich')); return }
   L = null; pLobbyStop(); go('play');
+}
+
+/* ---------- Bestätigen und korrigieren ---------- */
+
+async function pConfirm(decision){
+  if(!L || pBusy) return;
+  let comment = null;
+  if(decision === 'reject'){
+    const v = await askText('Was stimmt nicht?',
+      {placeholder:'z. B. „war 5:4“', max:200, ok:'Widersprechen',
+       hint:'Der Host sieht deinen Hinweis und kann das Ergebnis innerhalb von 2 Stunden nach Spielende korrigieren. Das Feld darf leer bleiben.'});
+    if(v === null) return;
+    comment = v.trim() || null;
+  } else {
+    if(!await ask('Damit zählt das Ergebnis für die Wertung. Ändern kannst du es danach nicht mehr.',
+      {title:'Ergebnis bestätigen?', ok:'Bestätigen'})) return;
+  }
+  pBusy = true;
+  try{
+    const {sb} = await pSb();
+    const {error} = await sb.rpc('confirm_match',
+      {p_match:L.id, p_decision:decision, p_comment:comment});
+    if(error) throw error;
+    await pLobbyLoad(L.id); renderLobby();
+    toast(decision === 'ok' ? 'Bestätigt' : 'Widerspruch vermerkt');
+  }catch(e){ toast(errText(e, 'Nicht übernommen')) }
+  finally{ pBusy = false }
+}
+
+/* Korrigieren heißt: Spiel wieder aufnehmen und mit den normalen Mitteln ändern.
+   rev zählt dabei hoch, alle Bestätigungen der alten Fassung verfallen. */
+async function pReopen(){
+  const id = L ? L.id : (P ? P.id : null);
+  if(!id || pBusy) return;
+  if(!await ask('Das Spiel läuft dann wieder und du kannst Tore zählen oder zurücknehmen. '
+    + 'Alle bereits abgegebenen Bestätigungen verfallen und müssen neu eingeholt werden.',
+    {title:'Ergebnis korrigieren?', ok:'Korrigieren'})) return;
+  pBusy = true;
+  try{
+    const {sb} = await pSb();
+    const {error} = await sb.rpc('reopen_match', {p_match:id});
+    if(error) throw error;
+    L = null; pLobbyStop();
+    $('#msummary').classList.add('hidden');
+    await pOpen(id);
+  }catch(e){ toast(errText(e, 'Korrektur nicht möglich')) }
+  finally{ pBusy = false }
+}
+
+/* Karte auf dem Spiel-Bildschirm: Spiele, die auf mein Wort warten.
+   Bedingung bewusst einfach gehalten: beendet oder strittig, ich bin nicht der
+   Host, und ich habe mich zu dieser Fassung noch nicht geäußert. Ob es meine
+   Bestätigung wirklich noch braucht, entscheidet der Server. */
+async function pLoadTodo(){
+  const el = $('#pTodo'); if(!el) return;
+  try{
+    const {sb} = await pSb();
+    const ids = await pMyMatchIds(sb);
+    if(!ids.length){ el.innerHTML=''; return }
+    const {data} = await sb.from('matches')
+      .select('id,host_id,mode,state,rev,finished_at,match_confirmations(player_id,rev,decision)')
+      .in('id', ids).in('state',['finished','disputed'])
+      .order('finished_at',{ascending:false}).limit(10);
+    const offen = (data||[]).filter(m=>m.host_id !== PL.me.id
+      && !(m.match_confirmations||[]).some(c=>c.rev===m.rev && c.player_id===PL.me.id));
+    if(!offen.length){ el.innerHTML=''; return }
+    el.innerHTML = '<div class="card todo"><h2>Warten auf dich</h2>'
+      + '<p class="lead">Diese Spiele zählen erst, wenn du das Ergebnis bestätigst.</p>'
+      + offen.map(m=>'<div class="mrow" data-conf="' + m.id + '"><div><b>'
+          + (m.mode==='single'?'Einzel':'Doppel') + '</b><small>' + pStateText(m.state) + '</small></div>'
+          + '<span>' + (m.finished_at ? fmtDate(Date.parse(m.finished_at), true) : '') + '</span></div>').join('')
+      + '</div>';
+    el.querySelectorAll('[data-conf]').forEach(r=>r.onclick = ()=>pOpenLobby(r.dataset.conf));
+  }catch(e){ /* offline */ }
 }

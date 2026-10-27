@@ -406,3 +406,6 @@ body.play{--acc:#1fb8a6}
   color:var(--mute);font-size:14px;flex:none}
 .lbtn.del{color:var(--miss);min-width:40px;padding:0 10px}
 .lpos{color:var(--mute);font-size:14px;flex:none}
+/* Offene Bestätigungen hervorheben */
+.card.todo{border-color:var(--acc);background:rgba(31,184,166,.06)}
+.card.todo .mrow{cursor:pointer}

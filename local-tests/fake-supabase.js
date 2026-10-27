@@ -4,7 +4,7 @@
    SQL-Tests geprüft (supabase/local-tests). */
 (function(){
   // Schlüssel = echte Tabellennamen, sonst gehen Abfragen ins Leere
-  const EMPTY = {players:[], matches:[], match_players:[], match_sets:[], goals:[]};
+  const EMPTY = {players:[], matches:[], match_players:[], match_sets:[], goals:[], match_confirmations:[]};
   // Datenbank und angemeldetes Konto überleben einen Neustart der Seite. Nur so
   // lassen sich zwei Personen nacheinander in derselben Umgebung nachstellen.
   let DB, seq;
@@ -89,6 +89,26 @@
       match_done:m.state!=='running',
       sets:ss.map(s=>({set_no:s.set_no,score1:s.score1,score2:s.score2,winner_team:s.winner_team}))};
   }
+  // Spiegelt team_confirmed() und settle_match() aus der Datenbank
+  function teamDone(id, t){
+    const m = DB.matches.find(x=>x.id===id);
+    const ps = DB.match_players.filter(p=>p.match_id===id && p.team===t);
+    if(ps.some(p=>p.player_id===m.host_id)) return true;
+    const able = ps.filter(p=>{const q=DB.players.find(y=>y.id===p.player_id);
+      return q && q.kind==='account' && !q.deleted_at && q.user_id});
+    if(!able.length) return true;
+    return DB.match_confirmations.some(c=>c.match_id===id && c.rev===m.rev
+      && c.decision==='ok' && able.some(a=>a.player_id===c.player_id));
+  }
+  function settle(id){
+    const m = DB.matches.find(x=>x.id===id);
+    if(!m || !['finished','confirmed','disputed'].includes(m.state)) return;
+    if(DB.match_confirmations.some(c=>c.match_id===id&&c.rev===m.rev&&c.decision==='reject')){
+      m.state='disputed'; return }
+    if(teamDone(id,1)&&teamDone(id,2)){ m.state='confirmed'; return }
+    m.state='finished';
+  }
+
   const RPC = {
     match_state: a => res(state(a.p_match)),
     create_match: a => {
@@ -117,10 +137,42 @@
       if(Math.max(cur.score1,cur.score2)>=m.goals_per_set){
         cur.winner_team=cur.score1>cur.score2?1:2;
         const wins=DB.match_sets.filter(s=>s.match_id===m.id&&s.winner_team===cur.winner_team).length;
-        if(wins>=m.sets_to_win) m.state='finished';
+        if(wins>=m.sets_to_win){ m.state='finished'; m.finished_at=new Date().toISOString(); settle(m.id) }
         else DB.match_sets.push({match_id:m.id,set_no:cur.set_no+1,score1:0,score2:0,winner_team:null});
       }
       persist(); return res(state(m.id));
+    },
+    team_confirmed: a => res(teamDone(a.p_match, a.p_team)),
+    confirm_match: a => {
+      const me = DB.players.find(p=>p.user_id===UID());
+      const m = DB.matches.find(x=>x.id===a.p_match);
+      if(!m) return res(null,{message:'Spiel nicht gefunden',code:'P0001'});
+      if(!['finished','disputed'].includes(m.state))
+        return res(null,{message:'In diesem Zustand gibt es nichts zu bestätigen',code:'P0001'});
+      if(!DB.match_players.some(p=>p.match_id===m.id&&p.player_id===me.id))
+        return res(null,{message:'Du hast bei diesem Spiel nicht mitgespielt',code:'42501'});
+      if(DB.match_confirmations.some(c=>c.match_id===m.id&&c.player_id===me.id&&c.rev===m.rev))
+        return res(null,{message:'Du hast dich zu dieser Fassung schon geäußert',code:'P0001'});
+      DB.match_confirmations.push({match_id:m.id,player_id:me.id,rev:m.rev,
+        decision:a.p_decision,comment:a.p_comment||null,at:new Date().toISOString()});
+      settle(m.id); persist();
+      return res(DB.matches.find(x=>x.id===m.id));
+    },
+    reopen_match: a => {
+      const me = DB.players.find(p=>p.user_id===UID());
+      const m = DB.matches.find(x=>x.id===a.p_match);
+      if(!m) return res(null,{message:'Spiel nicht gefunden',code:'P0001'});
+      if(m.host_id!==me.id) return res(null,{message:'Nur der Host kann das Ergebnis korrigieren',code:'42501'});
+      if(!['finished','confirmed','disputed'].includes(m.state))
+        return res(null,{message:'In diesem Zustand nicht möglich',code:'P0001'});
+      if(!m.finished_at || Date.parse(m.finished_at) < Date.now()-7200000)
+        return res(null,{message:'Die Korrekturzeit von 2 Stunden ist abgelaufen',code:'P0001'});
+      // Letzten Satz wieder zum laufenden machen, Stand bleibt stehen
+      DB.match_sets=DB.match_sets.filter(s=>!(s.match_id===m.id&&s.winner_team==null&&s.score1===0&&s.score2===0&&s.set_no>1));
+      const last=DB.match_sets.filter(s=>s.match_id===m.id).sort((x,y)=>y.set_no-x.set_no)[0];
+      if(last) last.winner_team=null;
+      m.state='running'; m.finished_at=null; m.rated=false; m.rev=(m.rev||1)+1;
+      persist(); return res(m);
     },
     create_lobby: a => {
       const me = DB.players.find(p=>p.user_id===UID());
@@ -181,6 +233,12 @@
     },
     undo_goal: a => {
       const m=DB.matches.find(x=>x.id===a.p_match);
+      if(m && m.state!=='running'){
+        if(!['finished','confirmed','disputed'].includes(m.state))
+          return res(null,{message:'In diesem Zustand nicht möglich',code:'P0001'});
+        if(!m.finished_at || Date.parse(m.finished_at) < Date.now()-7200000)
+          return res(null,{message:'Die Korrekturzeit von 2 Stunden ist abgelaufen',code:'P0001'});
+      }
       DB.match_sets=DB.match_sets.filter(s=>!(s.match_id===m.id&&s.winner_team==null&&s.score1===0&&s.score2===0&&s.set_no>1));
       const tgt=DB.match_sets.filter(s=>s.match_id===m.id&&(s.score1+s.score2)>0).sort((x,y)=>y.set_no-x.set_no)[0];
       if(!tgt) return res(null,{message:'Es gibt kein Tor zum Zurücknehmen',code:'P0001'});
@@ -192,7 +250,9 @@
       if(team==null) team=tgt.score1>=tgt.score2?1:2;
       if(team===1)tgt.score1=Math.max(0,tgt.score1-1);else tgt.score2=Math.max(0,tgt.score2-1);
       tgt.winner_team=null;
-      if(m.state==='finished')m.state='running';
+      if(['finished','confirmed','disputed'].includes(m.state)){
+        m.state='running'; m.finished_at=null; m.rev=(m.rev||1)+1;
+      }
       persist(); return res(state(m.id));
     }
   };
