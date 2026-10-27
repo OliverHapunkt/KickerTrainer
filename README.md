@@ -166,14 +166,29 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Datenbank, Anmeldung und Zugriffsregeln laufen auf Supabase. Projekt-URL und der **öffentliche** (publishable) Schlüssel stehen in `js/cloud.js` (`SB_URL`, `SB_KEY`)
 - Den geheimen Schlüssel (`service_role` / secret) und das Datenbank-Passwort **nie** ins Repo schreiben
 - Der Schutz der Daten liegt in den Zugriffsregeln (Row Level Security): Jeder sieht und ändert nur eigene Zeilen, nicht angemeldete Besucher haben keinen Zugriff
-- Das Schema liegt als Migrationen in `supabase/migrations/`. Die GitHub-Integration von Supabase spielt neue Migrationen beim Merge nach `main` ein
-- Tabellen: `profiles`, `sessions`, `shots`. Konto löschen läuft über die Funktion `delete_my_account()`
+- Das Schema liegt als Migrationen in `supabase/migrations/`. Die GitHub-Integration von Supabase spielt neue Migrationen beim Merge nach `main` ein – ein Merge verändert also sofort die echte Datenbank
+- Tabellen **Üben** (Phase 1): `profiles`, `sessions`, `shots`
+- Tabellen **Spielen** (Paket 4): `players`, `groups`, `group_members`, `matches`, `match_players`, `match_sets`, `goals`, `match_confirmations`
+- Konto löschen läuft über die Funktion `delete_my_account()`
+- Die Zugriffsregeln lassen sich lokal gegen ein echtes Postgres prüfen, siehe `supabase/local-tests/`
 - Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
 
 ### Einrichtung in Supabase
 1. Authentication › Templates: Vorlagen **Magic Link** und **Confirm signup** so ändern, dass sie `{{ .Token }}` enthalten (Code statt Link)
 2. Authentication › URL Configuration: die URL der gehosteten App als Site-URL eintragen
 3. Integrations › GitHub: Arbeitsverzeichnis `.`, Production-Branch `main`
+
+### Spielen: Datenmodell (Paket 4)
+
+Entwurf und Begründungen stehen im Projekt-Dokument „Paket 4 – Datenmodell". Das Wichtigste:
+
+- **Zwei Hälften, getrennte Daten.** Trainingsdaten (`sessions`, `shots`) gehören einer Person allein. Spieldaten gehören mehreren gemeinsam. Daraus folgen unterschiedliche Sicht- und Löschregeln
+- **`players` ist die einzige Spielidentität.** Eine Zeile je Person, egal ob registriertes Konto oder Gast. Außer `players.user_id` zeigt keine Spalte auf `auth.users`, sondern immer auf `players`
+- **Löschen:** Trainingsdaten verschwinden per CASCADE vollständig. Spieldaten bleiben, die Person wird anonymisiert (`nickname` → „Gelöschter Spieler", `user_id` → null, `deleted_at` gesetzt). Sonst wäre die Elo-Bilanz der Mitspieler falsch. **Das muss so in der Datenschutzerklärung stehen**
+- **Sichtbar ist nur der Nickname**, und auch der nur für: einen selbst, Mitspieler aus gemeinsamen Spielen, Mitglieder derselben Gruppe, und bei Zustimmung zur allgemeinen Rangliste. E-Mail-Adressen werden nie an andere Spieler ausgegeben
+- **Nur der Host schreibt** Aufstellung, Sätze und Tore. Mitspieler lesen und bestätigen
+- **Korrektur:** Eine Änderung nach der Bestätigung zählt `matches.rev` hoch, alte Bestätigungen verfallen dadurch automatisch
+- Elo-Tabellen und die Funktionen zum Beitreten per Code kommen mit den jeweiligen Schritten, damit ihre Form dem tatsächlichen Verfahren folgt
 
 ### Datenschutz
 - Gespeichert werden E-Mail-Adresse, Sessions und Einträge, nichts davon wird ohne Anmeldung übertragen
