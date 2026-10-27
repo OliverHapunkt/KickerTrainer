@@ -4,11 +4,22 @@
    SQL-Tests geprüft (supabase/local-tests). */
 (function(){
   // Schlüssel = echte Tabellennamen, sonst gehen Abfragen ins Leere
-const DB = {players:[], matches:[], match_players:[], match_sets:[], goals:[]};
-  const UID = '11111111-0000-4000-8000-000000000001';
-  let seq = 0;
-  const uid = () => 'id-' + (++seq);
-  window.__fake = {DB, offline:false, calls:[]};
+  const EMPTY = {players:[], matches:[], match_players:[], match_sets:[], goals:[]};
+  // Datenbank und angemeldetes Konto überleben einen Neustart der Seite. Nur so
+  // lassen sich zwei Personen nacheinander in derselben Umgebung nachstellen.
+  let DB, seq;
+  try{ const raw = JSON.parse(localStorage.getItem('__fakedb') || 'null');
+       DB = raw ? raw.db : JSON.parse(JSON.stringify(EMPTY)); seq = raw ? raw.seq : 0; }
+  catch(e){ DB = JSON.parse(JSON.stringify(EMPTY)); seq = 0 }
+  function persist(){ try{ localStorage.setItem('__fakedb', JSON.stringify({db:DB, seq})) }catch(e){} }
+  const uid = () => { seq++; persist(); return 'id-' + seq };
+  // Konto bei JEDEM Zugriff frisch lesen, nicht einmal beim Laden: Im Test werden
+  // die Startskripte in fester Reihenfolge ausgeführt, und das Konto wird danach gesetzt.
+  const UID = () => { try{ return localStorage.getItem('__fakeuid') ||
+    '11111111-0000-4000-8000-000000000001' }catch(e){ return '11111111-0000-4000-8000-000000000001' } };
+  window.__fake = {get DB(){return DB}, offline:false, calls:[], persist,
+    setUid(u){ try{ localStorage.setItem('__fakeuid', u) }catch(e){} },
+    reset(){ DB = JSON.parse(JSON.stringify(EMPTY)); seq = 0; persist() }};
 
   const res = (data, error) => ({data: data === undefined ? null : data, error: error || null});
 
@@ -43,11 +54,20 @@ const DB = {players:[], matches:[], match_players:[], match_sets:[], goals:[]};
         if(made.includes('__dup'))
           return Promise.resolve(res(null,{message:'duplicate key value violates unique constraint', code:'23505'}));
         made.forEach(r=>rows(this.t).push(r));
+        persist();
         return Promise.resolve(res(made));
       }
-      if(this.upd){ const a=this._rows; a.forEach(r=>Object.assign(r,this.upd)); return Promise.resolve(res(a)) }
-      if(this.del){ const a=this._rows; DB[this.t]=rows(this.t).filter(r=>!a.includes(r)); return Promise.resolve(res(a)) }
-      return Promise.resolve(res(this._rows));
+      if(this.upd){ const a=this._rows; a.forEach(r=>Object.assign(r,this.upd)); persist(); return Promise.resolve(res(a)) }
+      if(this.del){ const a=this._rows; DB[this.t]=rows(this.t).filter(r=>!a.includes(r)); persist(); return Promise.resolve(res(a)) }
+      // Eingebettete Unterabfrage wie select('...,match_sets(...)') nachbilden:
+      // PostgREST hängt die verknüpften Zeilen an. Reicht für match_id-Beziehungen.
+      let out = this._rows;
+      const emb = /([a-z_]+)\s*\(/.exec(String(this.sel||''));
+      if(emb && DB[emb[1]]){
+        const tbl = emb[1];
+        out = out.map(r=>Object.assign({}, r, {[tbl]: DB[tbl].filter(x=>x.match_id===r.id)}));
+      }
+      return Promise.resolve(res(out));
     }
     then(ok, no){ return this._run().then(ok, no) }
     single(){ return this._run().then(r=>r.error?r:(r.data&&r.data.length?res(r.data[0]):res(null,{message:'no rows'}))) }
@@ -75,7 +95,7 @@ const DB = {players:[], matches:[], match_players:[], match_sets:[], goals:[]};
       const need = a.p_mode==='single'?1:2;
       const n1=a.p_players.filter(p=>p.team===1).length, n2=a.p_players.filter(p=>p.team===2).length;
       if(n1!==need||n2!==need) return res(null,{message:'Teamgröße',code:'P0001'});
-      const m={id:uid(),host_id:DB.players.find(p=>p.user_id===UID).id,mode:a.p_mode,detail:a.p_detail,
+      const m={id:uid(),host_id:DB.players.find(p=>p.user_id===UID()).id,mode:a.p_mode,detail:a.p_detail,
         goals_per_set:a.p_goals_per_set,sets_to_win:a.p_sets_to_win,state:'running',
         join_code:null,started_at:new Date().toISOString(),rev:1};
       DB.matches.push(m);
@@ -83,7 +103,7 @@ const DB = {players:[], matches:[], match_players:[], match_sets:[], goals:[]};
         position:(a.p_detail==='full'&&a.p_mode==='double')?p.position:null,
         is_host:p.player_id===m.host_id}));
       DB.match_sets.push({match_id:m.id,set_no:1,score1:0,score2:0,winner_team:null});
-      return res(m);
+      persist(); return res(m);
     },
     record_goal: a => {
       const m=DB.matches.find(x=>x.id===a.p_match);
@@ -100,7 +120,64 @@ const DB = {players:[], matches:[], match_players:[], match_sets:[], goals:[]};
         if(wins>=m.sets_to_win) m.state='finished';
         else DB.match_sets.push({match_id:m.id,set_no:cur.set_no+1,score1:0,score2:0,winner_team:null});
       }
-      return res(state(m.id));
+      persist(); return res(state(m.id));
+    },
+    create_lobby: a => {
+      const me = DB.players.find(p=>p.user_id===UID());
+      if(!me) return res(null,{message:'Zum Spielen wird erst ein Nickname benötigt',code:'P0001'});
+      const m={id:uid(),host_id:me.id,mode:a.p_mode,detail:a.p_detail,
+        goals_per_set:a.p_goals_per_set,sets_to_win:a.p_sets_to_win,state:'lobby',
+        join_code:String(Math.floor(Math.random()*1e6)).padStart(6,'0'),
+        created_at:new Date().toISOString(),rev:1};
+      DB.matches.push(m);
+      DB.match_players.push({match_id:m.id,player_id:me.id,team:1,
+        position:(a.p_detail==='full'&&a.p_mode==='double')?'off':null,is_host:true});
+      persist(); return res(m);
+    },
+    join_match_by_code: a => {
+      const me = DB.players.find(p=>p.user_id===UID());
+      if(!me) return res(null,{message:'Zum Mitspielen wird erst ein Nickname benötigt',code:'P0001'});
+      const m = DB.matches.find(x=>x.join_code===String(a.p_code||'').trim() && x.state==='lobby');
+      if(!m) return res(null,{message:'Kein offenes Spiel mit diesem Code',code:'P0001'});
+      if(DB.match_players.some(p=>p.match_id===m.id&&p.player_id===me.id)) return res(m.id);
+      const cap=m.mode==='single'?1:2;
+      const ps=DB.match_players.filter(p=>p.match_id===m.id);
+      const n1=ps.filter(p=>p.team===1).length, n2=ps.filter(p=>p.team===2).length;
+      if(n1+n2>=cap*2) return res(null,{message:'Das Spiel ist schon voll',code:'P0001'});
+      let t=(n1<=n2&&n1<cap)?1:2; if(t===2&&n2>=cap)t=1;
+      const taken=ps.filter(p=>p.team===t).map(p=>p.position);
+      DB.match_players.push({match_id:m.id,player_id:me.id,team:t,
+        position:(m.detail==='full'&&m.mode==='double')?(taken.includes('off')?'def':'off'):null,is_host:false});
+      persist(); return res(m.id);
+    },
+    leave_match: a => {
+      const me = DB.players.find(p=>p.user_id===UID());
+      const m = DB.matches.find(x=>x.id===a.p_match);
+      if(!m) return res(null);
+      if(m.state!=='lobby') return res(null,{message:'Das Spiel läuft schon',code:'P0001'});
+      if(m.host_id===me.id) return res(null,{message:'Der Host kann die Lobby nur abbrechen',code:'P0001'});
+      DB.match_players=DB.match_players.filter(p=>!(p.match_id===m.id&&p.player_id===me.id));
+      persist(); return res(null);
+    },
+    start_match: a => {
+      const me = DB.players.find(p=>p.user_id===UID());
+      const m = DB.matches.find(x=>x.id===a.p_match);
+      if(!m) return res(null,{message:'Spiel nicht gefunden',code:'P0001'});
+      if(m.host_id!==me.id) return res(null,{message:'Nur der Host startet das Spiel',code:'42501'});
+      if(m.state!=='lobby') return res(null,{message:'Das Spiel läuft schon',code:'P0001'});
+      const need=m.mode==='single'?1:2;
+      const ps=DB.match_players.filter(p=>p.match_id===m.id);
+      const n1=ps.filter(p=>p.team===1).length, n2=ps.filter(p=>p.team===2).length;
+      if(n1!==need||n2!==need) return res(null,{message:'Es fehlen noch Spieler ('+n1+' und '+n2+' von je '+need+')',code:'P0001'});
+      if(m.mode==='double'&&m.detail==='full'){
+        for(const t of [1,2]){ const q=ps.filter(p=>p.team===t);
+          if(q.filter(p=>p.position==='off').length!==1||q.filter(p=>p.position==='def').length!==1)
+            return res(null,{message:'Je Team werden Sturm und Abwehr gebraucht',code:'P0001'}) }
+      }
+      m.state='running'; m.join_code=null; m.started_at=new Date().toISOString();
+      if(!DB.match_sets.some(s=>s.match_id===m.id))
+        DB.match_sets.push({match_id:m.id,set_no:1,score1:0,score2:0,winner_team:null});
+      persist(); return res(m);
     },
     undo_goal: a => {
       const m=DB.matches.find(x=>x.id===a.p_match);
@@ -116,13 +193,13 @@ const DB = {players:[], matches:[], match_players:[], match_sets:[], goals:[]};
       if(team===1)tgt.score1=Math.max(0,tgt.score1-1);else tgt.score2=Math.max(0,tgt.score2-1);
       tgt.winner_team=null;
       if(m.state==='finished')m.state='running';
-      return res(state(m.id));
+      persist(); return res(state(m.id));
     }
   };
 
   window.supabase = {createClient(){ return {
     auth:{
-      getSession:()=>Promise.resolve(res({session:{user:{id:UID,email:'test@example.org'}}})),
+      getSession:()=>Promise.resolve(res({session:{user:{id:UID(),email:UID().slice(0,4)+'@example.org'}}})),
       onAuthStateChange(){}, signOut(){return Promise.resolve(res(null))}
     },
     from:t=>new Q(t),

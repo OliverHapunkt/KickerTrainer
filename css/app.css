@@ -394,3 +394,15 @@ body.play{--acc:#1fb8a6}
 .tfoot .own.on{background:var(--acc);border-color:var(--acc);color:#111;font-weight:700}
 /* Links, die wie Knöpfe aussehen (Impressum, Datenschutz) */
 .linkbtn{display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--text)}
+
+/* ---------- v3.11: Lobby ---------- */
+.codecard .code{font-size:clamp(44px,13vw,72px);font-weight:800;letter-spacing:.12em;text-align:center;
+  color:var(--acc);margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.lrow{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line);font-size:17px}
+.lrow b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.lrow b small{color:var(--mute);font-size:12px;font-weight:600}
+.lrow.empty b{color:var(--mute);font-weight:400}
+.lbtn{min-height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);
+  color:var(--mute);font-size:14px;flex:none}
+.lbtn.del{color:var(--miss);min-width:40px;padding:0 10px}
+.lpos{color:var(--mute);font-size:14px;flex:none}

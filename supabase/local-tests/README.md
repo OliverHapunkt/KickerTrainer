@@ -33,6 +33,12 @@ Am Ende steht je Prüfung `PASS` oder `FAIL`.
 | `00_harness.sql` | Minimaler Ersatz für das, was Supabase mitbringt: die Rollen `anon` und `authenticated`, das Schema `auth` mit `auth.users` und `auth.uid()`, und die Standardrechte auf neue Tabellen |
 | `10_test_rls.sql` | 81 Prüfungen: Spielerprofile, Sichtbarkeit, Gruppen und Rollen, Spielablauf, Bestätigung und Korrektur, kein Zugriff ohne Anmeldung, Kontolöschung |
 | `20_test_matches.sql` | 43 Prüfungen der Spiel-Funktionen: Aufstellung prüfen, Tore zählen, Eigentor, Satz- und Spielende, Rückgängig über das Satzende hinweg, einfache Erfassung ohne Tor-Zeilen |
+| `30_test_lobby.sql` | 49 Prüfungen zu Lobby und Beitritt: Code, Teamverteilung, volle Lobby, Starten erst bei vollständiger Aufstellung, Verlassen, Entfernen durch den Host |
+
+Ein Hinweis zur Testform: Wer beitreten will, darf das Spiel vorher **nicht** sehen
+dürfen. Der Beitrittscode wird in den Tests deshalb als Superuser in einer
+Hilfstabelle abgelegt – die Testnutzer können ihn nicht selbst aus `matches` lesen.
+Genau das ist gewollt.
 
 Die Browsertests der Oberfläche liegen getrennt davon in `local-tests/` im Wurzelverzeichnis.
 

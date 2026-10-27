@@ -11,12 +11,14 @@ nachgeprüft werden kann, ob der Ablauf noch funktioniert, bevor etwas live geht
 ```bash
 npm i playwright && npx playwright install chromium
 node local-tests/spiel-erfassen.test.js
+node local-tests/lobby-beitritt.test.js
 node local-tests/rechtliches.test.js
 ```
 
 | Datei | Inhalt |
 |---|---|
 | `spiel-erfassen.test.js` | Nickname, Gäste, Aufstellung, Zählen, Eigentor, Tausch, Satz- und Spielende, Auswertung, Offline-Warteschlange, Abbruch |
+| `lobby-beitritt.test.js` | Lobby und Beitritt per Code aus **beiden** Blickwinkeln: Host öffnet, Mitspieler tritt bei, Zuordnung, Starten, Verlassen, Abbrechen |
 | `rechtliches.test.js` | Impressum und Datenschutz: Darstellung, Querverlinkung, Verlinkung aus der App, und dass die Pflichtangaben wirklich drinstehen und keine echten Kontaktdaten versehentlich veröffentlicht werden |
 | `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal` |
 
@@ -31,4 +33,5 @@ node local-tests/rechtliches.test.js
 - Die Tab-Leiste war beim ersten Start komplett leer, weil `renderGam()` ein Tab direkt im DOM versteckt hat
 - „Einstellungen" wurde in der fünfteiligen Tab-Leiste abgeschnitten
 - Der Spiel-Bildschirm zeigte „Konto nötig", obwohl man angemeldet war – er wurde gebaut, bevor die Sitzung geladen war
+- Nach einem Kontowechsel stand kurz der Nickname der vorherigen Person auf dem Bildschirm
 - Beim schnellen Tippen konnte eine ältere Serverantwort den neueren Stand überschreiben, der Zähler sprang zurück
