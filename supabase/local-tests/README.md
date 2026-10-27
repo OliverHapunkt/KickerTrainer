@@ -32,6 +32,9 @@ Am Ende steht je Prüfung `PASS` oder `FAIL`.
 |---|---|
 | `00_harness.sql` | Minimaler Ersatz für das, was Supabase mitbringt: die Rollen `anon` und `authenticated`, das Schema `auth` mit `auth.users` und `auth.uid()`, und die Standardrechte auf neue Tabellen |
 | `10_test_rls.sql` | 81 Prüfungen: Spielerprofile, Sichtbarkeit, Gruppen und Rollen, Spielablauf, Bestätigung und Korrektur, kein Zugriff ohne Anmeldung, Kontolöschung |
+| `20_test_matches.sql` | 43 Prüfungen der Spiel-Funktionen: Aufstellung prüfen, Tore zählen, Eigentor, Satz- und Spielende, Rückgängig über das Satzende hinweg, einfache Erfassung ohne Tor-Zeilen |
+
+Die Browsertests der Oberfläche liegen getrennt davon in `local-tests/` im Wurzelverzeichnis.
 
 ## Grenzen
 

@@ -22,10 +22,13 @@ self.addEventListener('fetch',e=>{
   const r=e.request;if(r.method!=='GET')return;
   const u=new URL(r.url);if(u.origin!==self.location.origin)return;
   if(r.mode==='navigate'){
+    // Eigenständige Seiten (Impressum, Datenschutz) unter ihrer eigenen Adresse ablegen.
+    // Sonst bekäme man offline unter /impressum.html die App-Startseite zu sehen.
+    const key=/\.html$/.test(u.pathname)?r.url:'./';
     // no-cache: am Server nachfragen statt alte Kopie aus dem Browser-Cache (GitHub Pages cacht 10 min)
     e.respondWith(Promise.race([fetch(r.url,{cache:'no-cache',credentials:'same-origin'}),timeout(3000)])
-      .then(res=>{if(res&&res.ok){const cp=res.clone();caches.open(CACHE).then(c=>c.put('./',cp))}return res})
-      .catch(()=>caches.match('./').then(m=>m||fetch(r))));
+      .then(res=>{if(res&&res.ok){const cp=res.clone();caches.open(CACHE).then(c=>c.put(key,cp))}return res})
+      .catch(()=>caches.match(key).then(m=>m||caches.match('./')).then(m=>m||fetch(r))));
     return;
   }
   e.respondWith(caches.match(r).then(m=>m||fetch(r).then(res=>{

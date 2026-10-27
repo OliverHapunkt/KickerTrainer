@@ -55,7 +55,7 @@ const MODES={
     ['play','Spiel','tPlay'],['groups','Gruppen','tGroups'],
     ['rank','Rangliste','tRank'],['settings','Mehr','tSettings']]}
 };
-const SCREENS=['home','train','chal','stats','settings','test','play','groups','rank'];
+const SCREENS=['home','train','chal','stats','settings','test','play','groups','rank','match'];
 const TABS=[...new Set(Object.keys(MODES).flatMap(m=>MODES[m].tabs.map(t=>t[0])))];
 function curMode(){return MODES[S.mode]?S.mode:'train'}
 function curScreen(){return SCREENS.find(x=>!$('#'+x).classList.contains('hidden'))||''}
