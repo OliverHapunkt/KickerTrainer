@@ -126,7 +126,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   await pg.click('#mArea .ptile >> nth=0'); await pg.waitForTimeout(300);
   await pg.click('#mArea .ptile >> nth=2'); await pg.waitForTimeout(300);
   ok((await score())==='1:1','Zählt offline weiter');
-  await pg.screenshot({path:HERE+'/zaehlen.png'});
+  await pg.screenshot({path:path.join(require('os').tmpdir(),'zaehlen.png')});
   ok(await vis('mSync'),'Kopfzeile meldet Ausstehendes');
   ok((await txt('#mSync')).includes('2 Tipps noch nicht gespeichert – werden nachgeholt'),'Warteschlange richtig benannt: '+(await txt('#mSync')));
   // Schnelles Tippen: ältere Serverantwort darf den neueren Stand nicht überschreiben
@@ -149,7 +149,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   ok(await vis('play'),'Nach dem Abbruch zurück');
   ok(await pg.evaluate(()=>__fake.DB.matches.slice(-1)[0].state==='cancelled'),'Spiel ist abgebrochen, nicht gewertet');
 
-  await pg.screenshot({path:HERE+'/spiel-anlegen.png'});
+  await pg.screenshot({path:path.join(require('os').tmpdir(),'spiel-anlegen.png')});
   console.log(errs.length?'\nFEHLER IM BROWSER:\n'+errs.join('\n'):'\nKeine Browser-Fehler');
   console.log(fails?'FEHLGESCHLAGEN: '+fails:'ALLE OK');
   await br.close(); srv.close(); process.exit(fails||errs.length?1:0);

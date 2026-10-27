@@ -1,0 +1,4 @@
+# Screenshots aus den Browsertests (nur Werkzeug, nicht Teil der App).
+# Bewusst eng gefasst: Bilder der App selbst sollen committet werden können.
+local-tests/*.png
+node_modules/
