@@ -3,8 +3,10 @@
 // Läuft erst, wenn alle Dateien geladen sind (Reihenfolge siehe index.html)
 requestAnimationFrame(drawMeters);
 setInterval(()=>{if(actx&&actx.state==='suspended'&&(mic.on||(R&&R.active)))actx.resume().catch(()=>{})},1000);
+document.body.classList.toggle('play',curMode()==='play');
 renderHome();
-show('home');
+renderTabbar();
+go(MODES[curMode()].start);
 maybeOnboarding();
 cloudBoot();
 /* Service Worker: offline starten, Updates zuverlässig. Nur über HTTPS bzw. localhost. */
