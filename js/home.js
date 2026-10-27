@@ -1,10 +1,12 @@
 'use strict';
 /* KickerTrainer · Startseite und Schwachstellen-Planung */
 /* ---------- Startseite ---------- */
-function chips(el,opts,isOn,onTap){
+// after: was nach dem Tippen passieren soll. Ohne Angabe wie bisher: Einstellungen
+// speichern und die Trainingsseite neu aufbauen. Die Spielen-Hälfte gibt ihr eigenes mit.
+function chips(el,opts,isOn,onTap,after){
   el.innerHTML='';
   opts.forEach(o=>{const b=document.createElement('button');b.className='chip'+(isOn(o.v)?' on':'');b.textContent=o.t;
-    b.onclick=()=>{onTap(o.v);saveS();renderHome()};el.appendChild(b)});
+    b.onclick=()=>{onTap(o.v);if(after)after();else{saveS();renderHome()}};el.appendChild(b)});
 }
 function toggleTarget(arr,v){
   if(v===0)return[0];

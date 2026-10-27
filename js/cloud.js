@@ -148,6 +148,9 @@ function renderAcct(){
     st.style.color=CL.err&&!CL.busy?'var(--miss)':'';
     $('#acSync').disabled=CL.busy}
   if(typeof renderDataHint==='function')renderDataHint();
+  // Die Spielen-Hälfte hängt am Konto: Beim Anmelden, Abmelden oder wenn die
+  // Sitzung beim Start eintrifft, muss ihr Bildschirm neu aufgebaut werden.
+  if(typeof renderPlayHome==='function'&&!$('#play').classList.contains('hidden'))renderPlayHome();
   $('#acResend').disabled=CL.cd>0;
   $('#acResend').textContent=CL.cd>0?'Neuen Code senden ('+CL.cd+')':'Neuen Code senden'}
 function acStep(s){CL.step=s;renderAcct()}

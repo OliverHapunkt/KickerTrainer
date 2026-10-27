@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.9.0-green)
+![Version](https://img.shields.io/badge/version-3.10.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.9.0 · 2026-10-27`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.10.0 · 2026-10-27`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -150,6 +150,7 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.9.0 · 2026
 |---|---|
 | `kt2_data` | `{ v: 2, sessions: [...], shots: [...] }` – alle Sessions und Einzelaktionen |
 | `kt2_settings` | Konfiguration, Trainingsplan, Optionen (Sprache, Erkennung, Empfindlichkeit) |
+| `kt2_play` | Spielen-Hälfte: eigenes Profil, Gästeliste, letzte Spiel-Einstellung, Warteschlange noch nicht gespeicherter Tipps |
 | `kt2_sync` | Sync-Stand: Konto-ID, letzter Abgleich, Prüfsummen der abgeglichenen Zeilen, vorgemerkte Löschungen |
 | `sb-…-auth-token` | Anmeldung (von supabase-js verwaltet) |
 
@@ -176,14 +177,26 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Das Schema liegt als Migrationen in `supabase/migrations/`. Die GitHub-Integration von Supabase spielt neue Migrationen beim Merge nach `main` ein – ein Merge verändert also sofort die echte Datenbank
 - Tabellen **Üben** (Phase 1): `profiles`, `sessions`, `shots`
 - Tabellen **Spielen** (Paket 4): `players`, `groups`, `group_members`, `matches`, `match_players`, `match_sets`, `goals`, `match_confirmations`
+- Funktionen **Spielen**: `create_group()`, `create_match()`, `record_goal()`, `undo_goal()`, `match_state()` – Schreibvorgänge, die mehrere Tabellen betreffen, laufen bewusst über Funktionen statt über einzelne INSERTs
 - Konto löschen läuft über die Funktion `delete_my_account()`
-- Die Zugriffsregeln lassen sich lokal gegen ein echtes Postgres prüfen, siehe `supabase/local-tests/`
+- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 124 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
 - Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
 
 ### Einrichtung in Supabase
 1. Authentication › Templates: Vorlagen **Magic Link** und **Confirm signup** so ändern, dass sie `{{ .Token }}` enthalten (Code statt Link)
 2. Authentication › URL Configuration: die URL der gehosteten App als Site-URL eintragen
 3. Integrations › GitHub: Arbeitsverzeichnis `.`, Production-Branch `main`
+
+### Spielen: Spiele erfassen (v3.10, Schritt 3a)
+
+- **Konto nötig.** Die Spielen-Hälfte liegt auf dem Server, das Üben bleibt davon unberührt
+- **Nickname** ist Pflicht, sobald man spielen will, und für Mitspieler sichtbar
+- **Gäste** sind Mitspieler ohne eigenes Konto. Der Host legt sie an, sie bleiben gespeichert und tauchen beim nächsten Mal wieder auf
+- **Spiel anlegen:** Einzel/Doppel, Einfach/Erweitert, Satz bis 3/5/7/10 Tore, Spiel bis 1/2/3 Gewinnsätze
+- **Zählen:** Antippen einer Kachel zählt ein Tor. Bei „Erweitert" ist die angetippte Person der Torschütze. Eigentor-Schalter, Positionstausch je Team, Rückgängig auch über ein Satzende hinweg
+- **Satz- und Spielende** erkennt der Server (`record_goal`), nicht der Client
+- **Ohne Netz** zählt die App weiter: Jeder Tipp wirkt sofort und wandert in eine Warteschlange (`kt2_play`), die Kopfzeile zeigt Ausstehendes an. Antwortet der Server, gilt sein Stand
+- Noch nicht dabei: Beitritt per Code (3b), Bestätigung (4), Wertungen (5), Gruppen und Ranglisten (6)
 
 ### Spielen: Datenmodell (Paket 4)
 

@@ -1,73 +1,504 @@
 'use strict';
-/* KickerTrainer · Spielen-Hälfte: Spiele gegen andere, Gruppen, Ranglisten
+/* KickerTrainer · Spielen-Hälfte: Spiele gegen andere
  *
- * Diese Hälfte ist von der Übungshälfte getrennt, weil ihre Daten anders
- * funktionieren: Trainingsdaten gehören dir allein und liegen zuerst lokal.
- * Spieldaten gehören mehreren Personen gemeinsam, brauchen also einen Server,
- * ein Konto und andere Regeln für Sichtbarkeit und Löschen.
+ * Warum diese Hälfte anders funktioniert als das Üben:
+ * Trainingsdaten gehören dir allein und liegen zuerst lokal. Spieldaten gehören
+ * mehreren Personen gemeinsam – sie brauchen ein Konto, einen Server und andere
+ * Regeln für Sichtbarkeit und Löschen. Deshalb ist hier der Server maßgeblich,
+ * nicht der Browser.
  *
- * Stand: Das Datenmodell steht in der Datenbank (Migration 20261027120000).
- * Die Oberfläche entsteht schrittweise – siehe PLAN unten. Bis dahin zeigen die
- * drei Bildschirme, was kommt, statt leer zu sein.
+ * Stand (Schritt 3a): Spiele mit eigenen Gästen erfassen. Mitspieler mit eigenem
+ * Konto (Beitritt per Code) und die Bestätigung kommen in den nächsten Schritten.
+ *
+ * Zählen und Netz: Jeder Tipp wirkt sofort auf dem Bildschirm und wird parallel
+ * zum Server geschickt. Antwortet der Server, gilt SEIN Stand. Ist kein Netz da,
+ * wandert der Tipp in eine Warteschlange und die Kopfzeile sagt das offen.
  */
 
-/* Was in welchem Schritt kommt. Beim Umsetzen hier den Haken setzen. */
-const PLAN=[
-  ['Datenmodell und Zugriffsregeln', true],
-  ['Modus-Umschalter und Farbschema', true],
-  ['Spiel erfassen: Code, Gäste, Sätze, Tore', false],
-  ['Bestätigung und Korrektur', false],
-  ['Elo-Wertungen', false],
-  ['Gruppen und Ranglisten', false]
-];
+const LS_PLAY = 'kt2_play';
+const PL0 = () => ({uid:null, me:null, guests:[], cfg:{mode:'double',detail:'full',gps:5,stw:2},
+                    lineup:[null,null,null,null], queue:[]});
+let PL = Object.assign(PL0(), load(LS_PLAY, {}));
+if(!Array.isArray(PL.lineup) || PL.lineup.length !== 4) PL.lineup=[null,null,null,null];
+if(!Array.isArray(PL.queue)) PL.queue=[];
+if(!Array.isArray(PL.guests)) PL.guests=[];
+function savePL(){ save(LS_PLAY, PL) }
 
-const PLAY_SCREENS={
-  play:{
-    t:'Spiel',
-    lead:'Ein Spiel gegen andere: Du hostest, die Mitspieler treten mit einem 6-stelligen Code bei. Nur dein Gerät zählt die Tore.',
-    points:[
-      '<b>Einfach</b> oder <b>Erweitert</b> wählen: nur das Satzergebnis, oder jedes Tor mit Torschütze und Position',
-      'Satz bis 3 / 5 / 7 / 10 Tore, Spiel bis 1 / 2 / 3 Gewinnsätze',
-      'Gäste ohne Handy trägst du selbst ein – sie behalten ihre Wertung über Wochen',
-      'Nach dem Spiel bestätigt je Team einer das Ergebnis, dann zählt es'
-    ]
-  },
-  groups: {
-    t:'Gruppen',
-    lead:'Eine Gruppe ist ein Verein oder Stammtisch. Wer den Einladungscode hat, ist drin.',
-    points:[
-      'Gemeinsame Gästeliste: Hostet jemand anderes, findet er dieselben Gäste wieder',
-      'Der Ersteller kann Stellvertreter ernennen und den Besitz übertragen',
-      'Eine eigene Rangliste je Gruppe',
-      'Beitreten heißt: dein Nickname ist für die Gruppe sichtbar'
-    ]
-  },
-  rank: {
-    t:'Rangliste',
-    lead:'Wertungen aus echten Spielen: Einzel, Doppel über alle Partner, und feste Doppel-Paarungen.',
-    points:[
-      'Berechnet wird ausschließlich auf dem Server, aus dem gesamten Spielverlauf',
-      'In der allgemeinen Rangliste stehst du nur, wenn du ausdrücklich zustimmst – jederzeit widerrufbar',
-      'Trainingsdaten fließen nie ein und werden nie geteilt',
-      'Sichtbar ist für andere immer nur dein Nickname'
-    ]
+let P = null;        // laufendes Spiel: {id,mode,detail,gps,stw,players,st}
+let pBusy = false;
+let pMeLoaded = false;   // wurde schon einmal nachgefragt, ob es ein Profil gibt?
+
+/* ---------- Zugang zum Konto ---------- */
+// Die Spielen-Hälfte braucht ein Konto. Ohne Anmeldung gibt es hier nichts zu tun.
+async function pSb(){
+  const sb = await sbInit();
+  const {data, error} = await sb.auth.getSession();
+  if(error) throw error;
+  if(!data.session) throw new Error('Nicht angemeldet');
+  return {sb, uid:data.session.user.id};
+}
+function pLoggedIn(){ return !!(CL && CL.user) }
+
+/* Mein Spielerprofil laden; legt nichts an. */
+async function pLoadMe(){
+  const {sb, uid} = await pSb();
+  // Konto gewechselt? Dann gehört der gemerkte Stand nicht mehr hierher.
+  if(PL.uid && PL.uid !== uid){ PL = Object.assign(PL0(), {uid}); savePL() }
+  const {data, error} = await sb.from('players').select('id,nickname,ranking_opt_in')
+    .eq('user_id', uid).maybeSingle();
+  if(error) throw error;
+  PL.uid = uid; PL.me = data || null;
+  if(PL.me) PL.lineup[0] = PL.me.id;
+  savePL();
+  return PL.me;
+}
+async function pLoadGuests(){
+  const {sb} = await pSb();
+  const {data, error} = await sb.from('players').select('id,nickname')
+    .eq('kind','guest').is('deleted_at', null).order('nickname');
+  if(error) throw error;
+  PL.guests = data || []; savePL();
+  return PL.guests;
+}
+
+const NICK_HINT = 'Dein Nickname ist für Mitspieler sichtbar – nimm nicht deinen vollen Namen. '
+  + '3 bis 20 Zeichen, und er muss noch frei sein.';
+
+async function pSetNickname(){
+  const cur = PL.me ? PL.me.nickname : '';
+  const v = await askText(PL.me ? 'Nickname ändern' : 'Nickname wählen',
+    {value:cur, placeholder:'z. B. Olli', hint:NICK_HINT, max:20, ok:'Speichern'});
+  if(v === null) return false;
+  const nick = v.trim();
+  if(nick.length < 3){ toast('Mindestens 3 Zeichen'); return false }
+  try{
+    const {sb, uid} = await pSb();
+    let r;
+    if(PL.me) r = await sb.from('players').update({nickname:nick}).eq('id', PL.me.id).select().single();
+    else r = await sb.from('players').insert({user_id:uid, nickname:nick, kind:'account'}).select().single();
+    if(r.error) throw r.error;
+    PL.me = {id:r.data.id, nickname:r.data.nickname, ranking_opt_in:r.data.ranking_opt_in};
+    PL.lineup[0] = PL.me.id; savePL();
+    toast('Nickname gespeichert');
+    return true;
+  }catch(e){
+    toast(/duplicate|unique/i.test(String(e.message||e)) ? 'Der Nickname ist schon vergeben' : errText(e,'Nicht gespeichert'));
+    return false;
   }
-};
-
-function planHtml(){
-  const done=PLAN.filter(p=>p[1]).length;
-  return '<div class="card"><h2>Stand: Schritt ' + done + ' von ' + PLAN.length + '</h2>'
-    + '<div class="planrows">' + PLAN.map(([t, ok]) =>
-        '<div class="planrow' + (ok ? ' done' : '') + '">'
-        + (ok ? icon('check') : '<i></i>') + '<span>' + esc(t) + '</span></div>').join('')
-    + '</div></div>';
 }
 
+async function pAddGuest(){
+  const v = await askText('Neuer Gast', {placeholder:'Vorname oder Kürzel', max:20, ok:'Anlegen',
+    hint:'Gäste spielen ohne eigenes Konto mit. Nimm Vorname oder Kürzel – der Name ist für deine Mitspieler sichtbar.'});
+  if(v === null) return null;
+  const nick = v.trim();
+  if(nick.length < 3){ toast('Mindestens 3 Zeichen'); return null }
+  try{
+    const {sb} = await pSb();
+    const {data, error} = await sb.from('players')
+      .insert({owner_id:PL.me.id, nickname:nick, kind:'guest'}).select('id,nickname').single();
+    if(error) throw error;
+    PL.guests.push(data); PL.guests.sort((a,b)=>a.nickname.localeCompare(b.nickname,'de')); savePL();
+    return data;
+  }catch(e){
+    toast(/duplicate|unique/i.test(String(e.message||e)) ? 'Der Name ist schon vergeben' : errText(e,'Nicht angelegt'));
+    return null;
+  }
+}
+
+/* ---------- Aufstellung ---------- */
+function pAll(){ return (PL.me ? [PL.me] : []).concat(PL.guests) }
+function pName(id){ const p = pAll().find(x=>x.id===id); return p ? p.nickname : '–' }
+function pSlots(){ return PL.cfg.mode === 'single' ? [0,2] : [0,1,2,3] }
+function pSlotLabel(i){
+  const team = i < 2 ? 1 : 2;
+  if(PL.cfg.mode === 'single') return 'Team ' + team;
+  return 'Team ' + team + ' · ' + (i % 2 === 0 ? 'Sturm' : 'Abwehr');
+}
+function pLineupReady(){
+  const ids = pSlots().map(i=>PL.lineup[i]);
+  return ids.every(Boolean) && new Set(ids).size === ids.length && ids.includes(PL.me && PL.me.id);
+}
+
+async function pPick(slot){
+  const taken = pSlots().filter(i=>i!==slot).map(i=>PL.lineup[i]);
+  const list = pAll().filter(p=>!taken.includes(p.id));
+  const rows = list.length
+    ? list.map(p=>'<button class="pickrow" data-pid="'+p.id+'">'+esc(p.nickname)
+        + (p.id === (PL.me&&PL.me.id) ? '<small>du</small>' : '<small>Gast</small>') + '</button>').join('')
+    : '<p class="dmsg">Noch niemand frei. Leg einen Gast an.</p>';
+  let chosen = null;
+  const v = await dlg('<h3 class="dtitle">' + pSlotLabel(slot) + '</h3><div class="picklist">' + rows + '</div>',
+    [{t:'Neuer Gast', v:'new', cls:'primary'}, {t:'Abbrechen', v:null, cancel:true}],
+    o => o.addEventListener('click', e=>{
+      const b = e.target.closest('[data-pid]'); if(!b) return;
+      chosen = b.dataset.pid; o.querySelector('.dbtns [data-i="1"]').click();
+    }));
+  if(chosen){ PL.lineup[slot] = chosen; savePL(); renderPlayHome(); return }
+  if(v === 'new'){ const g = await pAddGuest(); if(g){ PL.lineup[slot] = g.id; savePL() } renderPlayHome() }
+}
+
+/* ---------- Spiel-Bildschirm ---------- */
 function renderPlay(id){
-  const x=PLAY_SCREENS[id];if(!x)return;
-  $('#'+id+'Body').innerHTML=
-     '<div class="card"><p class="lead">'+x.lead+'</p>'
-    +'<ul class="bullets">'+x.points.map(p=>'<li>'+p+'</li>').join('')+'</ul></div>'
-    +planHtml()
-    +'<p class="hint">Noch nichts zu tun: Diese Hälfte ist im Aufbau. Zum Üben geht es über den Umschalter links unten.</p>';
+  if(id === 'play') return renderPlayHome();
+  const x = {groups:{t:'Gruppen',p:['Eine Gruppe ist ein Verein oder Stammtisch. Wer den Einladungscode hat, ist drin.',
+      'Gemeinsame Gästeliste, Stellvertreter, eigene Rangliste je Gruppe.']},
+    rank:{t:'Rangliste',p:['Wertungen aus echten Spielen: Einzel, Doppel über alle Partner, feste Doppel-Paarungen.',
+      'Berechnet wird nur auf dem Server, aus dem gesamten Spielverlauf. In der allgemeinen Rangliste stehst du nur mit ausdrücklicher Zustimmung.']}}[id];
+  $('#'+id+'Body').innerHTML = '<div class="card">' + x.p.map(t=>'<p class="lead">'+t+'</p>').join('')
+    + '</div><p class="hint">Kommt in einem späteren Schritt. Zum Üben geht es über den Umschalter links unten.</p>';
 }
+
+function pStepHint(){
+  return '<p class="hint">Mitspieler mit eigenem Konto (Beitritt per Code), die Bestätigung des Ergebnisses '
+    + 'und die Wertungen kommen in den nächsten Schritten. Jetzt schon möglich: Spiele mit eigenen Gästen erfassen.</p>';
+}
+
+function renderPlayHome(){
+  const el = $('#playBody');
+  if(!el) return;
+  if(!pLoggedIn()){
+    el.innerHTML = '<div class="card"><h2>Konto nötig</h2>'
+      + '<p class="lead">Spiele gehören mehreren Personen gemeinsam – sie liegen deshalb auf dem Server und nicht nur auf diesem Gerät. '
+      + 'Dafür brauchst du ein Konto.</p>'
+      + '<p class="hint" style="margin-bottom:12px">Das Üben bleibt davon unberührt und funktioniert weiter ohne Konto.</p>'
+      + '<button class="big primary" id="pToAcct">Zur Anmeldung</button></div>' + pStepHint();
+    $('#pToAcct').onclick = ()=>{ go('settings'); setTimeout(()=>$('#acct').scrollIntoView({behavior:'smooth'}), 60) };
+    return;
+  }
+  // Erst klären, ob schon ein Profil existiert – sonst blitzt die Nickname-Frage
+  // auch bei Leuten auf, die längst einen Nickname haben.
+  if(!PL.me && !pMeLoaded){
+    el.innerHTML = '<div class="card"><p class="hint" style="margin:0">Wird geladen …</p></div>';
+    pLoadMe().catch(()=>{}).then(()=>{ pMeLoaded = true;
+      return PL.me ? pLoadGuests().catch(()=>{}) : null; }).then(()=>renderPlayHome());
+    return;
+  }
+  if(!PL.me){
+    el.innerHTML = '<div class="card"><h2>Nickname wählen</h2>'
+      + '<p class="lead">Unter diesem Namen tauchst du bei deinen Mitspielern auf.</p>'
+      + '<p class="hint" style="margin-bottom:12px">' + NICK_HINT + '</p>'
+      + '<button class="big primary" id="pNick">Nickname festlegen</button></div>' + pStepHint();
+    $('#pNick').onclick = async ()=>{ if(await pSetNickname()) renderPlayHome() };
+    return;
+  }
+
+  const c = PL.cfg, ready = pLineupReady();
+  let h = '<div class="card qcard"><div class="qhead"><h2>Neues Spiel</h2>'
+    + '<button class="link" id="pNick2">' + esc(PL.me.nickname) + '</button></div>';
+  h += '<div class="sub"><label>Modus ' + tipBtn('pMode') + '</label><div class="chips sc" id="pcMode"></div></div>';
+  h += '<div class="sub"><label>Erfassung ' + tipBtn('pDetail') + '</label><div class="chips sc" id="pcDetail"></div>'
+     + '<p class="hint" id="pcDetailHint"></p></div>';
+  h += '<div class="sub"><label>Satz bis … Tore</label><div class="chips sc" id="pcGps"></div></div>';
+  h += '<div class="sub"><label>Spiel bis … Gewinnsätze</label><div class="chips sc" id="pcStw"></div>'
+     + '<p class="hint" id="pcStwHint"></p></div>';
+  h += '<div class="sub"><label>Aufstellung ' + tipBtn('pLineup') + '</label><div class="lineup" id="pLineup"></div></div>';
+  h += '<button class="big primary" id="pStart"' + (ready ? '' : ' disabled') + '>Spiel starten</button>';
+  if(!ready) h += '<p class="hint" style="margin-bottom:0">Alle Plätze besetzen – du musst selbst dabei sein.</p>';
+  h += '</div><div id="pRunning"></div><div id="pRecent"></div>' ;
+  el.innerHTML = h + pStepHint();
+
+  $('#pNick2').onclick = async ()=>{ if(await pSetNickname()) renderPlayHome() };
+  chips($('#pcMode'), [{v:'single',t:'Einzel 1:1'},{v:'double',t:'Doppel 2:2'}], v=>c.mode===v,
+    v=>{ c.mode=v; if(v==='single'){PL.lineup[1]=null;PL.lineup[3]=null} savePL() }, renderPlayHome);
+  chips($('#pcDetail'), [{v:'simple',t:'Einfach'},{v:'full',t:'Erweitert'}], v=>c.detail===v,
+    v=>{ c.detail=v; savePL() }, renderPlayHome);
+  chips($('#pcGps'), [3,5,7,10].map(n=>({v:n,t:n+' Tore'})), v=>c.gps===v, v=>{ c.gps=v; savePL() }, renderPlayHome);
+  chips($('#pcStw'), [1,2,3].map(n=>({v:n,t:n===1?'Nur ein Satz':n+' Gewinnsätze'})), v=>c.stw===v,
+    v=>{ c.stw=v; savePL() }, renderPlayHome);
+  $('#pcDetailHint').textContent = c.detail === 'full'
+    ? 'Jedes Tor einzeln mit Torschütze' + (c.mode==='double' ? ' und Position' : '') + '. Ein Tipp pro Tor.'
+    : 'Nur der Spielstand. Weniger tippen, dafür keine Torschützen-Statistik.';
+  $('#pcStwHint').textContent = c.stw === 1 ? 'Ein Satz bis ' + c.gps + ' Tore, dann ist Schluss.'
+    : 'Wer zuerst ' + c.stw + ' Sätze hat, gewinnt – also höchstens ' + (c.stw*2-1) + ' Sätze.';
+
+  $('#pLineup').innerHTML = pSlots().map(i=>{
+    const id = PL.lineup[i];
+    return '<button class="slot' + (id?' set':'') + '" data-slot="' + i + '">'
+      + '<small>' + pSlotLabel(i) + '</small><b>' + (id ? esc(pName(id)) : 'Wählen …') + '</b></button>';
+  }).join('');
+  $('#pLineup').onclick = e=>{ const b = e.target.closest('[data-slot]'); if(b) pPick(+b.dataset.slot) };
+  $('#pStart').onclick = pStart;
+
+  pLoadRunning();
+  pLoadRecent();
+  if(!pMeLoaded){ pMeLoaded = true; pLoadMe().then(()=>pLoadGuests()).then(()=>renderPlayHome()).catch(()=>{}) }
+}
+
+/* Läuft noch ein Spiel von früher? Dann zuerst anbieten, es fortzusetzen. */
+async function pLoadRunning(){
+  try{
+    const {sb} = await pSb();
+    const {data} = await sb.from('matches').select('id,mode,detail,goals_per_set,sets_to_win,started_at')
+      .eq('host_id', PL.me.id).eq('state','running').order('started_at',{ascending:false}).limit(1);
+    const el = $('#pRunning'); if(!el) return;
+    if(!data || !data.length){ el.innerHTML=''; return }
+    const m = data[0];
+    el.innerHTML = '<div class="card"><h2>Läuft noch</h2><p class="lead">'
+      + (m.mode==='single'?'Einzel':'Doppel') + ' vom ' + fmtDate(Date.parse(m.started_at), true)
+      + '</p><div class="two"><button class="big primary" id="pResume">Fortsetzen</button>'
+      + '<button class="big" id="pDrop">Verwerfen</button></div></div>';
+    $('#pResume').onclick = ()=>pOpen(m.id);
+    $('#pDrop').onclick = async ()=>{
+      if(!await ask('Das Spiel wird nicht gewertet und verschwindet aus deiner Liste.',
+        {title:'Spiel verwerfen?', ok:'Verwerfen', danger:true})) return;
+      try{ const {sb} = await pSb(); await sb.from('matches').update({state:'cancelled'}).eq('id', m.id); }catch(e){}
+      renderPlayHome();
+    };
+  }catch(e){ /* offline: dann eben nicht */ }
+}
+
+async function pLoadRecent(){
+  try{
+    const {sb} = await pSb();
+    const {data} = await sb.from('matches')
+      .select('id,mode,detail,state,finished_at,match_sets(set_no,score1,score2,winner_team)')
+      .eq('host_id', PL.me.id).in('state',['finished','confirmed'])
+      .order('finished_at',{ascending:false}).limit(10);
+    const el = $('#pRecent'); if(!el) return;
+    if(!data || !data.length){ el.innerHTML=''; return }
+    el.innerHTML = '<div class="card"><h2>Letzte Spiele</h2>' + data.map(m=>{
+      const s = (m.match_sets||[]).slice().sort((a,b)=>a.set_no-b.set_no);
+      const w1 = s.filter(x=>x.winner_team===1).length, w2 = s.filter(x=>x.winner_team===2).length;
+      return '<div class="mrow" data-mid="' + m.id + '"><div><b>' + w1 + ' : ' + w2 + '</b>'
+        + '<small>' + (m.mode==='single'?'Einzel':'Doppel') + ' · '
+        + s.map(x=>x.score1+':'+x.score2).join('  ') + '</small></div>'
+        + '<span>' + (m.finished_at ? fmtDate(Date.parse(m.finished_at), true) : '') + '</span></div>';
+    }).join('') + '</div>';
+  }catch(e){ /* offline */ }
+}
+
+async function pStart(){
+  if(pBusy) return; pBusy = true;
+  ensureAudio();   // im Tap: entsperrt den Ton auf iOS
+  const b = $('#pStart'); if(b) b.disabled = true;
+  try{
+    const {sb} = await pSb();
+    const players = pSlots().map(i=>({player_id:PL.lineup[i], team:i<2?1:2,
+      position:PL.cfg.mode==='double' ? (i%2===0?'off':'def') : null}));
+    const {data, error} = await sb.rpc('create_match', {
+      p_mode:PL.cfg.mode, p_detail:PL.cfg.detail,
+      p_goals_per_set:PL.cfg.gps, p_sets_to_win:PL.cfg.stw,
+      p_group_id:null, p_players:players});
+    if(error) throw error;
+    await pOpen(data.id);
+  }catch(e){
+    toast(errText(e, 'Spiel konnte nicht angelegt werden'));
+  }finally{ pBusy = false; if(b) b.disabled = false }
+}
+
+/* ---------- Zählen ---------- */
+async function pOpen(id){
+  ensureAudio();
+  try{
+    const {sb} = await pSb();
+    const [m, mp, st] = await Promise.all([
+      sb.from('matches').select('*').eq('id', id).single(),
+      sb.from('match_players').select('player_id,team,position,is_host').eq('match_id', id),
+      sb.rpc('match_state', {p_match:id})]);
+    if(m.error) throw m.error; if(mp.error) throw mp.error; if(st.error) throw st.error;
+    // Namen der Mitspieler: Gäste stehen evtl. noch nicht im lokalen Puffer
+    const ids = mp.data.map(x=>x.player_id);
+    const {data:names} = await sb.from('players').select('id,nickname').in('id', ids);
+    const nm = {}; (names||[]).forEach(p=>nm[p.id]=p.nickname);
+    P = {id, mode:m.data.mode, detail:m.data.detail, gps:m.data.goals_per_set, stw:m.data.sets_to_win,
+         players:mp.data.map(x=>Object.assign({}, x, {nickname:nm[x.player_id]||'?'})),
+         st:st.data, own:false};
+    PL.queue = PL.queue.filter(q=>q.match === id); savePL();
+    wake(true); renderMatch(); show('match');
+    pFlush();
+  }catch(e){ toast(errText(e, 'Spiel konnte nicht geöffnet werden')) }
+}
+
+// Sturm immer oben, damit die Kacheln nicht je nach Datenbank-Reihenfolge springen
+function pTeam(t){ return P.players.filter(p=>p.team===t)
+  .slice().sort((a,b)=>(a.position==='off'?0:1)-(b.position==='off'?0:1)) }
+function pSlotOf(p){ return p.position === 'off' ? 'Sturm' : p.position === 'def' ? 'Abwehr' : '' }
+
+function renderMatch(){
+  if(!P) return;
+  const s = P.st, done = s.match_done;
+  $('#mHead').innerHTML = '<div>' + (done ? 'Spiel beendet'
+      : 'Satz ' + s.set_no + (P.stw>1 ? ' · Sätze ' + s.sets1 + ':' + s.sets2 : ''))
+    + '</div><div>' + (P.mode==='single'?'Einzel':'Doppel') + ' · bis ' + P.gps + '</div>';
+  $('#mScore').innerHTML = '<b>' + s.score1 + '</b><i>:</i><b>' + s.score2 + '</b>';
+  const q = PL.queue.length;
+  $('#mSync').textContent = q === 0 ? ''
+    : q === 1 ? '1 Tipp noch nicht gespeichert – wird nachgeholt'
+    : q + ' Tipps noch nicht gespeichert – werden nachgeholt';
+  $('#mSync').classList.toggle('hidden', !q);
+
+  const tile = p => '<button class="ptile" data-pid="' + p.player_id + '" data-team="' + p.team + '">'
+    + '<b>' + esc(p.nickname) + '</b>' + (pSlotOf(p) ? '<small>' + pSlotOf(p) + '</small>' : '') + '</button>';
+  const teamCol = t => {
+    if(P.detail === 'simple')
+      return '<div class="tcol"><button class="ptile big2" data-team="' + t + '"><b>Team ' + t + '</b>'
+        + '<small>' + pTeam(t).map(p=>esc(p.nickname)).join(' · ') + '</small></button></div>';
+    return '<div class="tcol">' + pTeam(t).map(tile).join('')
+      + (P.mode==='double' ? '<button class="swapbtn" data-swap="' + t + '">' + icon('swap') + ' tauschen</button>' : '')
+      + '</div>';
+  };
+  $('#mArea').innerHTML = teamCol(1) + '<div class="tsep"></div>' + teamCol(2);
+  $('#mArea').classList.toggle('off', done);
+  $('#mOwn').classList.toggle('on', !!P.own);
+  $('#mOwn').classList.toggle('hidden', P.detail !== 'full' || done);
+  $('#mEnd').textContent = done ? 'Auswertung' : 'Ende';
+}
+
+/* Lokale Vorhersage – dieselben Regeln wie record_goal auf dem Server.
+   Sobald der Server antwortet, gilt seine Antwort. */
+function pPredict(team){
+  const s = P.st;
+  const n1 = s.score1 + (team===1?1:0), n2 = s.score2 + (team===2?1:0);
+  if(Math.max(n1,n2) >= P.gps){
+    const w = n1 > n2 ? 1 : 2;
+    const sets1 = s.sets1 + (w===1?1:0), sets2 = s.sets2 + (w===2?1:0);
+    const over = Math.max(sets1, sets2) >= P.stw;
+    P.st = Object.assign({}, s, {sets1, sets2, match_done:over,
+      set_no: over ? s.set_no : s.set_no + 1, score1: over ? n1 : 0, score2: over ? n2 : 0});
+  } else {
+    P.st = Object.assign({}, s, {score1:n1, score2:n2});
+  }
+}
+
+function pGoal(team, scorer, position){
+  if(!P || P.st.match_done) return;
+  const own = !!P.own; P.own = false;
+  const credit = own ? (team===1?2:1) : team;
+  beep(own?520:880, .07, .25);
+  pPredict(credit);
+  PL.queue.push({match:P.id, kind:'goal', team:credit, scorer:scorer||null,
+                 position:position||null, own, t:Date.now()});
+  savePL(); renderMatch(); pFlush();
+}
+function pUndo(){
+  if(!P) return;
+  if(PL.queue.length){ PL.queue.pop(); savePL(); pRefresh(); return }  // noch nicht gesendet: einfach wegnehmen
+  PL.queue.push({match:P.id, kind:'undo', t:Date.now()}); savePL(); renderMatch(); pFlush();
+}
+
+/* Warteschlange abarbeiten. Streng der Reihe nach, damit die Reihenfolge stimmt. */
+let pFlushing = false;
+async function pFlush(){
+  if(pFlushing || !P) return;
+  if(!PL.queue.length) return;
+  pFlushing = true;
+  let last = null;
+  try{
+    const {sb} = await pSb();
+    while(PL.queue.length){
+      const a = PL.queue[0];
+      if(a.match !== P.id){ PL.queue.shift(); savePL(); continue }
+      const r = a.kind === 'undo'
+        ? await sb.rpc('undo_goal', {p_match:a.match})
+        : await sb.rpc('record_goal', {p_match:a.match, p_team:a.team, p_scorer:a.scorer,
+                                       p_position:a.position, p_own:a.own});
+      if(r.error){
+        // Fachlicher Fehler (z. B. kein Tor zum Zurücknehmen): Tipp verwerfen, sonst blockiert er alles
+        if(r.error.code === 'P0001' || r.error.code === '42501'){
+          PL.queue.shift(); savePL(); toast(errText(r.error, 'Nicht übernommen')); continue;
+        }
+        throw r.error;   // Netzfehler: drin lassen und später erneut
+      }
+      PL.queue.shift(); savePL();
+      last = r.data;
+    }
+    // Erst ganz am Ende übernehmen, und nur wenn nichts mehr aussteht. Sonst würde
+    // eine ältere Serverantwort einen neueren lokalen Stand überschreiben.
+    if(P && last && !PL.queue.length) P.st = last;
+    renderMatch();
+    if(P && P.st.match_done) pSummary();
+  }catch(e){
+    renderMatch();            // Warteschlange bleibt, Kopfzeile zeigt sie an
+  }finally{ pFlushing = false }
+}
+async function pRefresh(){
+  try{ const {sb} = await pSb();
+    const {data, error} = await sb.rpc('match_state', {p_match:P.id});
+    if(!error && P) P.st = data;
+  }catch(e){}
+  renderMatch();
+}
+
+/* ---------- Auswertung ---------- */
+async function pSummary(){
+  if(!P) return;
+  let goals = [];
+  if(P.detail === 'full'){
+    try{ const {sb} = await pSb();
+      const {data} = await sb.from('goals').select('set_no,seq,team,scorer_id,scorer_position,own_goal')
+        .eq('match_id', P.id).order('set_no').order('seq');
+      goals = data || [];
+    }catch(e){}
+  }
+  const s = P.st, sets = s.sets || [];
+  const w1 = s.sets1, w2 = s.sets2;
+  let h = '<div class="sumhead"><div><div class="blockh">Ergebnis</div>'
+    + '<div class="bigpct">' + w1 + ' : ' + w2 + '</div>'
+    + '<p class="center">' + sets.map(x=>x.score1+':'+x.score2).join(' · ') + '</p></div></div>';
+  h += kv('Teams', pTeam(1).map(p=>p.nickname).join(' & ') + '  gegen  ' + pTeam(2).map(p=>p.nickname).join(' & '));
+  if(goals.length){
+    h += '<div class="blockh">Torschützen</div>';
+    for(const p of P.players){
+      const g = goals.filter(x=>x.scorer_id===p.player_id && !x.own_goal).length;
+      const og = goals.filter(x=>x.scorer_id===p.player_id && x.own_goal).length;
+      if(g || og) h += kv(p.nickname, g + (og ? ' (+' + og + ' Eigentor' + (og>1?'e':'') + ')' : ''));
+    }
+    if(P.mode === 'double'){
+      const off = goals.filter(x=>x.scorer_position==='off' && !x.own_goal).length;
+      const def = goals.filter(x=>x.scorer_position==='def' && !x.own_goal).length;
+      if(off || def){ h += '<div class="blockh">Tore je Position</div>'; h += kv('Sturm / Abwehr', off + ' / ' + def) }
+    }
+    const unk = goals.filter(x=>!x.scorer_id).length;
+    if(unk) h += kv('Ohne Torschütze', unk);
+  }
+  $('#msumBody').innerHTML = '<div class="sumscroll">' + h + '</div>'
+    + '<div class="sumfoot"><button class="big primary" id="msumDone">Fertig</button></div>';
+  $('#msummary').classList.remove('hidden');
+  $('#msumDone').onclick = ()=>{ $('#msummary').classList.add('hidden'); pClose() };
+}
+
+function pClose(){
+  wake(false); P = null;
+  go('play');
+}
+
+/* ---------- Bedienung Zählbildschirm ---------- */
+$('#mArea').addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  const sw = e.target.closest('[data-swap]');
+  if(sw){ pSwap(+sw.dataset.swap); return }
+  const t = e.target.closest('[data-team]'); if(!t || !P || P.st.match_done) return;
+  const pid = t.dataset.pid || null;
+  const p = pid ? P.players.find(x=>x.player_id===pid) : null;
+  pGoal(+t.dataset.team, pid, p ? p.position : null);
+});
+function pSwap(team){
+  if(!P) return;
+  const ps = pTeam(team);
+  if(ps.length !== 2) return;
+  ps.forEach(p=>{ p.position = p.position === 'off' ? 'def' : 'off' });
+  renderMatch();
+  pSb().then(({sb})=>Promise.all(ps.map(p=>
+    sb.from('match_players').update({position:p.position}).eq('match_id',P.id).eq('player_id',p.player_id)
+  ))).catch(()=>toast('Tausch noch nicht gespeichert'));
+}
+$('#mUndo').onclick = ()=>pUndo();
+$('#mOwn').onclick = ()=>{ if(!P) return; P.own = !P.own; renderMatch();
+  if(P.own) toast('Nächster Tipp zählt als Eigentor') };
+$('#mEnd').onclick = async ()=>{
+  if(!P) return;
+  if(P.st.match_done) return pSummary();
+  if(!await ask('Das Spiel wird vorzeitig beendet und nicht gewertet.',
+    {title:'Spiel beenden?', ok:'Beenden', danger:true})) return;
+  try{ const {sb} = await pSb(); await sb.from('matches').update({state:'cancelled'}).eq('id', P.id) }catch(e){}
+  pClose();
+};
+$('#mInfo').onclick = ()=>info('Zählen',
+  '<p class="dmsg">Jeder Tipp auf eine Kachel zählt ein Tor für dieses Team. Bei <b>Erweitert</b> ist die angetippte Person der Torschütze.</p>'
+  + '<p class="dmsg"><b>Eigentor</b>: erst antippen, dann die Person, der es passiert ist. Der Punkt geht ans andere Team.</p>'
+  + '<p class="dmsg"><b>Tauschen</b> dreht Sturm und Abwehr eines Teams. Ab dann zählen Tore auf die neue Position.</p>'
+  + '<p class="dmsg">Satz- und Spielende erkennt die App selbst. <b>Rückgängig</b> nimmt auch über ein Satzende hinweg zurück.</p>'
+  + '<p class="dmsg">Ohne Netz zählt die App weiter und holt das Speichern später nach. Die Kopfzeile sagt, wenn etwas aussteht.</p>');
+
+window.addEventListener('online', ()=>{ if(P) pFlush() });

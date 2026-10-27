@@ -347,3 +347,48 @@ body.play{--acc:#1fb8a6}
 .planrow.done{color:var(--text)}
 .planrow .ic{width:20px;height:20px;flex:none;color:var(--acc)}
 .planrow i{width:20px;height:20px;flex:none;border:2px solid var(--line);border-radius:50%}
+
+/* ---------- v3.10: Spiel anlegen und zählen ---------- */
+/* Aufstellung */
+.lineup{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.slot{min-height:64px;border-radius:14px;border:2px dashed var(--line);background:var(--panel2);
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;padding:8px 12px;text-align:left}
+.slot small{color:var(--mute);font-size:12px}
+.slot b{font-size:17px;color:var(--mute)}
+.slot.set{border-style:solid;border-color:var(--acc)}
+.slot.set b{color:var(--text)}
+/* Auswahlliste im Dialog */
+.picklist{display:flex;flex-direction:column;gap:6px;margin:8px 0 4px;max-height:50vh;overflow:auto}
+.pickrow{display:flex;align-items:baseline;gap:8px;min-height:48px;padding:10px 14px;border-radius:12px;
+  border:1px solid var(--line);background:var(--panel2);font-size:17px;text-align:left}
+.pickrow small{color:var(--mute);font-size:13px;margin-left:auto}
+/* Liste der letzten Spiele */
+.mrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:15px}
+.mrow:first-of-type{border-top:0}
+.mrow b{font-size:19px}.mrow small{display:block;color:var(--mute);font-size:13px}
+.mrow span{margin-left:auto;color:var(--mute);font-size:13px;white-space:nowrap}
+
+/* Zählbildschirm: Vollbild wie der Trainingsbildschirm */
+#match{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 12px);gap:8px}
+.mhead{display:flex;justify-content:space-between;gap:10px;font-size:15px;color:var(--mute)}
+.mscore{display:flex;align-items:center;justify-content:center;gap:10px;line-height:1}
+.mscore b{font-size:clamp(44px,13vw,86px);font-weight:800}
+.mscore i{font-size:clamp(28px,8vw,54px);color:var(--mute);font-style:normal}
+.msync{text-align:center;font-size:13px;color:var(--acc)}
+.marea{flex:1;min-height:0;display:flex;gap:10px}
+.marea.off{opacity:.5;pointer-events:none}
+.tcol{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.tsep{width:1px;background:var(--line);flex:none}
+.ptile{flex:1;border-radius:18px;border:3px solid var(--line);background:var(--panel);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;padding:6px}
+.ptile b{font-size:clamp(20px,5.5vw,34px);font-weight:800;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptile small{font-size:13px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+.ptile:active{background:var(--acc);border-color:var(--acc);color:#111}
+.ptile:active small{color:#111}
+.ptile.big2 b{font-size:clamp(26px,7vw,44px)}
+.swapbtn{flex:none;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);
+  color:var(--mute);font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px}
+.swapbtn .ic{width:20px;height:20px}
+.tfoot .own{background:var(--panel2);border-color:var(--line);font-size:17px}
+.tfoot .own.on{background:var(--acc);border-color:var(--acc);color:#111;font-weight:700}
