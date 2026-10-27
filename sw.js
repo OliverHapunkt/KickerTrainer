@@ -9,7 +9,7 @@
  */
 const VER=new URL(self.location).searchParams.get('v')||'dev';
 const CACHE='kt-'+VER;
-const FILES=['css/app.css','js/core.js','js/ui.js','js/sensors.js','js/home.js','js/training.js','js/stats.js','js/gamification.js','js/learn.js','js/tools.js','js/cloud.js','js/main.js'];
+const FILES=['css/app.css','js/core.js','js/ui.js','js/sensors.js','js/home.js','js/training.js','js/stats.js','js/gamification.js','js/learn.js','js/play.js','js/tools.js','js/cloud.js','js/main.js'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'].concat(FILES.map(f=>f+'?v='+VER)))).then(()=>self.skipWaiting()));

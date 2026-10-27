@@ -21,6 +21,16 @@ const ICP={
   play:'<path d="M8 5v14l11-7z" class="f"/>',
   chevron:'<path d="M9 6l6 6-6 6"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  // Tab-Leiste (werden über renderTabbar() in core.js eingesetzt)
+  swap:'<path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/>',
+  tTrain:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" class="f"/>',
+  tChal:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/>',
+  tStats:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  tSettings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+  // Tisch von oben: Mittellinie und Ball
+  tPlay:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/><circle cx="12" cy="12" r="2.2" class="f"/>',
+  tGroups:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="17.5" cy="9.5" r="2.4"/><path d="M16 14.6a4.6 4.6 0 0 1 4.5 4.9"/>',
+  tRank:'<path d="M3 20h18"/><path d="M5 20v-6h4v6M10 20V8h4v12M15 20v-4h4v4"/>',
 };
 function icon(n,cls){return'<svg class="ic'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(ICP[n]||'')+'</svg>'}
 

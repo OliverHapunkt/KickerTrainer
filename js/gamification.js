@@ -225,7 +225,7 @@ function renderChal(){
   el.innerHTML=h;
 }
 function renderGam(){
-  $('#tabbar [data-tab=chal]').classList.toggle('hidden',!gCH());
+  renderTabbar();   // Challenges-Tab erscheint oder verschwindet mit der Einstellung
   renderGamHome();
   if(!$('#chal').classList.contains('hidden'))renderChal();
   ['gXp','gCh'].forEach(id=>{const r=$('#'+id).closest('.row');$('#'+id).disabled=!S.gam.on;r.style.opacity=S.gam.on?'':'.5'});

@@ -2,17 +2,23 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.8.0-green)
+![Version](https://img.shields.io/badge/version-3.9.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.8.0 · 2026-10-27`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.9.0 · 2026-10-27`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
 ## Features
 
 ### Bedienung
-- **Tab-Leiste:** Training · Challenges · Statistik · Einstellungen (während des Trainings ausgeblendet)
+- **Zwei Hälften (v3.9):** Ganz links in der Tab-Leiste steht kein Ziel, sondern der **Umschalter**. Er trägt den Namen der anderen Hälfte und tauscht die ganze Leiste aus. Standard beim Start ist **Üben**, die Wahl bleibt gespeichert
+  - Üben: Training · Challenges · Statistik · Mehr (Bernstein)
+  - Spielen: Spiel · Gruppen · Rangliste · Mehr (Türkis)
+  - „Mehr" hieß bis v3.8 „Einstellungen" – mit fünf Plätzen passt das Wort auf dem iPhone nicht mehr in seinen Platz. Die Seite selbst heißt weiter „Einstellungen"
+  - Die Leiste wird aus `MODES` in `js/core.js` aufgebaut. Ein neues Tab = ein Eintrag dort plus ein Abschnitt in `index.html`
+  - In der Spielen-Hälfte sind die reinen Übungs-Karten der Einstellungen ausgeblendet (`data-only="train"`). Konto, Daten und Gamification gelten für beide
+- **Tab-Leiste** ist während des Trainings ausgeblendet
 - **Training:** Hauptkarte „Aktuelle Übung“ mit Start und „+ Plan“ ganz oben, Konfiguration über „Anpassen“; Level als Abzeichen neben der Überschrift (antippen = Details)
 - **Meine Übungen:** eine Übung hat eine oder mehrere Stationen. ▶ startet direkt (mehrere Stationen nacheinander), Antippen lädt sie
 - **Ablauf:** „+ Station“ hängt die aktuelle Übung an; Ablauf starten oder als Übung speichern
@@ -121,13 +127,14 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.8.0 · 2026
   | Datei | Inhalt |
   |---|---|
   | `ui.js` | Icons, Dialoge (`ask`, `askText`, `info`), Einführung |
-  | `core.js` | Konstanten, Disziplinen, Speicher (`localStorage`), Hilfsfunktionen |
+  | `core.js` | Konstanten, Disziplinen, Speicher (`localStorage`), Hilfsfunktionen, Navigation und die beiden Hälften (`MODES`, `show`, `go`, `setMode`, `renderTabbar`) |
   | `sensors.js` | Signaltöne, Sprachansage, Schusserkennung (Ton/Erschütterung), Spracheingabe, Wake Lock |
   | `home.js` | Startseite, Konfiguration, Schwachstellen-Planung |
   | `training.js` | Trainingsablauf, Eingabe, Korrektur, Auswertung nach der Session |
   | `stats.js` | Statistikseite und Diagramme |
   | `gamification.js` | XP, Level, Challenges |
   | `learn.js` | Lernpfad, Druckmodus, Standardtest, Ermüdungskurve |
+  | `play.js` | Spielen-Hälfte: Spiele, Gruppen, Ranglisten (im Aufbau) |
   | `tools.js` | Testseite, Export/Import, Alle Daten löschen |
   | `cloud.js` | Anmeldung und Cloud-Sync |
   | `main.js` | Start (läuft als letzte Datei) |

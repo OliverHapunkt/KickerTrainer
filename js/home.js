@@ -222,11 +222,12 @@ $('#btnPreset').onclick=async()=>{
   const n=await askText('Name der Übung',{value:cfgSummary(S.cfg).head,max:40});if(n===null)return;const name=n.trim().slice(0,40)||cfgSummary(S.cfg).head;
   S.presets.push({name,steps:[clone(S.cfg)]});saveS();renderHome();toast('Gespeichert')};
 $('#btnCfg').onclick=()=>{S.cfgOpen=!S.cfgOpen;saveS();renderHome()};
-/* Tab-Leiste */
-document.querySelectorAll('#tabbar button').forEach(b=>b.onclick=()=>{
-  const t=b.dataset.tab;
-  if(t==='stats'){ST.session=null;ST.open=null;ST.edit=null;show('stats');renderStats()}
-  else if(t==='settings'){renderDataHint();show('settings')}
-  else if(t==='chal'){renderChal();show('chal')}
-  else{renderHome();show('home')}});
+/* Einstellungen: Karten, die nur fürs Üben gelten, in der Spielen-Hälfte ausblenden.
+   Konto, Daten und Gamification gelten für beide Hälften. */
+function renderSettings(){
+  const play=curMode()==='play';
+  document.querySelectorAll('#settings [data-only]').forEach(el=>
+    el.classList.toggle('hidden',el.dataset.only!==(play?'play':'train')));
+  renderDataHint();
+}
 $('#btnTest').onclick=()=>{ensureAudio();renderTest();show('test')};

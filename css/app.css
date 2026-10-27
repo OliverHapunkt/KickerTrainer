@@ -319,3 +319,31 @@ input.sw:disabled{opacity:.4}
 .tfoot .miss span{font-size:inherit}
 .tfoot .mdir span{font-size:28px;line-height:1}
 .tfoot .miss small{color:inherit;opacity:.75}
+
+/* ---------- v3.9: zwei Hälften (Üben / Spielen) ---------- */
+/* Spielen trägt Türkis statt Bernstein. Nur die Akzentfarbe wird getauscht,
+   bewusst nicht Grün: --hit ist schon grün und würde beim Üben kollidieren. */
+body.play{--acc:#1fb8a6}
+
+/* Tab-Leiste mit 5 Plätzen: Der Umschalter bekommt eine feste Breite,
+   die vier Ziel-Tabs teilen den Rest. Die Beschriftung geht auf 11px zurück –
+   mit 12px passt „Einstellungen“ bei 375 px Breite nicht mehr in seinen Platz
+   (iOS beschriftet Tab-Leisten ohnehin mit 10pt). */
+.tabbar button{min-width:0;font-size:11px;padding:0 4px}
+.tabbar button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.modesw{flex:0 0 76px!important;max-width:76px!important;position:relative;color:var(--text)!important}
+.modesw::after{content:"";position:absolute;right:0;top:12px;bottom:12px;border-right:1px solid var(--line)}
+.modesw .ic{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.modesw span{font-size:11px;color:var(--mute)}
+.modesw:active{background:var(--panel2)}
+@media (max-width:360px){.modesw{flex:0 0 62px!important;max-width:62px!important}.tabbar button{font-size:10px}}
+
+/* Platzhalter-Bildschirme der Spielen-Hälfte */
+.lead{margin:0;font-size:16px;line-height:1.45}
+.bullets{margin:12px 0 0;padding-left:20px;color:var(--mute);font-size:15px;line-height:1.5}
+.bullets li{margin-bottom:6px}.bullets b{color:var(--text)}
+.planrows{display:flex;flex-direction:column;gap:2px}
+.planrow{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:15px;color:var(--mute)}
+.planrow.done{color:var(--text)}
+.planrow .ic{width:20px;height:20px;flex:none;color:var(--acc)}
+.planrow i{width:20px;height:20px;flex:none;border:2px solid var(--line);border-radius:50%}

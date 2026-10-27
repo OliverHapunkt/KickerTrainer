@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.8.0',d:'2026-10-27'};
+window.KT_VER={v:'3.9.0',d:'2026-10-27'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -92,13 +92,13 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 
 <section id="settings" class="screen tabbed hidden">
   <header class="ptitle"><h1>Einstellungen</h1></header>
-  <div class="card"><h2>Ansage &amp; Eingabe</h2>
+  <div class="card" data-only="train"><h2>Ansage &amp; Eingabe</h2>
     <label class="row"><span>Sprachansage <button type="button" class="tipb" data-tip-k="voiceOut" aria-label="Erklärung">ⓘ</button><small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" class="sw" id="oVoiceOut"></label>
     <label class="row"><span>Daneben mit Richtung <button type="button" class="tipb" data-tip-k="missdir" aria-label="Erklärung">ⓘ</button><small>Nur Wertung „Einfach“: teilt „Daneben“ in links / rechts (aus Sicht des Schützen). Bei „Genau“ immer vorhanden</small></span><input type="checkbox" class="sw" id="oMissDir"></label>
     <label class="row"><span>Spracheingabe (Beta) <button type="button" class="tipb" data-tip-k="vocab" aria-label="Erklärung">ⓘ</button><small>„Ja“, „eins“–„fünf“, „links“, „rechts“, „miss“ – ⓘ zeigt das Wörterbuch</small></span><input type="checkbox" class="sw" id="oVoiceIn"></label>
     <p class="hint" id="srNote" style="margin-top:6px"></p>
   </div>
-  <div class="card"><h2>Trainingshilfen</h2>
+  <div class="card" data-only="train"><h2>Trainingshilfen</h2>
     <label class="row"><span>Lernpfad<small>Zeigt auf der Trainingsseite, welche Stufe (Serie, Gemischt, Auf Signal) als Nächstes dran ist</small></span><input type="checkbox" class="sw" id="oLp"></label>
     <label class="row"><span>Standardtest-Erinnerung<small>Einmal im Monat derselbe Test, damit du Fortschritt wirklich vergleichen kannst</small></span><input type="checkbox" class="sw" id="oStd"></label>
   </div>
@@ -107,7 +107,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <label class="row"><span>XP &amp; Level<small>Punkte für Training und Treffer, schwierigere Ziele zählen mehr</small></span><input type="checkbox" class="sw" id="gXp"></label>
     <label class="row"><span>Challenges<small>Vorkonfigurierte Aufgaben mit Fortschritt</small></span><input type="checkbox" class="sw" id="gCh"></label>
   </div>
-  <div class="card"><h2>Schusserkennung</h2>
+  <div class="card" data-only="train"><h2>Schusserkennung</h2>
     <label class="row"><span>Schusserkennung <button type="button" class="tipb" data-tip-k="detect" aria-label="Erklärung">ⓘ</button><small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" class="sw" id="oMic"></label>
     <label class="row"><span>Auto-Treffer <button type="button" class="tipb" data-tip-k="autocount" aria-label="Erklärung">ⓘ</button><small>Ein erkannter Schuss zählt als Treffer auf das angesagte Ziel. Im Korrekturfenster kannst du ihn überschreiben. Nur mit Schusserkennung, nur bei Schüssen</small></span><input type="checkbox" class="sw" id="oAuto"></label>
     <div class="sub" id="wDet"><label>Erkennung über <button type="button" class="tipb" data-tip-k="detect" aria-label="Erklärung">ⓘ</button></label><div class="chips" id="cDet"></div>
@@ -150,16 +150,27 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <button class="big danger" id="btnReset">Alle Daten löschen</button>
     <p class="hint" id="dataHint"></p>
   </div>
-  <p class="hint">Segment 1 = links aus Sicht des Schützen. Links/rechts „daneben“ ebenfalls aus Sicht des Schützen. <button type="button" class="link" data-tip-k="segs">Segmente erklärt</button> · <button type="button" class="link" data-tip-k="miss">Daneben erklärt</button></p>
+  <p class="hint" data-only="train">Segment 1 = links aus Sicht des Schützen. Links/rechts „daneben“ ebenfalls aus Sicht des Schützen. <button type="button" class="link" data-tip-k="segs">Segmente erklärt</button> · <button type="button" class="link" data-tip-k="miss">Daneben erklärt</button></p>
   <p class="ver" id="appVer"></p>
 </section>
 
-<nav class="tabbar" id="tabbar">
-  <button data-tab="home"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" class="f"/></svg><span>Training</span></button>
-  <button data-tab="chal"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg><span>Challenges</span></button>
-  <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Statistik</span></button>
-  <button data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>Einstellungen</span></button>
-</nav>
+<section id="play" class="screen tabbed hidden">
+  <header class="ptitle"><h1>Spiel</h1></header>
+  <div id="playBody"></div>
+</section>
+
+<section id="groups" class="screen tabbed hidden">
+  <header class="ptitle"><h1>Gruppen</h1></header>
+  <div id="groupsBody"></div>
+</section>
+
+<section id="rank" class="screen tabbed hidden">
+  <header class="ptitle"><h1>Rangliste</h1></header>
+  <div id="rankBody"></div>
+</section>
+
+<!-- Inhalt kommt aus renderTabbar() in core.js, je nach Hälfte -->
+<nav class="tabbar" id="tabbar"></nav>
 
 <section id="test" class="screen hidden">
   <div class="shead"><button id="btnTestBack">‹ Zurück</button></div>
@@ -192,7 +203,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <div id="summary" class="overlay hidden"><div class="sheet" id="summaryBody"></div></div>
 <script>
 // Skripte in fester Reihenfolge laden (async=false), alle teilen sich denselben globalen Gültigkeitsbereich
-['core','ui','sensors','home','training','stats','gamification','learn','tools','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
+['core','ui','sensors','home','training','stats','gamification','learn','play','tools','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
 </script>
 </body>
 </html>
