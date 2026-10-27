@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.7.0',d:'2026-10-25'};
+window.KT_VER={v:'3.8.0',d:'2026-10-27'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -28,14 +28,14 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <div class="sub"><label id="lTech">Technik</label><div class="chips" id="cTech"></div></div>
       <div class="sub" id="wTech2"><label>Schuss-Technik</label><div class="chips" id="cTech2"></div></div>
       <div class="sub" id="wTP"><label>Pass-Ziele <span class="lmulti">mehrere möglich</span></label><div class="chips multi" id="cTP"></div></div>
-      <div class="sub" id="wTS"><label>Schuss-Ziele <span class="lmulti">mehrere möglich</span></label><div class="chips multi" id="cTS"></div></div>
+      <div class="sub" id="wTS"><label>Schuss-Ziele <span class="lmulti">mehrere möglich</span> <button type="button" class="tipb" data-tip-k="segs" aria-label="Erklärung">ⓘ</button></label><div class="chips multi" id="cTS"></div></div>
       <div class="sep"></div>
       <div class="sub"><label>Reihenfolge</label><div class="chips sc" id="cOrder"></div>
         <div id="wWeak" class="hidden"><div class="sub"><label>Datenbasis: letzte Sessions dieser Disziplin</label><div class="chips sc" id="cWeakN"></div></div><p class="hint" id="hWeak"></p></div></div>
-      <div class="sub"><label>Timing</label><div class="chips sc" id="cTiming"></div><p class="hint" id="hTiming"></p></div>
+      <div class="sub"><label>Timing <button type="button" class="tipb" data-tip-k="timing" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cTiming"></div><p class="hint" id="hTiming"></p></div>
       <div class="sub" id="wWindow"><label>Reaktionsfenster nach Signal</label><div class="chips sc" id="cWindow"></div></div>
-      <div class="sub" id="wReady"><label>„Bereit“ auslösen</label><div class="chips sc" id="cReady"></div><p class="hint">Tippen geht immer. Mit Spracheingabe zusätzlich „Ja“.</p></div>
-      <div class="sub" id="wScore"><label>Wertung Schuss</label><div class="chips sc" id="cScore"></div><p class="hint" id="hScore"></p></div>
+      <div class="sub" id="wReady"><label>Aufbauzeit / „Bereit“ <button type="button" class="tipb" data-tip-k="setup" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cReady"></div><p class="hint" id="hReady"></p></div>
+      <div class="sub" id="wScore"><label>Wertung Schuss <button type="button" class="tipb" data-tip-k="scoring" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cScore"></div><p class="hint" id="hScore"></p></div>
       <div class="sub" id="wPr"><label>Druckmodus</label><div class="chips sc" id="cPr"></div><p class="hint" id="hPr"></p></div>
       <div class="sub"><label>Umfang</label><div class="chips sc" id="cAmtC"></div><div class="chips sc" id="cAmt" style="margin-top:8px"></div></div>
       <button class="big" id="btnPreset">Als eigene Übung speichern</button>
@@ -55,7 +55,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 
 <section id="train" class="hidden">
   <div class="beam" id="beam"></div>
-  <div class="thead"><div id="tMode"></div><div id="tCount" class="count"></div><div id="tRate"></div></div>
+  <div class="thead"><div><button type="button" class="tipb" data-tip-k="vocab" aria-label="Sprachbefehle und Bedeutung der Eingaben">ⓘ</button> <span id="tMode"></span></div><div id="tCount" class="count"></div><div id="tRate"></div></div>
   <div class="status" id="tStatus"></div>
   <div class="bar"><i id="tBar"></i></div>
   <div class="wlive hidden" id="wLive"></div>
@@ -68,7 +68,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
   </div>
   <div class="tfoot">
     <button id="btnUndo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><small>Rückgängig</small></button>
-    <button id="btnMissL" class="miss mdir hidden">← Daneben</button><button id="btnMiss" class="miss">Daneben</button><button id="btnMissR" class="miss mdir hidden">Daneben →</button>
+    <button id="btnMissL" class="miss mdir hidden" aria-label="Daneben links neben dem Tor"><span>←</span><small>links daneben</small></button><button id="btnMiss" class="miss"><span>Daneben</span><small>unklar wohin</small></button><button id="btnMissR" class="miss mdir hidden" aria-label="Daneben rechts neben dem Tor"><span>→</span><small>rechts daneben</small></button>
     <button id="btnEnd"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><small>Ende</small></button>
   </div>
 </section>
@@ -93,9 +93,10 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <section id="settings" class="screen tabbed hidden">
   <header class="ptitle"><h1>Einstellungen</h1></header>
   <div class="card"><h2>Ansage &amp; Eingabe</h2>
-    <label class="row"><span>Sprachansage<small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" class="sw" id="oVoiceOut"></label>
-    <label class="row"><span>Daneben mit Richtung<small>Teilt „Daneben“ bei Schüssen in links / rechts (aus Sicht des Schützen). Die Statistik zeigt dann, wohin du verziehst</small></span><input type="checkbox" class="sw" id="oMissDir"></label>
-    <label class="row"><span>Spracheingabe (Beta)<small>„Ja“, „eins“–„fünf“, „Treffer“, „daneben“, „gefangen“, „verloren“</small></span><input type="checkbox" class="sw" id="oVoiceIn"></label>
+    <label class="row"><span>Sprachansage <button type="button" class="tipb" data-tip-k="voiceOut" aria-label="Erklärung">ⓘ</button><small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" class="sw" id="oVoiceOut"></label>
+    <label class="row"><span>Daneben mit Richtung <button type="button" class="tipb" data-tip-k="missdir" aria-label="Erklärung">ⓘ</button><small>Nur Wertung „Einfach“: teilt „Daneben“ in links / rechts (aus Sicht des Schützen). Bei „Genau“ immer vorhanden</small></span><input type="checkbox" class="sw" id="oMissDir"></label>
+    <label class="row"><span>Spracheingabe (Beta) <button type="button" class="tipb" data-tip-k="vocab" aria-label="Erklärung">ⓘ</button><small>„Ja“, „eins“–„fünf“, „links“, „rechts“, „miss“ – ⓘ zeigt das Wörterbuch</small></span><input type="checkbox" class="sw" id="oVoiceIn"></label>
+    <p class="hint" id="srNote" style="margin-top:6px"></p>
   </div>
   <div class="card"><h2>Trainingshilfen</h2>
     <label class="row"><span>Lernpfad<small>Zeigt auf der Trainingsseite, welche Stufe (Serie, Gemischt, Auf Signal) als Nächstes dran ist</small></span><input type="checkbox" class="sw" id="oLp"></label>
@@ -107,9 +108,9 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <label class="row"><span>Challenges<small>Vorkonfigurierte Aufgaben mit Fortschritt</small></span><input type="checkbox" class="sw" id="gCh"></label>
   </div>
   <div class="card"><h2>Schusserkennung</h2>
-    <label class="row"><span>Schusserkennung<small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" class="sw" id="oMic"></label>
-    <label class="row"><span>Erkannten Schuss automatisch zählen<small>Zählt als Treffer – du korrigierst im Fenster. Nur mit Schusserkennung, nur bei Schüssen</small></span><input type="checkbox" class="sw" id="oAuto"></label>
-    <div class="sub" id="wDet"><label>Erkennung über</label><div class="chips" id="cDet"></div>
+    <label class="row"><span>Schusserkennung <button type="button" class="tipb" data-tip-k="detect" aria-label="Erklärung">ⓘ</button><small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" class="sw" id="oMic"></label>
+    <label class="row"><span>Erkannten Schuss automatisch zählen <button type="button" class="tipb" data-tip-k="autocount" aria-label="Erklärung">ⓘ</button><small>Zählt als Treffer – du korrigierst im Fenster. Nur mit Schusserkennung, nur bei Schüssen mit Wertung „Einfach“</small></span><input type="checkbox" class="sw" id="oAuto"></label>
+    <div class="sub" id="wDet"><label>Erkennung über <button type="button" class="tipb" data-tip-k="detect" aria-label="Erklärung">ⓘ</button></label><div class="chips" id="cDet"></div>
       <div class="sub" id="wCorr"><label>Korrekturfenster</label><div class="chips sc" id="cCorr"></div></div>
       <p class="hint">„Ton + Erschütterung“ = beide müssen gleichzeitig ausschlagen: am wenigsten Fehlauslöser (Stimmen, Nachbartisch). Erschütterung braucht iPad direkt auf dem Tisch.</p></div>
     <button class="big" id="btnTest">Mikrofon &amp; Sprache testen</button>
@@ -149,7 +150,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <button class="big danger" id="btnReset">Alle Daten löschen</button>
     <p class="hint" id="dataHint"></p>
   </div>
-  <p class="hint">Segment 1 = links aus Sicht des Schützen.</p>
+  <p class="hint">Segment 1 = links aus Sicht des Schützen. Links/rechts „daneben“ ebenfalls aus Sicht des Schützen. <button type="button" class="link" data-tip-k="segs">Segmente erklärt</button> · <button type="button" class="link" data-tip-k="miss">Daneben erklärt</button></p>
   <p class="ver" id="appVer"></p>
 </section>
 

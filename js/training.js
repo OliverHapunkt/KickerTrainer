@@ -18,7 +18,7 @@ function clearTimers(){if(R){R.timers.forEach(clearTimeout);R.timers=[]}}
 function curKind(){return R.D.kind==='combo'?R.stage:R.D.kind}
 function ruleMs(){return(R.D.kind==='combo'&&R.stage==='shot'?R.D.rule2:R.D.rule)*1000}
 function curTech(){return R.techNow||(R.D.kind==='combo'&&R.stage==='shot'?R.cfg.tech2:R.cfg.tech)}
-function dirOn(){return!!S.missDir&&curKind()==='shot'}
+function dirOn(){return!!S.missDir&&curKind()==='shot'&&inputMode()==='simple'} // „Genau“ zeigt links/rechts/unklar immer
 function missEl(m,md){return md?(m==='seg'?$(md==='l'?'#btnMissL':'#btnMissR'):$(md==='l'?'#bNoL':'#bNoR')):(m==='seg'?$('#btnMiss'):$('#bNo'))}
 function inputMode(){return curKind()==='shot'&&R.cfg.scoring==='exact'?'seg':'simple'}
 function deckKey(){return curKind()==='shot'?'deckS':'deckP'}
@@ -67,15 +67,24 @@ function startRep(){
   if(prGoal()&&prState().ok)return finish(); // Druckmodus: Serie geschafft
   if(R.stage===first&&isDone())return finish();
   R.target=drawTarget();
-  const needReady=R.cfg.timing==='signal'||(R.D.kind==='combo'&&R.stage==='shot');
-  if(!needReady){call();return}
+  const rm=readyMode();
+  if(rm==='off'){call();return}
   setPhase('ready');
-  if(R.cfg.ready==='auto')later(goReady,R.cfg.auto*1000);
+  if(rm==='auto')later(goReady,autoMs());
 }
+/* Aufbauzeit nach jedem Versuch (Ball holen, hinlegen, Hände an die Griffe): 'auto' = Countdown, „Ja“/Tippen beendet ihn früher,
+   'tap' = wartet auf „Ja“/Tippen, 'off' = Ziel kommt sofort. Bei Signal und beim Schuss der Kombi ist sie Pflicht (dort nie 'off'). */
+function readyMode(){
+  const forced=R.cfg.timing==='signal'||(R.D.kind==='combo'&&R.stage==='shot');
+  const m=R.cfg.ready==='tap'||R.cfg.ready==='off'?R.cfg.ready:'auto';
+  return m==='off'&&forced?'tap':m;
+}
+function autoMs(){return(R.cfg.auto||5)*1000}
+const GRIP_MS=500; // nach „Bereit“: Zeit, um die Griffe anzufassen
 function goReady(){
   if(R.phase!=='ready')return;
   clearTimers();beep(520,.05,.15);
-  if(R.cfg.timing==='free'){call();return}
+  if(R.cfg.timing==='free'){setPhase('grip',GRIP_MS);later(call,GRIP_MS);return} // bei Signal deckt die Zufallszeit (mind. 1 s) die Griffzeit ab
   const max=Math.max(1.5,ruleMs()/1000-R.cfg.window-2),w=(1+Math.random()*(max-1))*1000;
   setPhase('wait',w);later(call,w);
 }
@@ -134,8 +143,8 @@ function renderTrain(){
   $('#pviz').classList.toggle('hidden',!showP);if(showP)renderPassViz(live);
   $('#area').classList.toggle('split',(showSeg&&m==='simple')||showP);
   $('#simple').classList.toggle('hidden',R.phase==='ready'||m!=='simple');
-  const dir=dirOn();
-  $('#btnMiss').classList.toggle('hidden',m!=='seg'||dir);$('#btnMissL').classList.toggle('hidden',m!=='seg'||!dir);$('#btnMissR').classList.toggle('hidden',m!=='seg'||!dir);
+  const dir=dirOn(); // nur Wertung „Einfach“ + Einstellung „Daneben mit Richtung“
+  $('#btnMiss').classList.toggle('hidden',m!=='seg');$('#btnMissL').classList.toggle('hidden',m!=='seg');$('#btnMissR').classList.toggle('hidden',m!=='seg'); // „Genau“: links / unklar / rechts immer
   $('#bNo').classList.toggle('hidden',dir);$('#bNoL').classList.toggle('hidden',!dir);$('#bNoR').classList.toggle('hidden',!dir);$('#simple').classList.toggle('dir',dir);
   $('#area').classList.toggle('off',!live&&R.phase!=='ready'&&!R.corr);
   [...segs.children].forEach((s,i)=>s.classList.toggle('target',live&&R.target===i+1));
@@ -155,8 +164,9 @@ function tick(){
   if(R.undo){txt='Korrektur · '+tgt}
   else switch(R.phase){
     case 'idle':txt='Bereit machen …';break;
-    case 'ready':txt=R.cfg.ready==='auto'?'Aufbauen · '+Math.max(1,Math.ceil((R.cfg.auto*1000-el)/1000)):(S.voiceIn?'Bereit? „Ja“ / Tippen':'Bereit? Tippen');
-      if(R.cfg.ready==='auto')frac=Math.min(1,el/(R.cfg.auto*1000));break;
+    case 'ready':if(readyMode()==='auto'){txt='Aufbauen · '+Math.max(1,Math.ceil((autoMs()-el)/1000))+(S.voiceIn?' · „Ja“ = bereit':' · tippen = bereit');frac=Math.min(1,el/autoMs())}
+      else txt=S.voiceIn?'Bereit? „Ja“ / Tippen':'Bereit? Tippen';break;
+    case 'grip':txt='Griffe …';break;
     case 'wait':txt='Achtung …';cls='alert';break;
     case 'call':txt=rem>0?tgt+' – JETZT':tgt+' · Zeit um';cls=rem>0?'alert':'late';frac=Math.max(0,rem/R.phaseDur);break;
     case 'aim':txt=tgt+' · '+(rem>0?Math.ceil(rem/1000)+' s':'Zeit um');frac=Math.max(0,rem/R.phaseDur);if(rem<=0)cls='late';break;
@@ -165,7 +175,7 @@ function tick(){
   }
   const mb=prMatch()&&!R.undo&&(R.phase==='call'||R.phase==='aim');
   if(mb){txt='MATCHBALL · '+txt;if(!cls.includes('late'))cls='alert'}
-  if(S.mic&&R.detectAt!=null&&!R.undo&&(R.phase==='call'||R.phase==='aim'))txt+=' · ⚡ '+fmt((R.detectAt-R.callAt)/1000)+' s';
+  if(S.mic&&R.detectAt!=null&&!R.undo&&(R.phase==='call'||R.phase==='aim'))txt+=' · ⚡ '+fmt((R.detectAt-R.callAt)/1000)+' s'+(inputMode()==='seg'?' · wohin?':'');
   const key=txt+cls;
   const sc=(R.phase==='aim'||R.phase==='call')&&!R.undo&&!cls.includes('late')&&!mb&&curKind()==='shot'?targetColor():null;
   if(key+sc!==lastTxt){const st=$('#tStatus');st.textContent=txt;st.className='status '+cls;st.style.color=sc||'';lastTxt=key+sc}
@@ -211,6 +221,10 @@ function input(v,auto){
   el.classList.add(h?'fhit':'fmiss');setTimeout(()=>el.classList.remove('fhit','fmiss'),450);
   if(auto){const w=S.corrWin*1000;R.corr={e};setPhase('result',w);later(startRep,w)}
   else{setPhase('result');later(startRep,550)}
+}
+function confirmCorr(){ // „Ja“ im Korrekturfenster: Eintrag stimmt, nächster Versuch ohne Restzeit
+  if(!R||!R.active||!R.corr)return;
+  clearTimers();R.corr=null;startRep();
 }
 function undo(){
   if(!R||!R.active||!R.entries.length)return;R.corr=null;
@@ -265,6 +279,7 @@ function detailKV(a,b){
   if(b.inWin!=null)x+=kv('Im Reaktionsfenster',pct(b.inWin));
   if(b.wrongN)x+=kv('Falsches Segment / daneben',b.wrongN+' / '+b.outN),x+=kv('Tendenz',tend(b));
   const sc=sideCount(a.filter(z=>z.md));if(sc.n)x+=kv('Daneben links / rechts',sc.l+' / '+sc.r);
+  const unk=a.filter(z=>z.st==='shot'&&z.l===0&&!z.md).length;if(unk)x+=kv('Daneben ohne Angabe wohin',unk+' (nicht in „Wohin geht der Ball?“)');
   return x;
 }
 function groups(a){

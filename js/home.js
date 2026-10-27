@@ -148,16 +148,21 @@ function renderHome(){
   }
   chips($('#cTiming'),[{v:'free',t:'Freies Tempo'},{v:'signal',t:'Auf Signal'}],v=>c.timing===v,v=>c.timing=v);
   $('#hTiming').textContent=c.timing==='free'
-    ?'Ziel wird sofort angesagt, du spielst in deinem Rhythmus.'
+    ?'Nach der Aufbauzeit wird das Ziel angesagt, du spielst in deinem Rhythmus.'
     :'Nach „Bereit“ kommt das Ziel zufällig innerhalb der Regelzeit ('+d.rule+' s) – dann bleibt nur das Reaktionsfenster.';
   $('#wWindow').classList.toggle('hidden',c.timing!=='signal');
   chips($('#cWindow'),[1,1.5,2,3].map(n=>({v:n,t:fmt(n,n%1?1:0)+' s'})),v=>c.window===v,v=>c.window=v);
-  $('#wReady').classList.toggle('hidden',!(c.timing==='signal'||d.kind==='combo'));
-  chips($('#cReady'),[{v:'tap',t:'Tippen'},{v:3,t:'Auto 3 s'},{v:5,t:'Auto 5 s'},{v:8,t:'Auto 8 s'}],
-    v=>v==='tap'?c.ready==='tap':(c.ready==='auto'&&c.auto===v),v=>{if(v==='tap')c.ready='tap';else{c.ready='auto';c.auto=v}});
+  // Aufbauzeit gilt für alle Modi. „Aus“ gibt es nur bei freiem Tempo (bei Signal und beim Schuss der Kombi ist „Bereit“ Pflicht)
+  const needSetup=c.timing==='signal'||d.kind==='combo';
+  if(needSetup&&c.ready==='off')c.ready='tap';
+  chips($('#cReady'),(needSetup?[]:[{v:'off',t:'Aus'}]).concat([{v:'tap',t:'Tippen'},{v:3,t:'Auto 3 s'},{v:5,t:'Auto 5 s'},{v:8,t:'Auto 8 s'}]),
+    v=>v==='off'?c.ready==='off':v==='tap'?c.ready==='tap':(c.ready==='auto'&&c.auto===v),v=>{if(v==='tap'||v==='off')c.ready=v;else{c.ready='auto';c.auto=v}});
+  $('#hReady').textContent=c.ready==='off'?'Ziel kommt sofort nach dem Ergebnis.'
+    :c.ready==='tap'?'Nach jedem Versuch wartet die App auf „Ja“ oder Tippen auf BEREIT, dann 0,5 s Griffzeit.'
+    :'Nach jedem Versuch läuft ein Countdown zum Aufbauen. „Ja“ oder Tippen beendet ihn früher, dann 0,5 s Griffzeit.';
   $('#wScore').classList.toggle('hidden',!hasShot(c));
   chips($('#cScore'),[{v:'simple',t:'Einfach'},{v:'exact',t:'Genau'}],v=>c.scoring===v,v=>c.scoring=v);
-  $('#hScore').textContent=c.scoring==='exact'?'Du tippst das Segment, in dem der Ball landete – zeigt auch, wohin Fehlschüsse gehen.':'Du tippst nur Treffer oder Daneben.';
+  $('#hScore').textContent=c.scoring==='exact'?'Du meldest, wohin der Ball ging: Segment 1–5, links oder rechts neben dem Tor, oder „Miss“ (daneben, unklar wohin).':'Du meldest nur Treffer oder Daneben („Ja“ / „Miss“).';
   $('#wPr').classList.toggle('hidden',d.kind==='combo');
   chips($('#cPr'),[0,3,5,8,10].map(n=>({v:n,t:n?String(n):'Aus'})),v=>(c.pr||0)===v,v=>c.pr=v);
   $('#hPr').textContent=prHint(c);
@@ -172,6 +177,7 @@ function renderHome(){
     r.querySelector('button').onclick=()=>{S.plan.splice(i,1);saveS();renderHome()};$('#planList').appendChild(r)});
   $('#oVoiceOut').checked=S.voiceOut;$('#oMissDir').checked=!!S.missDir;$('#oVoiceIn').checked=S.voiceIn;$('#oMic').checked=S.mic;$('#oSens').value=S.sens;
   $('#oVoiceIn').disabled=!SR;$('#oMSens').value=S.msens;
+  $('#srNote').textContent=SR?'Spracheingabe braucht Internet (bei Safari teils über Apple-Server) und kann das Mikrofon der Schusserkennung stören. Tippen geht immer.':'Dieser Browser unterstützt keine Spracherkennung – Eingabe nur per Tippen.';
   $('#wDet').classList.toggle('hidden',!S.mic);
   $('#oAuto').checked=S.autoCount;$('#wCorr').classList.toggle('hidden',!S.autoCount);$('#oAuto').disabled=!S.mic;$('#oAuto').closest('.row').style.opacity=S.mic?'':'.5';
   chips($('#cCorr'),[2,3,5].map(n=>({v:n,t:n+' s'})),v=>S.corrWin===v,v=>S.corrWin=v);

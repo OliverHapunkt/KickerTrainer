@@ -16,7 +16,8 @@ const DISC={
 };
 const NUM=['','Eins','Zwei','Drei','Vier','Fünf'];
 const TORDER=[0,1,2,3,4,5,'wall','lane'];
-const DEFCFG={d:'s3',tech:'Pull',tech2:'Pull',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',wt:['Pull'],wt2:['Pull'],weakN:10,timing:'free',window:2,ready:'tap',auto:5,scoring:'exact',amt:'count',count:20,minutes:10,pr:0};
+// ready = Aufbauzeit nach jedem Versuch: 'auto' (Countdown, „Ja“/Tippen verkürzt), 'tap' (wartet auf „Ja“/Tippen), 'off' (nur bei freiem Tempo)
+const DEFCFG={d:'s3',tech:'Pull',tech2:'Pull',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',wt:['Pull'],wt2:['Pull'],weakN:10,timing:'free',window:2,ready:'auto',auto:5,scoring:'exact',amt:'count',count:20,minutes:10,pr:0};
 const DEF={cfg:DEFCFG,plan:[],presets:[],cfgOpen:false,missDir:false,lp:true,stdOn:true,voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,det:'audio',autoCount:true,corrWin:3};
 
 function clone(o){return JSON.parse(JSON.stringify(o))}
@@ -26,6 +27,11 @@ let S=Object.assign(clone(DEF),load(LS_SET,DEF));
 S.cfg=Object.assign(clone(DEFCFG),S.cfg||{});if(!Array.isArray(S.plan))S.plan=[];if(!Array.isArray(S.presets))S.presets=[];
 // Übungen haben Stationen (v3.6): {name,cfg} → {name,steps:[cfg]}
 S.presets=S.presets.filter(p=>p&&(p.cfg||(Array.isArray(p.steps)&&p.steps.length))).map(p=>({name:p.name||'Übung',steps:(p.steps||[p.cfg]).map(c=>Object.assign(clone(DEFCFG),c))}));
+// v3.8: Aufbauzeit gilt jetzt auch bei freiem Tempo. Dort war „Tippen“ nie eine bewusste Wahl (Auswahl war ausgeblendet) → auf Auto umstellen
+if(!S.rdy38){
+  const mig=c=>{if(c&&c.timing!=='signal'&&c.d!=='k53'&&c.ready==='tap'){c.ready='auto';if(!c.auto)c.auto=5}};
+  mig(S.cfg);S.plan.forEach(mig);S.presets.forEach(p=>p.steps.forEach(mig));S.rdy38=1;saveS();
+}
 let D=load(LS_DATA,{v:2,sessions:[],shots:[]});
 // Migration v1 → v2
 D.shots.forEach(s=>{if(!s.d){s.d='s3';s.st='shot';s.sig=s.m==='late';s.end=true}});D.v=2;

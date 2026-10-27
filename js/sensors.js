@@ -119,16 +119,23 @@ function onImpulse(now){
   if(now<ignoreUntil||ttsBusy)return;
   if((R.phase==='call'||R.phase==='aim')&&R.detectAt==null){
     R.detectAt=now;
-    if(S.mic&&S.autoCount&&curKind()==='shot')input(inputMode()==='seg'&&R.target>0?R.target:'hit',true);
+    // Bei „Genau“ nie still als Treffer zählen: Der Schuss liefert nur die Reaktionszeit, wohin der Ball ging meldest du selbst
+    if(S.mic&&S.autoCount&&curKind()==='shot'&&inputMode()!=='seg')input('hit',true);
   }
 }
 
 /* ---------- Spracheingabe ---------- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-const WORDS={ja:'ready',jo:'ready',jep:'ready',bereit:'ready',los:'ready',
-  eins:1,'1':1,zwei:2,'2':2,drei:3,'3':3,vier:4,'4':4,'fünf':5,'5':5,
-  treffer:'hit',tor:'hit',gefangen:'hit',daneben:0,verloren:0,nein:0,vorbei:0,links:'ml',rechts:'mr'};
-const rec={r:null,want:false,seen:{},gen:0,onText:null};
+/* Wörterbuch Spracheingabe: gesprochenes Wort → Bedeutung. Die Hilfe-Tabelle (ⓘ) wird aus dieser Liste erzeugt.
+   'yes'   = „Ja“ – je nach Phase: Aufbau beendet / Treffer / gefangen / Korrektur bestätigt
+   'ready' = „Bereit“, „Los“ – nur Aufbau beendet, nie ein Ergebnis
+   1–5     = Segment, 'hit' = Treffer/gefangen, 0 = Miss (daneben, unklar wohin), 'ml'/'mr' = links/rechts neben dem Tor (Schützensicht) */
+const WORDS={ja:'yes',jo:'yes',jep:'yes',bereit:'ready',los:'ready',
+  eins:1,'1':1,zwei:2,zwo:2,'2':2,drei:3,'3':3,vier:4,'4':4,'fünf':5,'5':5,
+  treffer:'hit',tor:'hit',gefangen:'hit',
+  miss:0,mis:0,mist:0,mies:0,daneben:0,verloren:0,nein:0,vorbei:0,links:'ml',rechts:'mr'};
+const rec={r:null,want:false,seen:{},gen:0,onText:null,netT:0};
+let voiceLast=0; // Zeitpunkt des letzten angenommenen Befehls (Wortgruppen wie „links daneben“ zählen nur einmal)
 function recStart(){
   if(!SR)return false;
   rec.want=true;
@@ -147,7 +154,10 @@ function recStart(){
       }
     };
     r.onend=()=>{if(rec.want)setTimeout(()=>{try{rec.gen++;rec.seen={};r.start()}catch(e){}},200)};
-    r.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){rec.want=false;toast('Spracherkennung nicht erlaubt')}};
+    r.onerror=e=>{
+      if(e.error==='not-allowed'||e.error==='service-not-allowed'){rec.want=false;toast('Spracherkennung nicht erlaubt – evtl. iOS-Diktierfunktion prüfen (Einstellungen › Allgemein › Tastatur). Tippen geht weiter')}
+      else if(e.error==='network'){const n=Date.now();if(n-rec.netT>15000){rec.netT=n;toast('Spracherkennung braucht Internet – bitte tippen')}}
+    };
     rec.r=r;
   }
   try{rec.r.start()}catch(e){}
@@ -155,13 +165,22 @@ function recStart(){
 }
 function recStop(){rec.want=false;if(rec.r)try{rec.r.stop()}catch(e){}}
 function onVoice(v,word){
-  if(performance.now()<quietUntil||(window.speechSynthesis&&speechSynthesis.speaking))return; // eigene Ansage ignorieren
+  const now=performance.now();
+  if(now<quietUntil||(window.speechSynthesis&&speechSynthesis.speaking))return; // eigene Ansage ignorieren
   if(testSR.active)return testSR.heard(v,word);
-  if(!$('#intro').classList.contains('hidden')){if(v==='ready')closeIntro();return}
-  if(!$('#summary').classList.contains('hidden')){if(v==='ready'&&nextPlanBtn())nextPlanBtn().click();return}
+  if(now-voiceLast<700)return; // „links daneben“ & Co.: nur das erste Wort zählt
+  const go=v==='yes'||v==='ready';
+  if(!$('#intro').classList.contains('hidden')){if(go){voiceLast=now;closeIntro()}return}
+  if(!$('#summary').classList.contains('hidden')){if(go&&nextPlanBtn()){voiceLast=now;nextPlanBtn().click()}return}
   if(!R||!R.active)return;
-  if(v==='ready')return input('ready');
+  // Aufbauzeit: nur „Ja“/„Bereit“. Die ersten 0,7 s zählen nicht, damit ein spät erkanntes Ergebnis-Wort die Aufbauzeit nicht verkürzt
+  if(R.phase==='ready'){if(go&&now-R.phaseStart>700){voiceLast=now;input('ready')}return}
+  // Korrekturfenster nach erkanntem Schuss: „Ja“ = stimmt so, weiter
+  if(R.phase==='result'&&R.corr&&go){voiceLast=now;confirmCorr();return}
+  if(v==='ready')return; // „Bereit“/„Los“ ist nie ein Ergebnis
+  if(v==='yes')v='hit';   // „Ja“ = Treffer bzw. gefangen
   const seg=inputMode()==='seg';
+  voiceLast=now;
   if(typeof v==='number'&&v>0){if(seg)input(v);return}
   if(v==='hit'){input(seg?(R.target||0)===0?null:R.target:'hit');return}
   if(v==='ml'||v==='mr'){input(v);return}

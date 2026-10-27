@@ -306,3 +306,16 @@ input.sw:disabled{opacity:.4}
 .prres.ok{background:rgba(46,204,113,.12);border-color:rgba(46,204,113,.45)}.prres.ok b{color:var(--hit)}
 .prres.miss{background:rgba(255,77,79,.08);border-color:rgba(255,77,79,.35)}
 @media (max-width:420px){.lps{padding:8px 6px;gap:5px;font-size:13px}}
+
+/* v3.8: Erklärungsknöpfe (ⓘ), Wörterbuch-Tabelle, Daneben-Knöpfe */
+.tipb{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 4px;margin-left:4px;border:0;border-radius:50%;background:transparent;color:var(--mute);font-size:17px;line-height:1;vertical-align:middle;cursor:pointer}
+.tipb:active{color:var(--acc)}
+.thead .tipb{margin:0 6px 0 0}
+.vt{width:100%;border-collapse:collapse;margin:4px 0 10px;font-size:15px}
+.vt th{text-align:left;color:var(--text);font-size:14px;padding:10px 0 4px;border-bottom:1px solid var(--line)}
+.vt td{padding:5px 8px 5px 0;vertical-align:top;color:var(--mute);line-height:1.35}
+.vt td:first-child{color:var(--text);white-space:nowrap;font-weight:600}
+.vt td b{color:var(--text)}
+.tfoot .miss span{font-size:inherit}
+.tfoot .mdir span{font-size:28px;line-height:1}
+.tfoot .miss small{color:inherit;opacity:.75}

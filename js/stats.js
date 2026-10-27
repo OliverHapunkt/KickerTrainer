@@ -108,27 +108,33 @@ function chartGoal(W,a){
       +'<rect class="hit" x="'+X+'" y="0" width="'+cw+'" height="'+H+'" data-tip="Segment '+g+'\n'+(n?h+' von '+n+' getroffen ('+pct(r)+')':'keine Daten')+'"/>';
   }
   s+='<line x1="0" x2="'+W+'" y1="'+(H-12)+'" y2="'+(H-12)+'" stroke="#3a404a" stroke-width="3" stroke-linecap="round"/>';
-  return card('Torkarte','<div class="scrollx">'+svg(W,H,s)+'</div>'+dvgLegend(avg),'Trefferquote je Zielsegment · Segment 1 = links aus Schützensicht');
+  return card('Torkarte '+tipBtn('torkarte'),'<div class="scrollx">'+svg(W,H,s)+'</div>'+dvgLegend(avg),'Trefferquote je Zielsegment · Segment 1 = links aus Schützensicht');
 }
 function scaleLegend(){return'<div class="legend"><span><i style="background:linear-gradient(90deg,'+seq(0)+','+seq(1)+');width:60px"></i>0 → 100 %</span><span>blass = weniger als 5 Versuche</span></div>'}
+/* Wo der Ball landete: Segment 1–5, 'L'/'R' = links/rechts neben dem Tor (Wand), 'U' = Miss ohne Angabe wohin */
+function colOf(z){return z.l>0?z.l:z.md==='l'?'L':z.md==='r'?'R':'U'}
 function chartMatrix(W,a){
-  const sh=a.filter(z=>z.st==='shot'&&typeof z.g==='number'&&z.g>0&&(typeof z.l==='number'));if(sh.length<5)return'';
-  const rows=[1,2,3,4,5].filter(g=>sh.some(z=>z.g===g)),cols=[1,2,3,4,5,0];
-  const L=58,Rr=30,cell=Math.min(54,(W-L-Rr)/6),H=24+rows.length*(cell+4);let s='';
-  cols.forEach((c,j)=>s+='<text x="'+(L+j*cell+cell/2)+'" y="14" text-anchor="middle">'+(c?c:'✗')+'</text>');
+  // „Unklar“ (Miss ohne Angabe) gehört nicht in die genaue Auswertung, bleibt aber Fehlschuss in der Quote
+  const all=a.filter(z=>z.st==='shot'&&typeof z.g==='number'&&z.g>0&&typeof z.l==='number'),sh=all.filter(z=>colOf(z)!=='U'),unk=all.length-sh.length;
+  if(sh.length<5)return'';
+  const rows=[1,2,3,4,5].filter(g=>sh.some(z=>z.g===g)),cols=[1,2,3,4,5,'L','R'];
+  const colName=c=>c==='L'?'links neben dem Tor':c==='R'?'rechts neben dem Tor':'Segment '+c;
+  const L=58,Rr=30,cell=Math.min(54,(W-L-Rr)/7),H=24+rows.length*(cell+4);let s='';
+  cols.forEach((c,j)=>s+='<text x="'+(L+j*cell+cell/2)+'" y="14" text-anchor="middle">'+(c==='L'?'←':c==='R'?'→':c)+'</text>');
   rows.forEach((g,i)=>{
     const x=sh.filter(z=>z.g===g),Y=22+i*(cell+4);
     s+='<text x="'+(L-10)+'" y="'+(Y+cell/2+4)+'" text-anchor="end">Ziel '+g+'</text>';
     cols.forEach((c,j)=>{
-      const k=x.filter(z=>z.l===c).length,r=k/x.length,X=L+j*cell;
+      const k=x.filter(z=>colOf(z)===c).length,r=k/x.length,X=L+j*cell;
       s+='<rect x="'+(X+2)+'" y="'+Y+'" width="'+(cell-4)+'" height="'+cell+'" rx="7" fill="'+(k?seq(r):'#1e2229')+'"'+(c===g?' stroke="'+C_TXT+'" stroke-width="2"':'')+'/>';
       if(k)s+='<text x="'+(X+cell/2)+'" y="'+(Y+cell/2+4)+'" text-anchor="middle" style="fill:'+seqTxt(r)+';font-weight:600">'+Math.round(r*100)+'</text>';
-      s+='<rect class="hit" x="'+X+'" y="'+Y+'" width="'+cell+'" height="'+cell+'" data-tip="Ziel '+g+' → '+(c?'Segment '+c:'daneben')+'\n'+k+' von '+x.length+' ('+pct(r)+')'+(c===g?'\n= Treffer':'')+'"/>';
+      s+='<rect class="hit" x="'+X+'" y="'+Y+'" width="'+cell+'" height="'+cell+'" data-tip="Ziel '+g+' → '+colName(c)+'\n'+k+' von '+x.length+' ('+pct(r)+')'+(c===g?'\n= Treffer':'')+'"/>';
     });
-    const w=x.filter(z=>z.l>0&&!z.h);const dev=w.length?w.reduce((p,z)=>p+(z.l-z.g),0)/w.length:0;
-    s+='<text x="'+(L+6*cell+10)+'" y="'+(Y+cell/2+4)+'">'+(w.length<2?'':dev<-.25?'←':dev>.25?'→':'·')+'</text>';
+    const sc=sideCount(x.filter(z=>!z.h)),p=sc.n?sc.l/sc.n:.5;
+    s+='<text x="'+(L+7*cell+10)+'" y="'+(Y+cell/2+4)+'">'+(sc.n<2?'':p>.6?'←':p<.4?'→':'·')+'</text>';
   });
-  return card('Wohin geht der Ball?','<div class="scrollx">'+svg(W,H,s)+'</div><div class="legend"><span>Zeile = angesagtes Ziel · Spalte = wo der Ball landete · Rahmen = Treffer · Werte in % der Zeile · ← / → = Fehlschüsse gehen eher links / rechts</span></div>','Nur Schüsse mit Segment-Eingabe');
+  return card('Wohin geht der Ball? '+tipBtn('matrix'),'<div class="scrollx">'+svg(W,H,s)+'</div><div class="legend"><span>Zeile = angesagtes Ziel · Spalte = wo der Ball landete (← / → = links / rechts neben dem Tor, aus Schützensicht) · Rahmen = Treffer · Werte in % der Zeile · Pfeil rechts = Fehlschüsse gehen eher links / rechts</span></div>'
+    +(unk?'<p class="hint">'+unk+(unk===1?' Fehlschuss ohne Angabe wohin („Miss“) ist':' Fehlschüsse ohne Angabe wohin („Miss“) sind')+' hier nicht enthalten, '+(unk===1?'zählt':'zählen')+' aber in der Quote als Fehlschuss.</p>':''),'Nur Schüsse mit genauer Eingabe');
 }
 function chartTechTarget(W,group){
   const a=group.arr,techs=[...new Set(a.map(z=>z.k))],ts=TORDER.filter(t=>a.some(z=>z.g===t));
@@ -316,7 +322,9 @@ function renderEntries(x){
     const idx=D.shots.indexOf(z),seg=z.st==='shot'&&typeof z.g==='number'&&z.g>0&&typeof z.l==='number';
     h+='<div class="erow"><span>'+(i+1)+'. '+esc(z.k)+' → '+tl(z.g,z.st)+(z.st==='pass'&&DISC[z.d]&&DISC[z.d].kind==='combo'?' (Pass)':'')+(z.fix?' ✎':'')+'</span>';
     if(seg){for(let n=1;n<=5;n++)h+='<button class="eb'+(z.l===n?(z.h?' on':' onm'):'')+'" data-act="set" data-i="'+idx+'" data-v="'+n+'">'+n+'</button>';
-      h+='<button class="eb'+(z.l===0?' onm':'')+'" data-act="set" data-i="'+idx+'" data-v="0">✗</button>'}
+      h+='<button class="eb'+(z.l===0&&z.md==='l'?' onm':'')+'" data-act="md" data-i="'+idx+'" data-v="l" aria-label="links neben dem Tor">←</button>'
+        +'<button class="eb'+(z.l===0&&!z.md?' onm':'')+'" data-act="set" data-i="'+idx+'" data-v="0" aria-label="daneben, unklar wohin">✗</button>'
+        +'<button class="eb'+(z.l===0&&z.md==='r'?' onm':'')+'" data-act="md" data-i="'+idx+'" data-v="r" aria-label="rechts neben dem Tor">→</button>'}
     else{h+='<button class="eb'+(z.h?' on':'')+'" data-act="hit" data-i="'+idx+'" data-v="1">✓</button><button class="eb'+(!z.h&&!z.md?' onm':'')+'" data-act="hit" data-i="'+idx+'" data-v="0">✗</button>';
       if(z.st==='shot'&&(S.missDir||z.md))h+='<button class="eb'+(!z.h&&z.md==='l'?' onm':'')+'" data-act="md" data-i="'+idx+'" data-v="l" aria-label="links daneben">←✗</button><button class="eb'+(!z.h&&z.md==='r'?' onm':'')+'" data-act="md" data-i="'+idx+'" data-v="r" aria-label="rechts daneben">✗→</button>'}
     h+='<button class="eb" data-act="rm" data-i="'+idx+'" aria-label="Eintrag löschen">'+icon('trash')+'</button></div>';
