@@ -24,7 +24,7 @@ function micBlocker(){
   try{if(window.top!==window.self)return'Seite läuft eingebettet (Vorschau) – direkt in Safari öffnen'}catch(e){return'Seite läuft eingebettet (Vorschau) – direkt in Safari öffnen'}
   return'';
 }
-const mic={on:false,stream:null,an:null,buf:null,amb:.01,last:0,raf:0,testHit:0};
+const mic={on:false,stream:null,an:null,buf:null,amb:.01,last:0,raf:0,testHit:0,gap:DET.GAP,rms:0,thr:0,peak:0};
 async function micStart(){
   if(mic.on)return true;
   try{
@@ -35,7 +35,7 @@ async function micStart(){
     mic.stream=await p;
     if(actx.state!=='running')await actx.resume();
     const src=actx.createMediaStreamSource(mic.stream);
-    mic.an=actx.createAnalyser();mic.an.fftSize=1024;mic.buf=new Float32Array(mic.an.fftSize);
+    mic.an=actx.createAnalyser();mic.an.fftSize=2048;mic.buf=new Float32Array(mic.an.fftSize);
     src.connect(mic.an);mic.on=true;mic.amb=.01;micLoop();return true;
   }catch(e){
     const m=e.name==='NotAllowedError'?'Mikrofon blockiert – in Einstellungen › Safari › Mikrofon (bzw. „aA“ › Website-Einstellungen) erlauben'
@@ -44,17 +44,22 @@ async function micStart(){
     return false}
 }
 function micStop(){if(mic.stream)mic.stream.getTracks().forEach(t=>t.stop());mic.on=false;cancelAnimationFrame(mic.raf)}
+/* Schwelle Ton: kalibriert (feste Zahl) oder – ohne Kalibrierung – Umgebungspegel × Regler, wie bisher */
+function thrA(){return S.cal&&S.cal.a?S.cal.a:Math.max(mic.amb*S.sens,DET.A_MIN)}
+function thrM(){return S.cal&&S.cal.m?S.cal.m:Math.max(mot.amb*S.msens,DET.M_MIN)}
 function micLoop(){
   if(!mic.on)return;
   mic.an.getFloatTimeDomainData(mic.buf);
-  let s=0;for(let i=0;i<mic.buf.length;i++)s+=mic.buf[i]*mic.buf[i];
-  const rms=Math.sqrt(s/mic.buf.length),thr=Math.max(mic.amb*S.sens,.02),now=performance.now();
-  mic.rms=rms;mic.thr=thr;
-  if(rms>thr){if(now-mic.last>400){mic.last=now;sensorHit('a',now)}}else mic.amb=mic.amb*.98+rms*.02;
+  const bl=blockRms(mic.buf),thr=cal.on?cal.thrA():thrA(),now=performance.now(),o=findOnset(bl,thr);
+  mic.rms=o.peak;mic.thr=thr;mic.peak=o.peak;
+  if(cal.on)cal.frame('a',o.peak,now);
+  if(o.ok){if(now-mic.last>mic.gap){mic.last=now;sensorHit('a',now,o.peak)}}
+  else if(!S.cal||!S.cal.a){ // Umgebungspegel nur ohne Kalibrierung nachführen
+    const mean=bl.reduce((a,b)=>a+b,0)/bl.length;if(mean<thr)mic.amb=mic.amb*.98+mean*.02}
   mic.raf=requestAnimationFrame(micLoop);
 }
 /* ---------- Erschütterung (Beschleunigungssensor) ---------- */
-const mot={on:false,prev:null,amb:.05,lvl:0,thr:0,last:0,peak:0,n:0};
+const mot={on:false,prev:null,amb:.05,lvl:0,thr:0,last:0,peak:0,n:0,hist:[],gap:DET.GAP};
 async function motStart(){
   if(mot.on)return true;
   try{
@@ -70,15 +75,20 @@ function onMotion(e){
   const a=e.accelerationIncludingGravity||e.acceleration;if(!a||a.x==null)return;
   mot.n++;
   if(mot.prev){
-    const d=Math.hypot(a.x-mot.prev.x,a.y-mot.prev.y,a.z-mot.prev.z),now=performance.now();
-    mot.lvl=d;mot.thr=Math.max(mot.amb*S.msens,.08);
-    if(d>mot.thr){if(now-mot.last>400){mot.last=now;sensorHit('m',now)}}else mot.amb=mot.amb*.97+d*.03;
+    const d=Math.hypot(a.x-mot.prev.x,a.y-mot.prev.y,a.z-mot.prev.z),now=performance.now(),thr=cal.on?cal.thrM():thrM();
+    mot.lvl=d;mot.thr=thr;
+    const o=motOnset(d,mot.hist,thr);
+    if(cal.on)cal.frame('m',d,now);
+    if(o.ok){if(now-mot.last>mot.gap){mot.last=now;sensorHit('m',now,d)}}
+    else if(!S.cal||!S.cal.m){if(d<thr)mot.amb=mot.amb*.97+d*.03}
+    mot.hist.push(d);if(mot.hist.length>8)mot.hist.shift();
   }
   mot.prev={x:a.x,y:a.y,z:a.z};
 }
 /* ---------- Fusion ---------- */
 const fus={a:-1e9,m:-1e9,fired:-1e9,flash:{a:0,m:0}};
-function sensorHit(src,now){
+function sensorHit(src,now,amp){
+  if(cal.on){fus.flash[src]=now;cal.event(src,now,amp);return} // Kalibrierung hört selbst zu, löst nichts aus
   fus[src]=now;fus.flash[src]=now;
   const det=S.det,need=det==='both'?(fus.a>now-250&&fus.m>now-250):det==='either'?true:det==='audio'?src==='a':src==='m';
   if(need&&now-fus.fired>400){fus.fired=now;onImpulse(now)}

@@ -181,6 +181,7 @@ function renderHome(){
   $('#oVoiceIn').disabled=!SR;$('#oMSens').value=S.msens;
   $('#srNote').textContent=SR?'Spracheingabe braucht Internet (bei Safari teils über Apple-Server) und kann das Mikrofon der Schusserkennung stören. Tippen geht immer.':'Dieser Browser unterstützt keine Spracherkennung – Eingabe nur per Tippen.';
   $('#wDet').classList.toggle('hidden',!S.mic);
+  $('#calState').textContent=S.cal?'Kalibriert am '+new Date(S.cal.at).toLocaleDateString('de-DE')+'. Bei anderem Tisch oder Ort neu kalibrieren.':'Nicht kalibriert – die Schwelle folgt dem Umgebungspegel. Kalibrieren ist genauer (Knopf unten).';
   $('#oAuto').checked=S.autoCount;$('#wCorr').classList.toggle('hidden',!S.autoCount);$('#oAuto').disabled=!S.mic;$('#oAuto').closest('.row').style.opacity=S.mic?'':'.5';
   chips($('#cCorr'),[2,3,5].map(n=>({v:n,t:n+' s'})),v=>S.corrWin===v,v=>S.corrWin=v);
   chips($('#cDet'),[{v:'audio',t:'Ton'},{v:'motion',t:'Erschütterung'},{v:'both',t:'Ton + Erschütterung'},{v:'either',t:'Ton oder Erschütterung'}],v=>S.det===v,v=>{S.det=v;if(S.mic)detStart()});

@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.12.1-green)
+![Version](https://img.shields.io/badge/version-3.13.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.12.1 · 2026-10-27`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.13.0 · 2026-10-28`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -74,8 +74,12 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.12.1 · 202
 - „Ton + Erschütterung“ löst am seltensten fälschlich aus (Stimmen, Nachbartisch)
 - **Auto-Treffer** (optional): Erkannte Schüsse zählen als Treffer auf das angesagte Ziel, im Korrekturfenster (2/3/5 s) wird korrigiert („Ja“ bestätigt und geht weiter). Gilt bei „Einfach“ und „Genau“
 - Reaktionszeiten werden nur mit aktiver Schusserkennung gemessen
-- Empfindlichkeit für Ton und Erschütterung einstellbar
+- **Erkennungsregel:** Ein Schuss ist ein *plötzlicher und lauter* Knall – Spitze über der Schwelle **und** mindestens 3× so laut wie die Zeit kurz davor (`js/detector.js`). Dauerhafte Geräusche (Sprechen, Musik, rollender Ball) fallen so durch, ohne dass die Schwelle hochgedreht werden muss
+- **Kalibrierung** (Einstellungen › „Schusserkennung kalibrieren & testen“, `js/calibrate.js`): 3 s Ruhe messen, dann 3 Schüsse aufs Tor. Schwelle = 40 % des leisesten Schusses, mindestens 3× die lauteste Ruhe-Spitze. Die App wählt selbst, ob Ton, Erschütterung oder beides verlässlich ist, und schaltet die Schusserkennung ein. Gilt pro Gerät; bei anderem Tisch oder Ort neu kalibrieren
+- Ohne Kalibrierung: Schwelle folgt dem Umgebungspegel, Empfindlichkeit für Ton und Erschütterung per Regler einstellbar
+- Bekannte Grenze: Sprechen oder Schreien, das schlagartig aus der Stille einsetzt, kann den Ton-Kanal einmal auslösen. Schutz: „Ton + Erschütterung“
 - Testseite für Mikrofon, Sprachansage und Spracheingabe
+- **iPhone quer:** eigenes Layout (Segmente und Rückmeldung im Fokus, Status und Balken kompakt)
 
 ### Spracheingabe (Beta)
 - Wörterbuch siehe v3.8 (in der App: ⓘ im Training oder bei Spracheingabe)
@@ -128,7 +132,9 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.12.1 · 202
   |---|---|
   | `ui.js` | Icons, Dialoge (`ask`, `askText`, `info`), Einführung |
   | `core.js` | Konstanten, Disziplinen, Speicher (`localStorage`), Hilfsfunktionen, Navigation und die beiden Hälften (`MODES`, `show`, `go`, `setMode`, `renderTabbar`) |
+  | `detector.js` | Reine Rechenlogik der Schusserkennung und Kalibrierung (ohne DOM, im Terminal testbar) |
   | `sensors.js` | Signaltöne, Sprachansage, Schusserkennung (Ton/Erschütterung), Spracheingabe, Wake Lock |
+  | `calibrate.js` | Ablauf und Anzeige der Kalibrierung |
   | `home.js` | Startseite, Konfiguration, Schwachstellen-Planung |
   | `training.js` | Trainingsablauf, Eingabe, Korrektur, Auswertung nach der Session |
   | `stats.js` | Statistikseite und Diagramme |

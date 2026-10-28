@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.12.1',d:'2026-10-27'};
+window.KT_VER={v:'3.13.0',d:'2026-10-28'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -67,9 +67,9 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <div class="simple hidden" id="simple"><button class="sbtn no dir hidden" id="bNoL"><span>←</span><small>Daneben links</small></button><button class="sbtn yes" id="bYes">Treffer</button><button class="sbtn no" id="bNo">Daneben</button><button class="sbtn no dir hidden" id="bNoR"><span>→</span><small>Daneben rechts</small></button></div>
   </div>
   <div class="tfoot">
-    <button id="btnUndo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><small>Rückgängig</small></button>
+    <button id="btnUndo" aria-label="Rückgängig"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><small>Rückgängig</small></button>
     <button id="btnMissL" class="miss mdir hidden" aria-label="Daneben links neben dem Tor"><span>←</span><small>links daneben</small></button><button id="btnMiss" class="miss"><span>Daneben</span><small>unklar wohin</small></button><button id="btnMissR" class="miss mdir hidden" aria-label="Daneben rechts neben dem Tor"><span>→</span><small>rechts daneben</small></button>
-    <button id="btnEnd"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><small>Ende</small></button>
+    <button id="btnEnd" aria-label="Training beenden"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><small>Ende</small></button>
   </div>
 </section>
 
@@ -111,9 +111,10 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <label class="row"><span>Schusserkennung <button type="button" class="tipb" data-tip-k="detect" aria-label="Erklärung">ⓘ</button><small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" class="sw" id="oMic"></label>
     <label class="row"><span>Auto-Treffer <button type="button" class="tipb" data-tip-k="autocount" aria-label="Erklärung">ⓘ</button><small>Ein erkannter Schuss zählt als Treffer auf das angesagte Ziel. Im Korrekturfenster kannst du ihn überschreiben. Nur mit Schusserkennung, nur bei Schüssen</small></span><input type="checkbox" class="sw" id="oAuto"></label>
     <div class="sub" id="wDet"><label>Erkennung über <button type="button" class="tipb" data-tip-k="detect" aria-label="Erklärung">ⓘ</button></label><div class="chips" id="cDet"></div>
+      <p class="hint" id="calState" style="margin-bottom:0"></p>
       <div class="sub" id="wCorr"><label>Korrekturfenster</label><div class="chips sc" id="cCorr"></div></div>
       <p class="hint">„Ton + Erschütterung“ = beide müssen gleichzeitig ausschlagen: am wenigsten Fehlauslöser (Stimmen, Nachbartisch). Erschütterung braucht iPad direkt auf dem Tisch.</p></div>
-    <button class="big" id="btnTest">Mikrofon &amp; Sprache testen</button>
+    <button class="big" id="btnTest">Schusserkennung kalibrieren &amp; testen</button>
   </div>
   <div class="card" id="acct"><h2>Konto &amp; Sicherung</h2>
     <div id="acOut">
@@ -210,15 +211,24 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <button class="big primary" id="btnSR">Test starten</button>
     <p class="hint">Aus deiner Spielposition sprechen, normale Lautstärke. Wenn „Ja“ zuverlässig erkannt wird, lohnt sich die Spracheingabe.</p>
   </div>
-  <div class="card"><h2>Schusserkennung</h2>
+  <div class="card" id="calCard"><h2>Kalibrierung <button type="button" class="tipb" data-tip-k="calib" aria-label="Erklärung">ⓘ</button></h2>
+    <div class="calmsg" id="calMsg"></div>
+    <div class="caldots hidden" id="calDots"></div>
+    <p class="hint" id="calInfo" style="margin-top:8px"></p>
+    <button class="big primary" id="btnCal">Kalibrieren</button>
+    <button class="big hidden" id="btnCalReset">Kalibrierung verwerfen</button>
+  </div>
+  <div class="card"><h2>Schusserkennung prüfen</h2>
     <button class="big" id="btnMicTest">Mikrofon an</button>
-    <div class="row"><span>Ton – Schwelle</span><input type="range" id="oSens" min="1.5" max="8" step="0.5"></div>
     <div class="meter mA"><i></i><b></b></div>
-    <div class="row"><span>Erschütterung – Schwelle</span><input type="range" id="oMSens" min="1.5" max="10" step="0.5"></div>
     <div class="meter mM"><i></i><b></b></div>
     <div class="mstate" id="mStateTest"></div>
     <div class="verdict" id="micVerdict"></div>
-    <p class="hint">Schuss ans Tor → grüner Balken klar über die rote Marke, Umgebung klar darunter. Regler rechts = unempfindlicher.</p>
+    <p class="hint">Schuss ans Tor → der Balken springt über die rote Marke und „Schuss erkannt“ erscheint. Oben Ton, unten Erschütterung.</p>
+    <div class="sub" id="manSens"><h2 style="margin-top:14px">Von Hand einstellen</h2>
+      <div class="row" id="rowSens"><span>Ton – Schwelle</span><input type="range" id="oSens" min="1.5" max="8" step="0.5"></div>
+      <div class="row" id="rowMSens"><span>Erschütterung – Schwelle</span><input type="range" id="oMSens" min="1.5" max="10" step="0.5"></div>
+      <p class="hint">Nur ohne Kalibrierung. Regler rechts = unempfindlicher.</p></div>
   </div>
 </section>
 
@@ -227,7 +237,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <div id="summary" class="overlay hidden"><div class="sheet" id="summaryBody"></div></div>
 <script>
 // Skripte in fester Reihenfolge laden (async=false), alle teilen sich denselben globalen Gültigkeitsbereich
-['core','ui','sensors','home','training','stats','gamification','learn','play','tools','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
+['core','ui','detector','sensors','home','training','stats','gamification','learn','play','tools','calibrate','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
 </script>
 </body>
 </html>
