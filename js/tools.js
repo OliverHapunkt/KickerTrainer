@@ -10,8 +10,9 @@ function renderTest(){
   $('#btnSR').disabled=!SR;$('#btnSR').textContent=testSR.active?'Test stoppen':'Test starten';
   $('#btnMicTest').textContent=(mic.on||mot.on)?'Sensoren aus':'Mikrofon + Erschütterung an';
   const b=micBlocker();if(b&&!mic.on){$('#micVerdict').textContent=b;$('#micVerdict').style.color='var(--miss)'}
+  calRender();
 }
-$('#btnTestBack').onclick=()=>{testSR.active=false;rec.onText=null;recStop();show('settings')};
+$('#btnTestBack').onclick=()=>{cal.cancel();testSR.active=false;rec.onText=null;recStop();show('settings')};
 function renderDataHint(){$('#dataHint').textContent=(CL&&CL.user?'Deine Daten werden mit deinem Konto abgeglichen. Die Sicherung als Datei ist zusätzlich möglich.':'Daten liegen nur auf diesem Gerät. iPad ↔ iPhone: exportieren (z. B. AirDrop) und drüben importieren – Duplikate werden erkannt.')+' Tipp: App „Zum Home-Bildschirm“ hinzufügen, sonst kann Safari Daten nach 7 Tagen ohne Besuch löschen.'}
 $('#tsNum').onclick=()=>{ensureAudio();speak('Drei','de-DE',true)};
 $('#tsWall').onclick=()=>{ensureAudio();speak('wall','en-US',true)};
@@ -20,7 +21,7 @@ $('#btnSR').onclick=()=>{
   testSR.active=true;testSR.i=0;$('#sSay').textContent='Sag: „Ja“';$('#sVerdict').textContent='';
   rec.onText=t=>{$('#sHeard').textContent='gehört: '+t};recStart();renderTest();
 };
-$('#btnMicTest').onclick=async()=>{if(mic.on||mot.on)detStop();else{const s=S.det;if(!S.mic)S.det='either';await Promise.all([micStart(),motStart()]);S.det=s}renderTest()};
+$('#btnMicTest').onclick=async()=>{cal.cancel();if(mic.on||mot.on)detStop();else{const s=S.det;if(!S.mic)S.det='either';await Promise.all([micStart(),motStart()]);S.det=s}renderTest()};
 
 /* ---------- Export / Import ---------- */
 $('#btnExport').onclick=async()=>{

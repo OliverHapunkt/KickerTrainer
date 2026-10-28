@@ -144,6 +144,7 @@ function renderTrain(){
   $('#area').classList.toggle('split',(showSeg&&m==='simple')||showP);
   $('#simple').classList.toggle('hidden',R.phase==='ready'||m!=='simple');
   const dir=dirOn(); // nur Wertung „Einfach“ + Einstellung „Daneben mit Richtung“
+  $('#train .tfoot').classList.toggle('exact',m==='seg');
   $('#btnMiss').classList.toggle('hidden',m!=='seg');$('#btnMissL').classList.toggle('hidden',m!=='seg');$('#btnMissR').classList.toggle('hidden',m!=='seg'); // „Genau“: links / unklar / rechts immer
   $('#bNo').classList.toggle('hidden',dir);$('#bNoL').classList.toggle('hidden',!dir);$('#bNoR').classList.toggle('hidden',!dir);$('#simple').classList.toggle('dir',dir);
   $('#area').classList.toggle('off',!live&&R.phase!=='ready'&&!R.corr);
@@ -180,7 +181,7 @@ function tick(){
   if(S.mic&&R.detectAt!=null&&!R.undo&&(R.phase==='call'||R.phase==='aim'))txt+=' · ⚡ '+fmt((R.detectAt-R.callAt)/1000)+' s'+(inputMode()==='seg'?' · wohin?':'');
   const key=txt+cls;
   const sc=(R.phase==='aim'||R.phase==='call')&&!R.undo&&!cls.includes('late')&&!mb&&curKind()==='shot'?targetColor():null;
-  if(key+sc!==lastTxt){const st=$('#tStatus');st.textContent=txt;st.className='status '+cls;st.style.color=sc||'';lastTxt=key+sc}
+  if(key+sc!==lastTxt){const st=$('#tStatus');st.textContent=txt;st.className='status '+cls+(txt.length>26?' long':'');st.style.color=sc||'';lastTxt=key+sc}
   $('#tBar').style.width=(frac*100)+'%';
   // Zähler
   if(R.cfg.amt==='count')$('#tCount').textContent=Math.min(R.reps+1,R.cfg.count)+' / '+R.cfg.count;

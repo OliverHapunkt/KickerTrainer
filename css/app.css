@@ -45,7 +45,7 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute
 /* Schmal (iPhone): Übungsname links über die volle Breite und umbrechend statt
    abgeschnitten, Zähler rechts daneben, Serie/Quote darunter. Drei gleich breite
    Drittel ließen dem Namen nur ~140 px. */
-@media (max-width:500px){
+@media (max-width:500px),(orientation:landscape) and (max-height:520px){
   .thead{grid-template-columns:1fr auto;grid-template-areas:"mode count" "rate rate";font-size:14px;row-gap:2px}
   .thead>div:nth-child(1){grid-area:mode;white-space:normal;line-height:1.25}
   .thead>div:nth-child(2){grid-area:count}
@@ -418,3 +418,49 @@ body.play{--acc:#1fb8a6}
 /* Offene Bestätigungen hervorheben */
 .card.todo{border-color:var(--acc);background:rgba(31,184,166,.06)}
 .card.todo .mrow{cursor:pointer}
+
+/* ===== v3.13 Kalibrierung ===== */
+.calmsg{font-size:26px;font-weight:800;text-align:center;margin:6px 0;line-height:1.2}
+.calmsg.alert{color:var(--acc)}.calmsg.ok{color:var(--hit)}.calmsg.late{color:var(--miss)}
+.caldots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.caldots>div{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:8px 4px;text-align:center}
+.caldots>div.on{border-color:var(--hit)}
+.caldots b{display:block;font-size:22px}
+.caldots small{display:block;color:var(--mute);font-size:12px;min-height:1.2em;line-height:1.25}
+
+/* ===== v3.13 Training im Querformat am Handy =====
+   Hochkant ist der Trainingsbildschirm eine Spalte: Kopf, Status, Felder, Tasten. Quer fehlt dafür die Höhe
+   (≈ 350 px), und alles lief übereinander. Jetzt zwei Spalten:
+   links  Kopf, Status/Rückmeldung (groß), Balken, kleine Sensoranzeige
+   rechts die Felder (Segmente 1–5 bzw. Treffer/Daneben bzw. BEREIT) und darunter die Tasten
+   Nur Handys: iPads sind quer hoch genug und bleiben beim Hochkant-Layout. */
+@media (orientation:landscape) and (max-height:520px){
+  #train{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,8fr);grid-template-rows:auto minmax(0,1fr) auto auto auto;
+    grid-template-areas:"head area" "stat area" "bar area" "wlive area" "mlive foot";
+    column-gap:12px;row-gap:4px;
+    padding:calc(env(safe-area-inset-top) + 6px) max(12px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 6px) max(12px,env(safe-area-inset-left))}
+  #train .thead{grid-area:head}
+  #train .status{grid-area:stat;align-self:center;text-align:left;font-size:clamp(22px,9.5vh,42px);line-height:1.12;min-height:0;overflow-wrap:anywhere}
+  #train .status.long{font-size:clamp(16px,6.2vh,27px);line-height:1.2} /* lange Texte (Auto-Treffer + Hinweis) kleiner, damit sie in die Spalte passen */
+  #train .bar{grid-area:bar}
+  #train .wlive{grid-area:wlive;font-size:12px;text-align:left}
+  #train .mlive{grid-area:mlive;font-size:11px;gap:3px 6px}
+  #train .mlive .meter{height:8px}
+  #train .mstate{font-size:11px;line-height:1.25}
+  #train .area{grid-area:area}
+  #train .tfoot{grid-area:foot;gap:6px}
+  #train .tfoot button{min-height:50px;font-size:15px;border-radius:14px}
+  #train .tfoot .miss{flex:2;font-size:16px}
+  #train .tfoot .mdir{flex:1.5}
+  #train .tfoot .mdir span{font-size:22px}
+  #train .tfoot .miss small{font-size:11px}
+  #train .tfoot .ic{width:20px;height:20px}
+  #train .tfoot.exact #btnUndo small,#train .tfoot.exact #btnEnd small{display:none}
+  #train .tfoot.exact #btnUndo,#train .tfoot.exact #btnEnd{flex:.8}
+  .seg{font-size:clamp(30px,17vh,84px);border-radius:12px;border-width:2px}
+  .segs{gap:6px}
+  .sbtn{font-size:clamp(24px,10vh,52px);border-radius:16px}
+  .sbtn.dir{font-size:clamp(24px,9vh,44px)}.sbtn.dir small{font-size:clamp(11px,3.4vh,16px)}
+  .readybtn{font-size:clamp(30px,15vh,84px);border-radius:18px}
+  .area.split{gap:6px}
+}

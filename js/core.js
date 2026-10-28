@@ -18,7 +18,7 @@ const NUM=['','Eins','Zwei','Drei','Vier','Fünf'];
 const TORDER=[0,1,2,3,4,5,'wall','lane'];
 // ready = Aufbauzeit nach jedem Versuch: 'auto' (Countdown, „Ja“/Tippen verkürzt), 'tap' (wartet auf „Ja“/Tippen), 'off' (nur bei freiem Tempo)
 const DEFCFG={d:'s3',tech:'Pull',tech2:'Pull',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',wt:['Pull'],wt2:['Pull'],weakN:10,timing:'free',window:2,ready:'auto',auto:5,scoring:'exact',amt:'count',count:20,minutes:10,pr:0};
-const DEF={cfg:DEFCFG,plan:[],presets:[],cfgOpen:false,mode:'train',missDir:false,lp:true,stdOn:true,voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,det:'audio',autoCount:true,corrWin:3};
+const DEF={cfg:DEFCFG,plan:[],presets:[],cfgOpen:false,mode:'train',missDir:false,lp:true,stdOn:true,voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,cal:null,det:'audio',autoCount:true,corrWin:3};
 
 function clone(o){return JSON.parse(JSON.stringify(o))}
 function load(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v||clone(d)}catch(e){return clone(d)}}
