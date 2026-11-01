@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.13.0',d:'2026-10-28'};
+window.KT_VER={v:'3.14.0',d:'2026-11-01'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -21,8 +21,14 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
   <header class="ptitle phead"><h1>Training</h1><button class="lvlchip hidden" id="lvlChip" aria-label="Level-Details"></button></header>
 
   <div class="card qcard">
-    <div class="qhead"><h2>Aktuelle Übung</h2><button class="link" id="btnCfg" aria-expanded="false">Anpassen</button></div>
+    <div class="chips sc" id="cLvl" aria-label="Modus"></div>
+    <div class="qhead tap"><h2>Aktuelle Übung</h2><button class="link pill" id="btnCfg" aria-expanded="false">Anpassen</button></div>
     <p class="qsum" id="cfgSum"></p>
+    <div id="simpleWrap" class="hidden">
+      <div class="sub"><label>Übung</label><div class="chips sc" id="sDisc"></div></div>
+      <div class="sub"><label>Technik</label><div class="chips" id="sTech"></div></div>
+      <div class="sub"><label>Anzahl</label><div class="chips sc" id="sAmt"></div></div>
+    </div>
     <div id="cfgWrap" class="hidden">
       <div class="sub"><label>Disziplin</label><div class="chips" id="cDisc"></div></div>
       <div class="sub"><label id="lTech">Technik</label><div class="chips" id="cTech"></div></div>

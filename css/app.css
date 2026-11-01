@@ -167,6 +167,8 @@ table.hm{width:100%;border-collapse:separate;border-spacing:4px;font-size:14px}
 /* Aktuelle Übung */
 .qhead{display:flex;align-items:center;justify-content:space-between;gap:10px}.qhead h2{margin:0}
 .link{background:none;border:0;color:var(--acc);font-size:16px;font-weight:600;padding:8px 0 8px 12px;min-height:44px}
+.qcard>#cLvl{margin-bottom:10px}.qcard>#cLvl .chip{min-height:38px;font-size:14px}
+.qcard #simpleWrap{margin-top:12px}.qhead.tap{cursor:pointer}.link.pill{border:1px solid var(--acc);border-radius:22px;padding:6px 14px;min-height:40px}.link.pill .chev{font-size:13px;margin-left:4px}
 .qsum{font-size:19px;font-weight:600;line-height:1.4;margin:6px 0 2px}
 .qsum small{display:block;font-size:14px;font-weight:400;color:var(--mute);margin-top:2px}
 #cfgWrap{margin-top:8px}

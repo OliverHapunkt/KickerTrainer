@@ -121,9 +121,17 @@ function cfgSummary(c){
   return{head,sub:p.join(' · ')}}
 function renderHome(){
   const c=S.cfg,d=DISC[c.d];
-  const sm=cfgSummary(c);$('#cfgSum').innerHTML=esc(sm.head)+'<small>'+esc(sm.sub)+'</small>';
-  $('#cfgWrap').classList.toggle('hidden',!S.cfgOpen);
-  $('#btnCfg').textContent=S.cfgOpen?'Fertig':'Anpassen';$('#btnCfg').setAttribute('aria-expanded',String(!!S.cfgOpen));
+  const simple=S.lvl==='simple',sc=curCfg();
+  chips($('#cLvl'),[{v:'simple',t:'Simple'},{v:'pro',t:'Profi'}],v=>S.lvl===v,v=>S.lvl=v);
+  const sm=simple?{head:DISC[sc.d].n+' · '+sc.tech,sub:sc.count+' Versuche · alle Ziele'}:cfgSummary(sc);$('#cfgSum').innerHTML=esc(sm.head)+'<small>'+esc(sm.sub)+'</small>';
+  $('#cfgWrap').classList.toggle('hidden',simple||!S.cfgOpen);
+  $('#simpleWrap').classList.toggle('hidden',!simple||!S.cfgOpen);
+  $('#btnAddPlan').classList.toggle('hidden',simple);$('.qbtns').classList.toggle('two',!simple);
+  const sm2=S.simple;
+  chips($('#sDisc'),[{v:'s3',t:'Schuss 3er'},{v:'p53',t:'Pass 5er'}],v=>sm2.d===v,v=>{sm2.d=v;if(!DISC[v].techs.includes(sm2.tech))sm2.tech=DISC[v].techs.includes('Snake')?'Snake':DISC[v].techs[0]});
+  chips($('#sTech'),DISC[simpleCfg().d].techs.map(t=>({v:t,t})),v=>simpleCfg().tech===v,v=>sm2.tech=v);
+  chips($('#sAmt'),[10,20,50].map(n=>({v:n,t:n+'×'})),v=>sm2.count===v,v=>sm2.count=v);
+  $('#btnCfg').innerHTML=(S.cfgOpen?'Fertig':'Anpassen')+' <span class="chev" aria-hidden="true">'+(S.cfgOpen?'▴':'▾')+'</span>';$('#btnCfg').setAttribute('aria-expanded',String(!!S.cfgOpen));
   renderPresets();
   if(typeof renderGam==='function')renderGam();
   if(typeof renderLp==='function')renderLp();
@@ -171,7 +179,7 @@ function renderHome(){
   chips($('#cAmtC'),[10,20,30,50].map(n=>({v:n,t:n+'×'})),v=>c.amt==='count'&&c.count===v,v=>{c.amt='count';c.count=v});
   chips($('#cAmt'),[5,10,15].map(n=>({v:n,t:n+' min'})),v=>c.amt==='time'&&c.minutes===v,v=>{c.amt='time';c.minutes=v});
   // Plan
-  $('#planCard').classList.toggle('hidden',!S.plan.length);
+  $('#planCard').classList.toggle('hidden',simple||!S.plan.length);
   $('#planTitle').textContent='Ablauf · '+S.plan.length+(S.plan.length===1?' Station':' Stationen');
   $('#planList').innerHTML='';
   S.plan.forEach((p,i)=>{const r=document.createElement('div');r.className='planitem';
@@ -194,7 +202,7 @@ $('#oMic').onchange=async e=>{S.mic=e.target.checked;saveS();if(!S.mic){detStop(
 $('#oAuto').onchange=e=>{S.autoCount=e.target.checked;saveS();renderHome()};
 $('#oMSens').oninput=e=>{S.msens=+e.target.value;saveS()};
 $('#oSens').oninput=e=>{S.sens=+e.target.value;saveS()};
-$('#btnStart').onclick=()=>startSession(S.cfg,null);
+$('#btnStart').onclick=()=>startSession(curCfg(),null);
 /* Ablauf = mehrere Stationen hintereinander; als Übung speicherbar */
 function startSteps(steps,name){
   steps=steps.map(c=>Object.assign(clone(DEFCFG),clone(c)));
@@ -209,7 +217,7 @@ $('#btnPlanSave').onclick=async()=>{
 /* Meine Übungen (gespeicherte Konfigurationen) */
 function renderPresets(){
   const el=$('#presetList');el.innerHTML='';
-  $('#presetCard').classList.toggle('hidden',!S.presets.length);
+  $('#presetCard').classList.toggle('hidden',S.lvl==='simple'||!S.presets.length);
   S.presets.forEach((p,i)=>{
     const r=document.createElement('div');r.className='prow';const multi=p.steps.length>1,sm=cfgSummary(p.steps[0]);
     r.innerHTML='<button class="pmain"><b></b><small></small></button><button class="pgo" aria-label="Starten">'+icon('play')+'</button><button class="pdel" aria-label="Löschen">'+icon('x')+'</button>';
@@ -224,7 +232,7 @@ function renderPresets(){
 $('#btnPreset').onclick=async()=>{
   const n=await askText('Name der Übung',{value:cfgSummary(S.cfg).head,max:40});if(n===null)return;const name=n.trim().slice(0,40)||cfgSummary(S.cfg).head;
   S.presets.push({name,steps:[clone(S.cfg)]});saveS();renderHome();toast('Gespeichert')};
-$('#btnCfg').onclick=()=>{S.cfgOpen=!S.cfgOpen;saveS();renderHome()};
+$('.qhead').onclick=()=>{S.cfgOpen=!S.cfgOpen;saveS();renderHome()};
 /* Einstellungen: Karten, die nur fürs Üben gelten, in der Spielen-Hälfte ausblenden.
    Konto, Daten und Gamification gelten für beide Hälften. */
 function renderSettings(){
