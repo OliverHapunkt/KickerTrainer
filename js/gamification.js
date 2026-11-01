@@ -12,7 +12,7 @@
 
 /* ---------- Einstellungen ---------- */
 function gamDefaults(){
-  if(!S.gam||typeof S.gam!=='object')S.gam={on:true,xp:true,ch:true};
+  if(!S.gam||typeof S.gam!=='object')S.gam={on:true,xp:true,ch:!!HAD_SET};
   if(!S.chal||typeof S.chal!=='object')S.chal={act:{},done:{},base:{}};
   ['act','done','base'].forEach(k=>{if(!S.chal[k]||typeof S.chal[k]!=='object')S.chal[k]={}});
 }

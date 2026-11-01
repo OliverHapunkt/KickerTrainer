@@ -17,13 +17,27 @@ const DISC={
 const NUM=['','Eins','Zwei','Drei','Vier','Fünf'];
 const TORDER=[0,1,2,3,4,5,'wall','lane'];
 // ready = Aufbauzeit nach jedem Versuch: 'auto' (Countdown, „Ja“/Tippen verkürzt), 'tap' (wartet auf „Ja“/Tippen), 'off' (nur bei freiem Tempo)
-const DEFCFG={d:'s3',tech:'Pull',tech2:'Pull',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',wt:['Pull'],wt2:['Pull'],weakN:10,timing:'free',window:2,ready:'auto',auto:5,scoring:'exact',amt:'count',count:20,minutes:10,pr:0};
-const DEF={cfg:DEFCFG,plan:[],presets:[],cfgOpen:false,mode:'train',missDir:false,lp:true,stdOn:true,voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,cal:null,det:'audio',autoCount:true,corrWin:3};
+const DEFCFG={d:'s3',tech:'Snake',tech2:'Snake',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',wt:['Snake'],wt2:['Snake'],weakN:10,timing:'free',window:2,ready:'auto',auto:5,scoring:'exact',amt:'count',count:20,minutes:10,pr:0};
+const DEF={cfg:DEFCFG,plan:[],presets:[],cfgOpen:false,mode:'train',missDir:false,lp:false,stdOn:false,voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,cal:null,det:'audio',autoCount:false,corrWin:3,simple:{d:'s3',tech:'Snake',count:20}};
 
+/* Simple-Modus: feste Übung, nur Disziplin (Schuss 3er / Pass 5er), Technik und Anzahl sind wählbar.
+   Alles andere ist vorgegeben: alle Ziele, gemischt, freies Tempo, Aufbauzeit Auto 3 s, Wertung einfach, kein Druckmodus. */
+function simpleCfg(){
+  const m=S.simple,techs=DISC[m.d].techs,t=techs.includes(m.tech)?m.tech:(techs.includes('Snake')?'Snake':techs[0]);
+  return Object.assign(clone(DEFCFG),{d:m.d,tech:t,tech2:t,wt:[t],wt2:[t],tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',timing:'free',
+    ready:'auto',auto:3,scoring:'simple',pr:0,amt:'count',count:m.count});
+}
+function curCfg(){return S.lvl==='simple'?simpleCfg():S.cfg}
 function clone(o){return JSON.parse(JSON.stringify(o))}
 function load(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v||clone(d)}catch(e){return clone(d)}}
 function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('Speichern fehlgeschlagen!')}if(k===LS_DATA&&typeof cloudTouch==='function')cloudTouch()}
+/* v3.14: Neue Installationen starten schlicht (Simple, Hilfen aus). Wer schon Einstellungen hat, behält sein Verhalten: Profi, Hilfen wie bisher. */
+const HAD_SET=!!localStorage.getItem(LS_SET);
 let S=Object.assign(clone(DEF),load(LS_SET,DEF));
+if(HAD_SET){const st=load(LS_SET,DEF);['lp','stdOn','autoCount'].forEach(k=>{if(st[k]===undefined)S[k]=true})}
+if(S.lvl!=='simple'&&S.lvl!=='pro')S.lvl=HAD_SET?'pro':'simple';
+S.simple=Object.assign({d:'s3',tech:'Snake',count:20},S.simple||{});
+if(!['s3','p53'].includes(S.simple.d))S.simple.d='s3';
 S.cfg=Object.assign(clone(DEFCFG),S.cfg||{});if(!Array.isArray(S.plan))S.plan=[];if(!Array.isArray(S.presets))S.presets=[];
 // Übungen haben Stationen (v3.6): {name,cfg} → {name,steps:[cfg]}
 S.presets=S.presets.filter(p=>p&&(p.cfg||(Array.isArray(p.steps)&&p.steps.length))).map(p=>({name:p.name||'Übung',steps:(p.steps||[p.cfg]).map(c=>Object.assign(clone(DEFCFG),c))}));

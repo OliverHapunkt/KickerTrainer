@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.13.0-green)
+![Version](https://img.shields.io/badge/version-3.14.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.13.0 · 2026-10-28`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.14.0 · 2026-11-01`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -68,6 +68,13 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.13.0 · 202
 - Auswertung: Karte „Fehlschüsse: links oder rechts?“ je Ziel mit Hinweis auf auffällige Tendenzen (≥ 70 % einer Seite bei ≥ 5 Fehlschüssen); bei „Genau“ fließt auch das danebengetroffene Segment ein. Korrektur in der Session-Liste, Spalte „Richtung“ im CSV
 - Spracheingabe: „links“ / „rechts“
 - Grundlage für spätere Schwachstellenanalyse, Technik-Tipps und Trainer-Auswertung (`missSide()` in `training.js`)
+
+### Simple und Profi
+- Schalter oben in der Übungskachel. **Neue Installationen starten in Simple**, bestehende bleiben in Profi mit ihren Einstellungen
+- **Simple:** Übung (Schuss 3er oder Pass 5er), Technik und Anzahl (10/20/50). Fest vorgegeben: alle Ziele, gemischt, freies Tempo, Aufbauzeit Auto 3 s (Tippen beendet früher), Wertung „Einfach“, kein Druckmodus, keine Stationen, keine eigenen Übungen
+- **Profi:** alle Einstellungen wie bisher. Beide Modi haben getrennte Einstellungen (`S.simple` / `S.cfg`), Umschalten verändert nichts
+- Voreinstellungen für neue Installationen: Ansage an, Gamification an (Challenges aus), Trainings-Tipps, Standardtest, Auto-Treffer und Schusserkennung aus. Standardtechnik Snake
+- Die ganze Kopfzeile der Kachel klappt die Auswahl auf (Pfeil ▾/▴ am Knopf)
 
 ### Schusserkennung (optional)
 - Erkennung über **Ton**, **Erschütterung** (iPad direkt auf dem Tisch), **Ton + Erschütterung** oder **Ton oder Erschütterung**
