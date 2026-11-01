@@ -141,13 +141,12 @@ function renderHome(){
   const c=S.cfg,d=DISC[c.d];
   const simple=S.lvl==='simple',sc=curCfg();
   chips($('#cLvl'),[{v:'simple',t:'Simple'},{v:'pro',t:'Profi'}],v=>S.lvl===v,v=>S.lvl=v);
-  const sm=simple?{head:DISC[sc.d].n+' · '+sc.tech,sub:sc.count+' Versuche · alle Ziele'}:cfgSummary(sc);$('#cfgSum').innerHTML=esc(sm.head)+'<small>'+esc(sm.sub)+'</small>';
+  const sm=simple?{head:DISC[sc.d].n,sub:sc.count+' Versuche · alle Ziele'}:cfgSummary(sc);$('#cfgSum').innerHTML=esc(sm.head)+'<small>'+esc(sm.sub)+'</small>';
   $('#cfgWrap').classList.toggle('hidden',simple||!S.cfgOpen);
   $('#simpleWrap').classList.toggle('hidden',!simple||!S.cfgOpen);
   $('#btnAddPlan').classList.toggle('hidden',simple);$('.qbtns').classList.toggle('two',!simple);
   const sm2=S.simple;
-  chips($('#sDisc'),[{v:'s3',t:'Schuss 3er'},{v:'p53',t:'Pass 5er'}],v=>sm2.d===v,v=>{sm2.d=v;if(!DISC[v].techs.includes(sm2.tech))sm2.tech=DISC[v].techs.includes('Snake')?'Snake':DISC[v].techs[0]});
-  chips($('#sTech'),DISC[simpleCfg().d].techs.map(t=>({v:t,t})),v=>simpleCfg().tech===v,v=>sm2.tech=v);
+  chips($('#sDisc'),[{v:'s3',t:'Schuss 3er'},{v:'p53',t:'Pass 5er'}],v=>sm2.d===v,v=>sm2.d=v);
   slider($('#sAmt'),{stops:[10,20,50],value:sm2.count,fmt:n=>n+'×',onInput:v=>sm2.count=v});
   $('#btnCfg').innerHTML=(S.cfgOpen?'Fertig':'Anpassen')+' <span class="chev" aria-hidden="true">'+(S.cfgOpen?'▴':'▾')+'</span>';$('#btnCfg').setAttribute('aria-expanded',String(!!S.cfgOpen));
   renderPresets();

@@ -18,12 +18,12 @@ const NUM=['','Eins','Zwei','Drei','Vier','Fünf'];
 const TORDER=[0,1,2,3,4,5,'wall','lane'];
 // ready = Aufbauzeit nach jedem Versuch: 'auto' (Countdown, „Ja“/Tippen verkürzt), 'tap' (wartet auf „Ja“/Tippen), 'off' (nur bei freiem Tempo)
 const DEFCFG={d:'s3',tech:'Snake',tech2:'Snake',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',wt:['Snake'],wt2:['Snake'],weakN:10,timing:'free',window:2,ready:'auto',auto:5,scoring:'exact',amt:'count',count:20,minutes:10,pr:0};
-const DEF={cfg:DEFCFG,plan:[],presets:[],cfgOpen:false,mode:'train',missDir:false,lp:false,stdOn:false,voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,cal:null,det:'audio',autoCount:false,corrWin:3,simple:{d:'s3',tech:'Snake',count:20}};
+const DEF={cfg:DEFCFG,plan:[],presets:[],cfgOpen:false,mode:'train',missDir:false,lp:false,stdOn:false,voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,cal:null,det:'audio',autoCount:false,corrWin:3,simple:{d:'s3',count:20}};
 
-/* Simple-Modus: feste Übung, nur Disziplin (Schuss 3er / Pass 5er), Technik und Anzahl sind wählbar.
+/* Simple-Modus: feste Übung, nur Disziplin (Schuss 3er / Pass 5er) und Anzahl sind wählbar; Technik ist immer „Frei“.
    Alles andere ist vorgegeben: alle Ziele, gemischt, freies Tempo, Aufbauzeit Auto 3 s, Wertung einfach, kein Druckmodus. */
 function simpleCfg(){
-  const m=S.simple,techs=DISC[m.d].techs,t=techs.includes(m.tech)?m.tech:(techs.includes('Snake')?'Snake':techs[0]);
+  const m=S.simple,t='Frei'; // Simple fragt keine Technik ab
   return Object.assign(clone(DEFCFG),{d:m.d,tech:t,tech2:t,wt:[t],wt2:[t],tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',timing:'free',
     ready:'auto',auto:3,scoring:'simple',pr:0,amt:'count',count:m.count});
 }
@@ -36,7 +36,7 @@ const HAD_SET=!!localStorage.getItem(LS_SET);
 let S=Object.assign(clone(DEF),load(LS_SET,DEF));
 if(HAD_SET){const st=load(LS_SET,DEF);['lp','stdOn','autoCount'].forEach(k=>{if(st[k]===undefined)S[k]=true})}
 if(S.lvl!=='simple'&&S.lvl!=='pro')S.lvl=HAD_SET?'pro':'simple';
-S.simple=Object.assign({d:'s3',tech:'Snake',count:20},S.simple||{});
+S.simple=Object.assign({d:'s3',count:20},S.simple||{});
 if(!['s3','p53'].includes(S.simple.d))S.simple.d='s3';if(![10,20,50].includes(S.simple.count))S.simple.count=20;
 S.cfg=Object.assign(clone(DEFCFG),S.cfg||{});if(!Array.isArray(S.plan))S.plan=[];if(!Array.isArray(S.presets))S.presets=[];
 // Übungen haben Stationen (v3.6): {name,cfg} → {name,steps:[cfg]}
