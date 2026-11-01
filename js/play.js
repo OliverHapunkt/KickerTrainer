@@ -196,7 +196,7 @@ function renderPlayHome(){
   h += '<div class="sub"><label>Modus ' + tipBtn('pMode') + '</label><div class="chips sc" id="pcMode"></div></div>';
   h += '<div class="sub"><label>Erfassung ' + tipBtn('pDetail') + '</label><div class="chips sc" id="pcDetail"></div>'
      + '<p class="hint" id="pcDetailHint"></p></div>';
-  h += '<div class="sub"><label>Satz bis … Tore</label><div class="chips sc" id="pcGps"></div></div>';
+  h += '<div class="sub"><label>Satz bis … Tore</label><div id="pcGps"></div></div>';
   h += '<div class="sub"><label>Spiel bis … Gewinnsätze</label><div class="chips sc" id="pcStw"></div>'
      + '<p class="hint" id="pcStwHint"></p></div>';
   h += '<div class="sub"><label>Mitspieler ' + tipBtn('pJoin') + '</label><div class="chips sc" id="pcInvite"></div>'
@@ -219,7 +219,7 @@ function renderPlayHome(){
     v=>{ c.mode=v; if(v==='single'){PL.lineup[1]=null;PL.lineup[3]=null} savePL() }, renderPlayHome);
   chips($('#pcDetail'), [{v:'simple',t:'Einfach'},{v:'full',t:'Erweitert'}], v=>c.detail===v,
     v=>{ c.detail=v; savePL() }, renderPlayHome);
-  chips($('#pcGps'), [3,5,7,10].map(n=>({v:n,t:n+' Tore'})), v=>c.gps===v, v=>{ c.gps=v; savePL() }, renderPlayHome);
+  slider($('#pcGps'), {min:3, max:15, step:1, value:c.gps, fmt:n=>n+' Tore', onInput:v=>{ c.gps=v; savePL() }, after:renderPlayHome});
   chips($('#pcStw'), [1,2,3].map(n=>({v:n,t:n===1?'Nur ein Satz':n+' Gewinnsätze'})), v=>c.stw===v,
     v=>{ c.stw=v; savePL() }, renderPlayHome);
   $('#pcDetailHint').textContent = c.detail === 'full'

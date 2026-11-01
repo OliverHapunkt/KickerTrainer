@@ -37,7 +37,7 @@ let S=Object.assign(clone(DEF),load(LS_SET,DEF));
 if(HAD_SET){const st=load(LS_SET,DEF);['lp','stdOn','autoCount'].forEach(k=>{if(st[k]===undefined)S[k]=true})}
 if(S.lvl!=='simple'&&S.lvl!=='pro')S.lvl=HAD_SET?'pro':'simple';
 S.simple=Object.assign({d:'s3',tech:'Snake',count:20},S.simple||{});
-if(!['s3','p53'].includes(S.simple.d))S.simple.d='s3';
+if(!['s3','p53'].includes(S.simple.d))S.simple.d='s3';if(![10,20,50].includes(S.simple.count))S.simple.count=20;
 S.cfg=Object.assign(clone(DEFCFG),S.cfg||{});if(!Array.isArray(S.plan))S.plan=[];if(!Array.isArray(S.presets))S.presets=[];
 // Übungen haben Stationen (v3.6): {name,cfg} → {name,steps:[cfg]}
 S.presets=S.presets.filter(p=>p&&(p.cfg||(Array.isArray(p.steps)&&p.steps.length))).map(p=>({name:p.name||'Übung',steps:(p.steps||[p.cfg]).map(c=>Object.assign(clone(DEFCFG),c))}));
