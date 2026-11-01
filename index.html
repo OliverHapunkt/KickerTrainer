@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.14.0',d:'2026-11-01'};
+window.KT_VER={v:'3.15.0',d:'2026-11-01'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -27,7 +27,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <div id="simpleWrap" class="hidden">
       <div class="sub"><label>Übung</label><div class="chips sc" id="sDisc"></div></div>
       <div class="sub"><label>Technik</label><div class="chips" id="sTech"></div></div>
-      <div class="sub"><label>Anzahl</label><div class="chips sc" id="sAmt"></div></div>
+      <div class="sub"><label>Anzahl</label><div id="sAmt"></div></div>
     </div>
     <div id="cfgWrap" class="hidden">
       <div class="sub"><label>Disziplin</label><div class="chips" id="cDisc"></div></div>
@@ -39,11 +39,11 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <div class="sub"><label>Reihenfolge</label><div class="chips sc" id="cOrder"></div>
         <div id="wWeak" class="hidden"><div class="sub"><label>Datenbasis: letzte Sessions dieser Disziplin</label><div class="chips sc" id="cWeakN"></div></div><p class="hint" id="hWeak"></p></div></div>
       <div class="sub"><label>Timing <button type="button" class="tipb" data-tip-k="timing" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cTiming"></div><p class="hint" id="hTiming"></p></div>
-      <div class="sub" id="wWindow"><label>Reaktionsfenster nach Signal</label><div class="chips sc" id="cWindow"></div></div>
-      <div class="sub" id="wReady"><label>Aufbauzeit / „Bereit“ <button type="button" class="tipb" data-tip-k="setup" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cReady"></div><p class="hint" id="hReady"></p></div>
+      <div class="sub" id="wWindow"><label>Reaktionsfenster nach Signal</label><div id="cWindow"></div></div>
+      <div class="sub" id="wReady"><label>Aufbauzeit / „Bereit“ <button type="button" class="tipb" data-tip-k="setup" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cReady"></div><div class="hidden" id="sReady"></div><p class="hint" id="hReady"></p></div>
       <div class="sub" id="wScore"><label>Wertung Schuss <button type="button" class="tipb" data-tip-k="scoring" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cScore"></div><p class="hint" id="hScore"></p></div>
-      <div class="sub" id="wPr"><label>Druckmodus</label><div class="chips sc" id="cPr"></div><p class="hint" id="hPr"></p></div>
-      <div class="sub"><label>Umfang</label><div class="chips sc" id="cAmtC"></div><div class="chips sc" id="cAmt" style="margin-top:8px"></div></div>
+      <div class="sub" id="wPr"><label>Druckmodus</label><div id="cPr"></div><p class="hint" id="hPr"></p></div>
+      <div class="sub"><label>Umfang</label><div class="chips sc" id="cAmtC"></div><div id="cAmt" style="margin-top:10px"></div></div>
       <button class="big" id="btnPreset">Als eigene Übung speichern</button>
     </div>
     <div class="two qbtns"><button class="big primary" id="btnStart">Start</button><button class="big" id="btnAddPlan">+ Station</button></div>

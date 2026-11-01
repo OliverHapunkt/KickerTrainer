@@ -41,7 +41,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   console.log('== Spiel einstellen ==');
   await pg.click('#pcMode button:has-text("Doppel")'); await pg.waitForTimeout(150);
   await pg.click('#pcDetail button:has-text("Erweitert")'); await pg.waitForTimeout(150);
-  await pg.click('#pcGps button:has-text("3 Tore")'); await pg.waitForTimeout(150);
+  await pg.fill('#pcGps input','3'); await pg.waitForTimeout(150);
   await pg.click('#pcStw button:has-text("2 Gewinnsätze")'); await pg.waitForTimeout(200);
   ok((await pg.$$('#pLineup .slot')).length===4,'Vier Plätze im Doppel');
   ok((await txt('#pcStwHint')).includes('höchstens 3'),'Hinweis rechnet die Sätze aus');

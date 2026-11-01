@@ -49,7 +49,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   ok((await txt('#playBody')).includes('Neues Spiel'),'Host hat ein Profil');
   await pg.click('#pcMode button:has-text("Doppel")'); await pg.waitForTimeout(150);
   await pg.click('#pcDetail button:has-text("Erweitert")'); await pg.waitForTimeout(150);
-  await pg.click('#pcGps button:has-text("3 Tore")'); await pg.waitForTimeout(150);
+  await pg.fill('#pcGps input','3'); await pg.waitForTimeout(150);
   ok(await pg.isVisible('#pLineup'),'Bei „Nur Gäste“ gibt es die Aufstellung');
   await pg.click('#pcInvite button:has-text("Per Code")'); await pg.waitForTimeout(250);
   ok(!(await pg.$('#pLineup')),'Bei „Per Code“ verschwindet die Aufstellung');

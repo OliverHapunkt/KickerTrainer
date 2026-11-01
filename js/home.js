@@ -8,6 +8,24 @@ function chips(el,opts,isOn,onTap,after){
   opts.forEach(o=>{const b=document.createElement('button');b.className='chip'+(isOn(o.v)?' on':'');b.textContent=o.t;
     b.onclick=()=>{onTap(o.v);if(after)after();else{saveS();renderHome()}};el.appendChild(b)});
 }
+/* Regler für Zahlenwerte (ab v3.15 Standard, wo ein Wert in einem größeren Bereich gewählt wird).
+   o: {min,max,step} oder {stops:[…]} (nur diese Werte rasten ein), value, fmt(v)→Text, onInput(v) = Wert merken,
+   after = was nach dem Loslassen passiert (Standard: speichern und Startseite neu zeichnen).
+   Während des Ziehens wird nur der Wert daneben aktualisiert – ein Neuzeichnen würde den Regler unter dem Finger wegnehmen. */
+function slider(el,o){
+  const st=o.stops,f=o.fmt||String;
+  el.innerHTML='';el.classList.add('sl');
+  const inp=document.createElement('input');inp.type='range';
+  if(st){inp.min=0;inp.max=st.length-1;inp.step=1;inp.value=Math.max(0,st.indexOf(o.value))}
+  else{inp.min=o.min;inp.max=o.max;inp.step=o.step||1;inp.value=o.value}
+  const val=()=>st?st[+inp.value]:+inp.value,out=document.createElement('output');
+  const show=()=>{out.textContent=f(val());inp.setAttribute('aria-valuetext',f(val()))};show();
+  inp.oninput=()=>{show();o.onInput&&o.onInput(val())};
+  inp.onchange=()=>{o.onInput&&o.onInput(val());if(o.after)o.after();else{saveS();renderHome()}};
+  const w=document.createElement('div');w.className='slw';w.appendChild(inp);
+  if(st&&st.length<=6){const t=document.createElement('div');t.className='ticks';st.forEach(v=>{const s=document.createElement('span');s.textContent=f(v);t.appendChild(s)});w.appendChild(t)}
+  el.append(w,out);
+}
 function toggleTarget(arr,v){
   if(v===0)return[0];
   arr=arr.filter(x=>x!==0);
@@ -130,7 +148,7 @@ function renderHome(){
   const sm2=S.simple;
   chips($('#sDisc'),[{v:'s3',t:'Schuss 3er'},{v:'p53',t:'Pass 5er'}],v=>sm2.d===v,v=>{sm2.d=v;if(!DISC[v].techs.includes(sm2.tech))sm2.tech=DISC[v].techs.includes('Snake')?'Snake':DISC[v].techs[0]});
   chips($('#sTech'),DISC[simpleCfg().d].techs.map(t=>({v:t,t})),v=>simpleCfg().tech===v,v=>sm2.tech=v);
-  chips($('#sAmt'),[10,20,50].map(n=>({v:n,t:n+'×'})),v=>sm2.count===v,v=>sm2.count=v);
+  slider($('#sAmt'),{stops:[10,20,50],value:sm2.count,fmt:n=>n+'×',onInput:v=>sm2.count=v});
   $('#btnCfg').innerHTML=(S.cfgOpen?'Fertig':'Anpassen')+' <span class="chev" aria-hidden="true">'+(S.cfgOpen?'▴':'▾')+'</span>';$('#btnCfg').setAttribute('aria-expanded',String(!!S.cfgOpen));
   renderPresets();
   if(typeof renderGam==='function')renderGam();
@@ -161,12 +179,14 @@ function renderHome(){
     ?'Nach der Aufbauzeit wird das Ziel angesagt, du spielst in deinem Rhythmus.'
     :'Nach „Bereit“ kommt das Ziel zufällig innerhalb der Regelzeit ('+d.rule+' s) – dann bleibt nur das Reaktionsfenster.';
   $('#wWindow').classList.toggle('hidden',c.timing!=='signal');
-  chips($('#cWindow'),[1,1.5,2,3].map(n=>({v:n,t:fmt(n,n%1?1:0)+' s'})),v=>c.window===v,v=>c.window=v);
+  slider($('#cWindow'),{min:1,max:4,step:.5,value:c.window,fmt:n=>fmt(n,n%1?1:0)+' s',onInput:v=>c.window=v});
   // Aufbauzeit gilt für alle Modi. „Aus“ gibt es nur bei freiem Tempo (bei Signal und beim Schuss der Kombi ist „Bereit“ Pflicht)
   const needSetup=c.timing==='signal'||d.kind==='combo';
   if(needSetup&&c.ready==='off')c.ready='tap';
-  chips($('#cReady'),(needSetup?[]:[{v:'off',t:'Aus'}]).concat([{v:'tap',t:'Tippen'},{v:3,t:'Auto 3 s'},{v:5,t:'Auto 5 s'},{v:8,t:'Auto 8 s'}]),
-    v=>v==='off'?c.ready==='off':v==='tap'?c.ready==='tap':(c.ready==='auto'&&c.auto===v),v=>{if(v==='tap'||v==='off')c.ready=v;else{c.ready='auto';c.auto=v}});
+  chips($('#cReady'),(needSetup?[]:[{v:'off',t:'Aus'}]).concat([{v:'tap',t:'Tippen'},{v:'auto',t:'Auto'}]),
+    v=>c.ready===v,v=>{c.ready=v;if(v==='auto'&&!c.auto)c.auto=5});
+  $('#sReady').classList.toggle('hidden',c.ready!=='auto');
+  if(c.ready==='auto')slider($('#sReady'),{min:1,max:15,step:1,value:c.auto||5,fmt:n=>n+' s',onInput:v=>c.auto=v});
   $('#hReady').textContent=c.ready==='off'?'Ziel kommt sofort nach dem Ergebnis.'
     :c.ready==='tap'?'Nach jedem Versuch wartet die App auf „Ja“ oder Tippen auf BEREIT, dann 0,5 s Griffzeit.'
     :'Nach jedem Versuch läuft ein Countdown zum Aufbauen. „Ja“ oder Tippen beendet ihn früher, dann 0,5 s Griffzeit.';
@@ -174,10 +194,11 @@ function renderHome(){
   chips($('#cScore'),[{v:'simple',t:'Einfach'},{v:'exact',t:'Genau'}],v=>c.scoring===v,v=>c.scoring=v);
   $('#hScore').textContent=c.scoring==='exact'?'Du meldest, wohin der Ball ging: Segment 1–5, links oder rechts neben dem Tor, oder „Miss“ (daneben, unklar wohin).':'Du meldest nur Treffer oder Daneben („Ja“ / „Miss“).';
   $('#wPr').classList.toggle('hidden',d.kind==='combo');
-  chips($('#cPr'),[0,3,5,8,10].map(n=>({v:n,t:n?String(n):'Aus'})),v=>(c.pr||0)===v,v=>c.pr=v);
+  slider($('#cPr'),{stops:[0,3,4,5,6,7,8,9,10],value:c.pr||0,fmt:n=>n?n+' in Folge':'Aus',onInput:v=>c.pr=v,after:()=>{saveS();$('#hPr').textContent=prHint(c);renderHome()}});
   $('#hPr').textContent=prHint(c);
-  chips($('#cAmtC'),[10,20,30,50].map(n=>({v:n,t:n+'×'})),v=>c.amt==='count'&&c.count===v,v=>{c.amt='count';c.count=v});
-  chips($('#cAmt'),[5,10,15].map(n=>({v:n,t:n+' min'})),v=>c.amt==='time'&&c.minutes===v,v=>{c.amt='time';c.minutes=v});
+  chips($('#cAmtC'),[{v:'count',t:'Anzahl'},{v:'time',t:'Zeit'}],v=>c.amt===v,v=>c.amt=v);
+  if(c.amt==='time')slider($('#cAmt'),{min:1,max:30,step:1,value:c.minutes,fmt:n=>n+' min',onInput:v=>c.minutes=v});
+  else slider($('#cAmt'),{min:5,max:100,step:5,value:c.count,fmt:n=>n+'×',onInput:v=>c.count=v});
   // Plan
   $('#planCard').classList.toggle('hidden',simple||!S.plan.length);
   $('#planTitle').textContent='Ablauf · '+S.plan.length+(S.plan.length===1?' Station':' Stationen');

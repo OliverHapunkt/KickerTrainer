@@ -42,9 +42,10 @@ const vis=(pg,sel)=>pg.$eval(sel,e=>!e.classList.contains('hidden')&&e.offsetPar
   ok(!(await vis(pg,'#cfgWrap')),'Die Profi-Auswahl bleibt zu');
   ok((await txt(pg,'#btnCfg'))[0].includes('Fertig'),'Knopf zeigt „Fertig“');
   ok(JSON.stringify(await txt(pg,'#sDisc .chip'))===JSON.stringify(['Schuss 3er','Pass 5er']),'Nur Schuss 3er und Pass 5er');
-  ok(JSON.stringify(await txt(pg,'#sAmt .chip'))===JSON.stringify(['10×','20×','50×']),'Nur 10 / 20 / 50');
+  ok(JSON.stringify(await txt(pg,'#sAmt .ticks span'))===JSON.stringify(['10×','20×','50×']),'Anzahl: Regler mit nur 10 / 20 / 50');
+  ok((await txt(pg,'#sAmt output'))[0]==='20×','Regler zeigt den Wert daneben (20×)');
   ok((await txt(pg,'#sTech .chip')).join()==='Pull,Push,Snake,Tic-Tac,Frei','Alle Schuss-Techniken wählbar');
-  await pg.click('#sTech .chip:has-text("Push")');await pg.click('#sAmt .chip:has-text("50")');
+  await pg.click('#sTech .chip:has-text("Push")');await pg.fill('#sAmt input','2');
   let cfg=await pg.evaluate(()=>simpleCfg());
   ok(cfg.d==='s3'&&cfg.tech==='Push'&&cfg.count===50,'Wahl übernommen (Push, 50×)');
   ok(cfg.order==='mix'&&cfg.timing==='free'&&cfg.ready==='auto'&&cfg.auto===3&&cfg.scoring==='simple'&&!cfg.pr&&cfg.amt==='count',
@@ -69,6 +70,31 @@ const vis=(pg,sel)=>pg.$eval(sel,e=>!e.classList.contains('hidden')&&e.offsetPar
   ok(await vis(pg,'#btnAddPlan'),'Profi hat „+ Station“');
   await pg.click('.qhead h2');
   ok(await vis(pg,'#cfgWrap')&&!(await vis(pg,'#simpleWrap')),'Profi klappt die volle Auswahl auf');
+  console.log('== Regler im Profi-Modus ==');
+  const amt=await pg.$eval('#cAmt input',e=>[e.min,e.max,e.step].join());
+  ok(amt==='5,100,5','Anzahl: Regler 5–100 in 5er-Schritten ('+amt+')');
+  await pg.fill('#cAmt input','35');await pg.waitForTimeout(100);
+  ok((await pg.evaluate(()=>S.cfg.count))===35&&(await txt(pg,'#cAmt output'))[0]==='35×','Anzahl 35 übernommen und angezeigt');
+  await pg.click('#cAmtC .chip:has-text("Zeit")');
+  ok((await pg.$eval('#cAmt input',e=>[e.min,e.max].join()))==='1,30','Zeit: Regler 1–30 Minuten');
+  await pg.fill('#cAmt input','12');await pg.waitForTimeout(100);
+  ok((await pg.evaluate(()=>S.cfg.amt+S.cfg.minutes))==='time12','12 Minuten übernommen');
+  await pg.click('#cTiming .chip:has-text("Auf Signal")');
+  await pg.fill('#cWindow input','2.5');await pg.waitForTimeout(100);
+  ok((await pg.evaluate(()=>S.cfg.window))===2.5&&(await txt(pg,'#cWindow output'))[0]==='2,5 s','Reaktionsfenster per Regler (2,5 s)');
+  await pg.click('#cTiming .chip:has-text("Freies Tempo")');
+  await pg.click('#cReady .chip:has-text("Auto")');
+  await pg.fill('#sReady input','7');await pg.waitForTimeout(100);
+  ok((await pg.evaluate(()=>S.cfg.ready+S.cfg.auto))==='auto7','Aufbauzeit automatisch per Regler (7 s)');
+  await pg.click('#cReady .chip:has-text("Tippen")');
+  ok(!(await vis(pg,'#sReady')),'Regler für Aufbauzeit nur bei „Automatisch“');
+  await pg.fill('#cPr input','3');await pg.waitForTimeout(100);
+  ok((await pg.evaluate(()=>S.cfg.pr))===5&&(await txt(pg,'#cPr output'))[0]==='5 in Folge','Druckmodus per Regler (5 in Folge)');
+  await pg.fill('#cPr input','0');await pg.waitForTimeout(100);
+  ok((await pg.evaluate(()=>S.cfg.pr))===0&&(await txt(pg,'#cPr output'))[0]==='Aus','Druckmodus: ganz links = Aus');
+  // Ziehen darf den Regler nicht neu zeichnen (sonst reißt es ihn unter dem Finger weg)
+  const same=await pg.evaluate(()=>{const i=document.querySelector('#cAmt input');i.value=5;i.dispatchEvent(new Event('input',{bubbles:true}));return i===document.querySelector('#cAmt input')});
+  ok(same,'Während des Ziehens wird der Regler nicht ersetzt');
   await pg.click('#cLvl .chip:has-text("Simple")');
   ok((await pg.evaluate(()=>S.lvl))==='simple','Umschalten auf Simple');
   await pg.click('#cLvl .chip:has-text("Profi")');

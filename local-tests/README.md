@@ -27,7 +27,7 @@ node local-tests/simple-modus.test.js
 | `rechtliches.test.js` | Impressum und Datenschutz: Darstellung, Querverlinkung, Verlinkung aus der App, und dass die Pflichtangaben wirklich drinstehen und keine echten Kontaktdaten versehentlich veröffentlicht werden |
 | `erkennung.test.js` | Erkennungslogik (`detector.js`) mit künstlichen Signalen: Knall, Abschlag+Einschlag, leiser Schuss, lauter Raum, Sprechen, Dauerrauschen, Ruck, Rechnung der Kalibrierung. Gibt die bekannten Grenzen (abruptes lautes Sprechen) als „Grenze“ aus |
 | `kalibrierung.test.js` | Kalibrierung im Browser mit Fake-Mikrofon und künstlichen Signalen: Ablauf, Schwellen, automatische Wahl der Erkennung, Auto-Treffer im Training, Gegenproben (Sprechen ohne Ruck, Ruck ohne Ton), Zurücksetzen, Abbruch, Zeitüberschreitung |
-| `simple-modus.test.js` | Simple-/Profi-Modus: Voreinstellungen frischer Installationen, bestehende Nutzer bleiben bei Profi, nur Schuss 3er/Pass 5er und 10/20/50, feste Übung, Aufklappen über die Kopfzeile, Start mit der Simple-Übung |
+| `simple-modus.test.js` | Simple-/Profi-Modus: Voreinstellungen frischer Installationen, bestehende Nutzer bleiben bei Profi, nur Schuss 3er/Pass 5er und 10/20/50, feste Übung, Aufklappen über die Kopfzeile, Start mit der Simple-Übung, dazu die Regler (Bereiche, Anzeige, Übernahme, kein Neuzeichnen beim Ziehen) |
 | `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal`/`settle_match` |
 
 ## Grenzen

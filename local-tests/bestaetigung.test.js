@@ -52,7 +52,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   await setNick('Olli');
   await pg.click('#pcMode button:has-text("Einzel")'); await pg.waitForTimeout(150);
   await pg.click('#pcDetail button:has-text("Einfach")'); await pg.waitForTimeout(150);
-  await pg.click('#pcGps button:has-text("3 Tore")'); await pg.waitForTimeout(150);
+  await pg.fill('#pcGps input','3'); await pg.waitForTimeout(150);
   await pg.click('#pcStw button:has-text("Nur ein Satz")'); await pg.waitForTimeout(150);
   await pg.click('#pcInvite button:has-text("Per Code")'); await pg.waitForTimeout(250);
   await pg.click('#pLobby'); await pg.waitForTimeout(800);
@@ -160,7 +160,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   // Der Kontowechsel setzt die gespeicherten Einstellungen zurück – neu wählen
   await pg.click('#pcMode button:has-text("Einzel")'); await pg.waitForTimeout(150);
   await pg.click('#pcDetail button:has-text("Einfach")'); await pg.waitForTimeout(150);
-  await pg.click('#pcGps button:has-text("3 Tore")'); await pg.waitForTimeout(150);
+  await pg.fill('#pcGps input','3'); await pg.waitForTimeout(150);
   await pg.click('#pcStw button:has-text("Nur ein Satz")'); await pg.waitForTimeout(150);
   await pg.click('#pcInvite button:has-text("Nur Gäste")'); await pg.waitForTimeout(300);
   ok((await pg.$$('#pLineup .slot')).length===2,'Zwei Plätze im Einzel');
