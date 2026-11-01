@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.15.0-green)
+![Version](https://img.shields.io/badge/version-3.15.1-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.15.0 · 2026-11-01`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.15.1 · 2026-11-01`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -71,9 +71,9 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.15.0 · 202
 
 ### Simple und Profi
 - Schalter oben in der Übungskachel. **Neue Installationen starten in Simple**, bestehende bleiben in Profi mit ihren Einstellungen
-- **Simple:** Übung (Schuss 3er oder Pass 5er), Technik und Anzahl (10/20/50). Fest vorgegeben: alle Ziele, gemischt, freies Tempo, Aufbauzeit Auto 3 s (Tippen beendet früher), Wertung „Einfach“, kein Druckmodus, keine Stationen, keine eigenen Übungen
+- **Simple:** Übung (Schuss 3er oder Pass 5er) und Anzahl (10/20/50). Technik wird nicht abgefragt (immer „Frei“). Fest vorgegeben: alle Ziele, gemischt, freies Tempo, Aufbauzeit Auto 3 s (Tippen beendet früher), Wertung „Einfach“, kein Druckmodus, keine Stationen, keine eigenen Übungen
 - **Profi:** alle Einstellungen wie bisher. Beide Modi haben getrennte Einstellungen (`S.simple` / `S.cfg`), Umschalten verändert nichts
-- Voreinstellungen für neue Installationen: Ansage an, Gamification an (Challenges aus), Trainings-Tipps, Standardtest, Auto-Treffer und Schusserkennung aus. Standardtechnik Snake
+- Voreinstellungen für neue Installationen: Ansage an, Gamification an (Challenges aus), Trainings-Tipps, Standardtest, Auto-Treffer und Schusserkennung aus. Standardtechnik im Profi-Modus Snake
 - **Regler statt Chips für Zahlenwerte** (`slider()` in `home.js`): Anzahl (5–100) bzw. Minuten (1–30), Reaktionsfenster, Auto-Aufbauzeit, Druckmodus, Tore pro Satz beim Spiel (3–15). Im Simple-Modus rastet die Anzahl nur auf 10/20/50. Kategorien, Gewinnsätze (1–3) und Korrekturfenster (2/3/5 s) bleiben Chips, weil zu wenige Stufen. Während des Ziehens wird nur der Wert daneben aktualisiert, gespeichert wird beim Loslassen
 - Die ganze Kopfzeile der Kachel klappt die Auswahl auf (Pfeil ▾/▴ am Knopf)
 

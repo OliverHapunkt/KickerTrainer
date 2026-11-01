@@ -1,6 +1,6 @@
 /* Browsertest: Simple-/Profi-Modus der Übungskachel (v3.14).
    Geprüft: frische Installation = Simple mit schlichten Voreinstellungen; bestehende Nutzer bleiben bei Profi und
-   ihren Hilfen; im Simple-Modus nur Schuss 3er / Pass 5er, Technik, 10/20/50; die fest eingestellte Übung stimmt;
+   ihren Hilfen; im Simple-Modus nur Schuss 3er / Pass 5er und 10/20/50, keine Technikwahl (immer Frei); die fest eingestellte Übung stimmt;
    die Kachel lässt sich über die ganze Kopfzeile aufklappen. */
 const {chromium}=require('playwright');
 const http=require('http'),fs=require('fs'),path=require('path');
@@ -35,7 +35,7 @@ const vis=(pg,sel)=>pg.$eval(sel,e=>!e.classList.contains('hidden')&&e.offsetPar
   ok(!(await vis(pg,'#btnAddPlan')),'Kein „+ Station“ im Simple-Modus');
   ok(!(await vis(pg,'#presetCard'))&&!(await vis(pg,'#planCard')),'Keine „Meine Übungen“ / kein Ablauf im Simple-Modus');
   let sum=(await txt(pg,'#cfgSum'))[0];
-  ok(/Schuss 3er · Snake/.test(sum)&&/20 Versuche/.test(sum),'Zusammenfassung: '+sum.replace(/\s+/g,' '));
+  ok(/^Schuss 3er/.test(sum)&&!/Snake|Frei/.test(sum)&&/20 Versuche/.test(sum),'Zusammenfassung: '+sum.replace(/\s+/g,' '));
   // Aufklappen über die ganze Kopfzeile
   await pg.click('.qhead h2');
   ok(await vis(pg,'#simpleWrap'),'Antippen der Überschrift klappt die Auswahl auf');
@@ -44,17 +44,16 @@ const vis=(pg,sel)=>pg.$eval(sel,e=>!e.classList.contains('hidden')&&e.offsetPar
   ok(JSON.stringify(await txt(pg,'#sDisc .chip'))===JSON.stringify(['Schuss 3er','Pass 5er']),'Nur Schuss 3er und Pass 5er');
   ok(JSON.stringify(await txt(pg,'#sAmt .ticks span'))===JSON.stringify(['10×','20×','50×']),'Anzahl: Regler mit nur 10 / 20 / 50');
   ok((await txt(pg,'#sAmt output'))[0]==='20×','Regler zeigt den Wert daneben (20×)');
-  ok((await txt(pg,'#sTech .chip')).join()==='Pull,Push,Snake,Tic-Tac,Frei','Alle Schuss-Techniken wählbar');
-  await pg.click('#sTech .chip:has-text("Push")');await pg.fill('#sAmt input','2');
+  ok((await pg.$$('#sTech')).length===0,'Keine Technik-Auswahl im Simple-Modus');
+  await pg.fill('#sAmt input','2');
   let cfg=await pg.evaluate(()=>simpleCfg());
-  ok(cfg.d==='s3'&&cfg.tech==='Push'&&cfg.count===50,'Wahl übernommen (Push, 50×)');
+  ok(cfg.d==='s3'&&cfg.tech==='Frei'&&cfg.count===50,'Wahl übernommen (50×), Technik Frei');
   ok(cfg.order==='mix'&&cfg.timing==='free'&&cfg.ready==='auto'&&cfg.auto===3&&cfg.scoring==='simple'&&!cfg.pr&&cfg.amt==='count',
     'Fest: gemischt, freies Tempo, Auto 3 s, Wertung einfach, kein Druckmodus');
   ok(cfg.tS.join()==='1,2,3,4,5'&&cfg.tP.join()==='wall,lane','Fest: alle Ziele');
   await pg.click('#sDisc .chip:has-text("Pass 5er")');
   cfg=await pg.evaluate(()=>simpleCfg());
-  ok(cfg.d==='p53'&&['Brush','Stick','Kick','Bande','Frei'].includes(cfg.tech),'Pass 5er: gültige Pass-Technik ('+cfg.tech+')');
-  ok((await txt(pg,'#sTech .chip')).join()==='Brush,Stick,Kick,Bande,Frei','Pass-Techniken wählbar');
+  ok(cfg.d==='p53'&&cfg.tech==='Frei','Pass 5er: Technik Frei');
   // Start im Simple-Modus nutzt die feste Übung
   await pg.click('#btnStart');await pg.waitForTimeout(400);
   const run=await pg.evaluate(()=>R&&R.cfg?{d:R.cfg.d,t:R.cfg.tech,n:R.cfg.count,sc:R.cfg.scoring,ready:R.cfg.ready,auto:R.cfg.auto}:null);
