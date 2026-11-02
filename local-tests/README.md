@@ -19,6 +19,7 @@ node local-tests/kalibrierung.test.js
 node local-tests/simple-modus.test.js
 node local-tests/reaktion.test.js            # kein Browser nötig
 node local-tests/reaktionsschiessen.test.js
+node local-tests/kamera-labor.test.js
 ```
 
 | Datei | Inhalt |
@@ -32,6 +33,7 @@ node local-tests/reaktionsschiessen.test.js
 | `simple-modus.test.js` | Simple-/Profi-Modus: Voreinstellungen frischer Installationen, bestehende Nutzer bleiben bei Profi, nur Schuss 3er/Pass 5er und 10/20/50, keine Technik, feste Übung, Aufklappen über die Kopfzeile, Start mit der Simple-Übung, dazu die Regler (Bereiche, Anzeige, Übernahme, kein Neuzeichnen beim Ziehen) |
 | `reaktion.test.js` | Lückenlogik des Reaktionsschießens ohne Browser: 1–3 Lücken, Dauer je Stufe, Ziel geht regelmäßig auf, Pausen, Beurteilung (ok / zu früh / zu spät, 150 ms Toleranz), dynamische Stufe |
 | `reaktionsschiessen.test.js` | Reaktionsschießen im Browser mit Fake-Mikrofon: Einstellungen, Anzeige der Lücken, Schuss bei grünem/grauem Ziel, Einleitung, zu spät, verpasst, Korrektur, dynamische Stufe samt Rückgängig, ohne Erkennung, Auswertung |
+| `kamera-labor.test.js` | Kamera-Probe: Auswertung mit künstlichen Bildfolgen (Streifen 1–5, 30/60 fps, Wackeln, unsicher, kein Ball), dazu im Browser mit dem Fake-Video von Chromium: Freischalten per 7× Tippen, Kamera, Bildrate, Schuss, Wahrheit eintragen, Text zum Kopieren, Ausschnitt-Regler, Abschalten |
 | `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal`/`settle_match` |
 
 ## Grenzen

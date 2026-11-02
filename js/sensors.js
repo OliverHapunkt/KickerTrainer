@@ -125,6 +125,7 @@ function drawMeters(){
 
 function onImpulse(now){
   if(!$('#test').classList.contains('hidden')){$('#micVerdict').textContent='Schuss erkannt ✓';$('#micVerdict').style.color='var(--hit)';clearTimeout(mic.testHit);mic.testHit=setTimeout(()=>$('#micVerdict').textContent='',1200);return}
+  if(typeof labShot==='function')labShot(now); // Labor (Kamera-Probe) hört mit
   if(!R||!R.active||R.undo)return;
   if(now<ignoreUntil||ttsBusy)return;
   if((R.phase==='call'||R.phase==='aim')&&R.detectAt==null){

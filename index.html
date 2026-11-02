@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.16.0',d:'2026-11-02'};
+window.KT_VER={v:'3.17.0',d:'2026-11-02'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -164,6 +164,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <p class="hint">Was gespeichert wird, wer was sieht und wie gelöscht wird.</p>
   </div>
   <p class="hint" data-only="train">Segment 1 = links aus Sicht des Schützen. Links/rechts „daneben“ ebenfalls aus Sicht des Schützen. <button type="button" class="link" data-tip-k="segs">Segmente erklärt</button> · <button type="button" class="link" data-tip-k="miss">Daneben erklärt</button></p>
+  <button class="big hidden" id="btnLab">Labor · Kamera-Probe</button>
   <p class="ver" id="appVer"></p>
 </section>
 
@@ -205,6 +206,25 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <!-- Inhalt kommt aus renderTabbar() in core.js, je nach Hälfte -->
 <nav class="tabbar" id="tabbar"></nav>
 
+<section id="lab" class="screen hidden">
+  <div class="shead"><button id="btnLabBack">‹ Zurück</button></div>
+  <h1>Labor · Kamera-Probe</h1>
+  <div class="card">
+    <p class="hint" style="margin-top:0">Frage: Erkennt die Kamera, in welches Segment der Ball ging? Leg das iPhone an die Tischkante, Kamera aufs Tor, Display zu dir. Schieb das rote Rechteck mit den Reglern über die Toröffnung. Dann schieß und tippe jedes Mal, wohin der Ball wirklich ging, mindestens 10 Schüsse über alle Segmente. Das Kamerabild bleibt auf dem Gerät.</p>
+    <div class="chips sc" id="labFps"></div>
+    <button class="big primary" id="btnLabCam">Kamera an</button>
+    <p class="hint" id="labInfo"></p>
+    <div class="labview"><video id="labVid" playsinline muted></video><canvas id="labOv"></canvas></div>
+    <div class="labbars" id="labBars"></div>
+  </div>
+  <div class="card"><h2>Ausschnitt (Tor im Bild)</h2><div id="labRoi"></div></div>
+  <div class="card"><h2>Schüsse</h2><p class="hint" id="labSum"></p>
+    <div class="chips hidden" id="labTruth"></div>
+    <div id="labRows"></div>
+    <div class="two eq"><button class="big" id="btnLabCopy">Ergebnis kopieren</button><button class="big" id="btnLabClear">Zurücksetzen</button></div>
+  </div>
+</section>
+
 <section id="test" class="screen hidden">
   <div class="shead"><button id="btnTestBack">‹ Zurück</button></div>
   <h1>Test</h1>
@@ -245,7 +265,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <div id="summary" class="overlay hidden"><div class="sheet" id="summaryBody"></div></div>
 <script>
 // Skripte in fester Reihenfolge laden (async=false), alle teilen sich denselben globalen Gültigkeitsbereich
-['core','ui','detector','sensors','home','training','reaktion','stats','gamification','learn','play','tools','calibrate','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
+['core','ui','detector','sensors','home','training','reaktion','stats','gamification','learn','play','tools','lab','calibrate','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
 </script>
 </body>
 </html>

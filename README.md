@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.16.0-green)
+![Version](https://img.shields.io/badge/version-3.17.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.16.0 · 2026-11-02`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.17.0 · 2026-11-02`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -85,6 +85,13 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.16.0 · 202
 - **Ohne Schusserkennung** läuft die Anzeige, aber Timing und Reaktionszeit sind nicht messbar: Treffer/Daneben von Hand. Hinweis „Empfohlen: mit Schusserkennung spielen“ steht in der Konfiguration
 - Einträge tragen `tm` (ok/early/late/none) und `lv` (Stufe), sie laufen über das `extra`-Feld in die Cloud, keine Datenbank-Änderung. Logik in `js/reaktion.js`
 - Grenze: Die Erkennung hört nur, DASS geschossen wurde. Ob der Ball im Segment landete, meldest du selbst
+
+### Labor: Kamera-Probe (versteckt)
+- Freischalten: in den Einstellungen **7× auf die Versionsnummer** tippen. Danach gibt es dort den Knopf „Labor · Kamera-Probe“. Kein Schutz, nur versteckt; der Code ist ohnehin öffentlich
+- Zweck: prüfen, ob eine Kamera am Tischrand erkennt, in welches Segment der Ball ging. Ändert nichts am Training, das Bild bleibt auf dem Gerät
+- Ablauf: Rotes Rechteck per Regler über die Toröffnung legen (5 Streifen). Pro Kamerabild wird die Veränderung je Streifen gemessen. Der Ton löst aus, ausgewertet wird 150 ms vor bis 400 ms nach dem Schuss. Ergebnis: stärkster Streifen, „eindeutig“ ab 1,5× Abstand zum zweitbesten und mindestens 3× Ruhepegel
+- Nach jedem Schuss tippt man das echte Segment (oder „daneben“). Die Seite zählt die Trefferquote der Erkennung, „Ergebnis kopieren“ liefert alle Werte als Text
+- Logik in `js/lab.js` (`labAnalyze` ist reine Rechnung, im Terminal getestet)
 
 ### Schusserkennung (optional)
 - Erkennung über **Ton**, **Erschütterung** (iPad direkt auf dem Tisch), **Ton + Erschütterung** oder **Ton oder Erschütterung**

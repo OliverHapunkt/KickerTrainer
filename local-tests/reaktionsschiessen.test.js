@@ -17,7 +17,7 @@ async function open(br,settings,mic=true){
   pg.on('console',m=>{if(m.type()==='error')errs.push('console: '+m.text())});
   await pg.addInitScript(s=>{if(!localStorage.getItem('kt2_settings'))localStorage.setItem('kt2_settings',s)},settings);
   await pg.goto('http://127.0.0.1:8128/',{waitUntil:'networkidle'});await pg.waitForTimeout(500);
-  await pg.evaluate(()=>{DISC.r3.rule=4}); // kurze Versuchszeit, damit „Verpasst“ schnell kommt
+  await pg.evaluate(()=>{DISC.r3.rule=8}); // kurze Versuchszeit, damit „Verpasst“ schnell kommt
   if(mic)await pg.evaluate(async()=>{
     await detStart();window.__sy={knocks:[]};const SR=48000;
     mic.an.getFloatTimeDomainData=function(buf){const now=performance.now(),n=buf.length,ks=__sy.knocks.filter(k=>now-k.t<400);__sy.knocks=ks;
@@ -85,10 +85,11 @@ const last=pg=>pg.evaluate(()=>{const e=R.entries[R.entries.length-1];return e?{
   e=await last(pg);ok(e.h===false&&e.l===3&&e.tm==='ok','Korrektur auf Segment 3: kein Treffer, Zeitfenster bleibt ok');
   // Schuss bei grauem Ziel, das noch nie aufging = zu früh (Lücken laufen schon)
   await pg.waitForFunction(()=>R.phase==='aim'&&R.rx&&R.entries.length===2,null,{timeout:6000});
-  await pg.waitForFunction(()=>R.rx&&performance.now()-R.rx.t0>300&&!rxTargetOpen()&&R.rx.lastOpen[R.target]===0,null,{timeout:6000,polling:'raf'});
+  // Ziel ist zu: entweder noch nie offen, oder schon länger als die „zu spät“-Spanne wieder zu (Zufall entscheidet, was zuerst kommt)
+  await pg.waitForFunction(()=>R.rx&&performance.now()-R.rx.t0>300&&!rxTargetOpen()&&(R.rx.lastOpen[R.target]===0||performance.now()-R.rx.closedAt[R.target]>RX.NEAR+100),null,{timeout:7000,polling:'raf'});
   ok(await pg.evaluate(()=>[...segs.children].some(b=>b.classList.contains('open'))),'… andere Lücken sind gerade grün (Ablenkung)');
   await pg.evaluate(()=>__knock());await waitRep(pg,3);e=await last(pg);
-  ok(e.tm==='early'&&e.h===false&&e.rt===null,'Schuss bei grauem Ziel: zu früh, kein Treffer ('+e.tm+')');
+  ok(e.tm==='early'&&e.h===false&&e.rt===null,'Schuss bei grauem Ziel (noch nie oder längst wieder zu): zu früh, kein Treffer ('+e.tm+')');
   // Verpasst: nichts schießen
   await pg.waitForFunction(()=>R.entries.length>=3&&R.phase==='aim'&&R.rx,null,{timeout:8000});
   const n0=await pg.evaluate(()=>R.entries.length);
@@ -110,8 +111,9 @@ const last=pg=>pg.evaluate(()=>{const e=R.entries[R.entries.length-1];return e?{
   pg=await open(br,base({cfg:{d:'r3',tech:'Frei',wt:['Frei'],tS:[2],order:'mix',timing:'free',ready:'off',scoring:'exact',amt:'count',count:6,lvl:5,dyn:true}}));
   await pg.evaluate(()=>startSession(S.cfg,null));
   ok((await pg.evaluate(()=>R.lvl))===5,'Start bei Stufe 5');
-  await pg.waitForTimeout(500);await pg.evaluate(()=>__knock());                       // zu früh = Daneben
+  await pg.waitForFunction(()=>R.phase==='aim',null,{timeout:4000});await pg.waitForTimeout(300);await pg.evaluate(()=>__knock()); // in der Einleitung = zu früh = Daneben
   await pg.waitForFunction(()=>R.entries.length>=1&&R.phase==='aim'&&R.entries.length===1&&R.rx,null,{timeout:8000});
+  ok((await last(pg)).tm==='early','Erster Schuss in der Einleitung: zu früh');
   ok((await pg.evaluate(()=>R.lvl))===4,'Nach einem Fehlschuss: Stufe 4');
   ok((await last(pg)).lv===5,'Der Eintrag merkt sich die Stufe, mit der geschossen wurde (5)');
   await pg.waitForFunction(()=>rxTargetOpen()&&performance.now()-R.rx.open[R.target]>150,null,{timeout:10000,polling:'raf'});
@@ -129,7 +131,7 @@ const last=pg=>pg.evaluate(()=>{const e=R.entries[R.entries.length-1];return e?{
   await pg.evaluate(()=>startSession(S.cfg,null));
   await pg.waitForFunction(()=>R.phase==='aim'&&R.rx,null,{timeout:6000});
   ok(await pg.evaluate(()=>[...segs.children].some(b=>b.classList.contains('open'))),'Lücken laufen auch ohne Erkennung');
-  await pg.waitForTimeout(4600); // Versuchszeit (4 s) abgelaufen: ohne Erkennung kein automatisches „Verpasst“
+  await pg.waitForTimeout(8600); // Versuchszeit (8 s) abgelaufen: ohne Erkennung kein automatisches „Verpasst“
   ok(await pg.evaluate(()=>R.entries.length===0&&R.phase==='aim'),'Ohne Erkennung wartet die App auf deine Eingabe, kein Automatik-Ergebnis');
   await pg.click('#bYes');await waitRep(pg,1);e=await last(pg);
   ok(e.h===true&&e.tm===undefined&&e.rt===null,'Treffer von Hand: ohne Timing, ohne Reaktionszeit ('+JSON.stringify(e)+')');
@@ -138,7 +140,7 @@ const last=pg=>pg.evaluate(()=>{const e=R.entries[R.entries.length-1];return e?{
   console.log('== Auswertung ==');
   pg=await open(br,base({cfg:{d:'r3',tech:'Frei',wt:['Frei'],tS:[2],order:'mix',timing:'free',ready:'off',scoring:'exact',amt:'count',count:6,lvl:5,dyn:false}}));
   await pg.evaluate(()=>startSession(S.cfg,null));
-  await pg.waitForTimeout(500);await pg.evaluate(()=>__knock());await waitRep(pg,1);
+  await pg.waitForFunction(()=>R.phase==='aim',null,{timeout:4000});await pg.waitForTimeout(300);await pg.evaluate(()=>__knock());await waitRep(pg,1);
   await pg.evaluate(()=>finish());await pg.waitForTimeout(300);
   const sum=await pg.textContent('#summaryBody');
   ok(/Reaktionsschießen/.test(sum)&&/Zeitfenster getroffen/.test(sum)&&/Zu früh \/ zu spät \/ verpasst/.test(sum),'Auswertung zeigt Zeitfenster und früh/spät/verpasst');

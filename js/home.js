@@ -266,6 +266,6 @@ function renderSettings(){
   const play=curMode()==='play';
   document.querySelectorAll('#settings [data-only]').forEach(el=>
     el.classList.toggle('hidden',el.dataset.only!==(play?'play':'train')));
-  renderDataHint();
+  renderDataHint();$('#btnLab').classList.toggle('hidden',!S.lab);
 }
 $('#btnTest').onclick=()=>{ensureAudio();renderTest();show('test')};
