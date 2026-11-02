@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.15.1-green)
+![Version](https://img.shields.io/badge/version-3.16.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.15.1 · 2026-11-01`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.16.0 · 2026-11-02`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -76,6 +76,15 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.15.1 · 202
 - Voreinstellungen für neue Installationen: Ansage an, Gamification an (Challenges aus), Trainings-Tipps, Standardtest, Auto-Treffer und Schusserkennung aus. Standardtechnik im Profi-Modus Snake
 - **Regler statt Chips für Zahlenwerte** (`slider()` in `home.js`): Anzahl (5–100) bzw. Minuten (1–30), Reaktionsfenster, Auto-Aufbauzeit, Druckmodus, Tore pro Satz beim Spiel (3–15). Im Simple-Modus rastet die Anzahl nur auf 10/20/50. Kategorien, Gewinnsätze (1–3) und Korrekturfenster (2/3/5 s) bleiben Chips, weil zu wenige Stufen. Während des Ziehens wird nur der Wert daneben aktualisiert, gespeichert wird beim Loslassen
 - Die ganze Kopfzeile der Kachel klappt die Auswahl auf (Pfeil ▾/▴ am Knopf)
+
+### Reaktionsschießen (Profi, Schuss 3er)
+- Das Ziel-Segment wird angesagt und mit weißem Rand markiert. Nach 1,2 s gehen **1 bis 3 Lücken grün** auf und wieder zu (zufällige Segmente, zufällige Dauer). Geschossen wird, wenn das **Ziel grün** ist
+- **Schwierigkeit:** Chips Fest | Dynamisch und Regler Stufe 1–10. Stufe 1: Lücken 2,4–3,6 s offen. Stufe 10: 0,6–1,0 s, kürzer geht nie. Dynamisch: Treffer +0,5 Stufen, Daneben −1 Stufe (Startstufe = Regler)
+- **Das Ziel geht spätestens nach 4,5 s (Stufe 1) bis 2 s (Stufe 10) auf**, bleibt nach dem Schließen mindestens 0,3–0,9 s zu. Ein Versuch dauert höchstens 12 s
+- **Mit Schusserkennung** wird das Timing automatisch beurteilt: Schuss bei grünem Ziel (oder bis 0,15 s nach dem Schließen, Flugzeit des Balls) = Treffer-Kandidat mit Korrekturfenster wie beim Auto-Treffer, Reaktionszeit ab Grünwerden. Schuss bei grauem Ziel = „zu früh“ oder „zu spät“ (Heuristik: bis 0,7 s nach dem Schließen = zu spät), zählt als Fehlschuss. Kein Schuss in 12 s = „verpasst“
+- **Ohne Schusserkennung** läuft die Anzeige, aber Timing und Reaktionszeit sind nicht messbar: Treffer/Daneben von Hand. Hinweis „Empfohlen: mit Schusserkennung spielen“ steht in der Konfiguration
+- Einträge tragen `tm` (ok/early/late/none) und `lv` (Stufe), sie laufen über das `extra`-Feld in die Cloud, keine Datenbank-Änderung. Logik in `js/reaktion.js`
+- Grenze: Die Erkennung hört nur, DASS geschossen wurde. Ob der Ball im Segment landete, meldest du selbst
 
 ### Schusserkennung (optional)
 - Erkennung über **Ton**, **Erschütterung** (iPad direkt auf dem Tisch), **Ton + Erschütterung** oder **Ton oder Erschütterung**

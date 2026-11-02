@@ -8,7 +8,7 @@
  */
 
 /* ================= Druckmodus ================= */
-const prOn=c=>(c.pr||0)>0&&DISC[c.d]&&DISC[c.d].kind!=='combo';
+const prOn=c=>(c.pr||0)>0&&DISC[c.d]&&DISC[c.d].kind!=='combo'&&!DISC[c.d].react;
 function prGoal(){return R&&prOn(R.cfg)?R.cfg.pr:0}
 function prState(){
   const g=prGoal();let c=0,best=0;
@@ -64,7 +64,7 @@ function lpState(d,tech){
   return{d,tech,stages,cur};
 }
 function lpCard(){
-  const c=S.cfg,d=DISC[c.d];if(d.kind==='combo')return'';
+  const c=S.cfg,d=DISC[c.d];if(d.kind==='combo'||d.react)return'';
   const st=lpState(c.d,c.tech),all=st.cur>2,s=st.stages[Math.min(st.cur,2)];
   let h='<div class="card lpcard"><div class="qhead"><h2>Lernpfad</h2><small class="lpsub">'+esc(d.n+' · '+c.tech)+'</small></div>'
     +'<div class="lpsteps">'+st.stages.map((x,i)=>'<div class="lps'+(x.done?' done':i===st.cur?' cur':'')+'"><i>'+(x.done?icon('check'):i+1)+'</i><span>'+LP.names[i]+'</span></div>').join('')+'</div>';
@@ -88,7 +88,7 @@ function lpGo(pressure){
 }
 // Auswertung: Stufe in dieser Session geschafft?
 function lpSummary(){
-  if(!R||R.lp0==null||DISC[R.cfg.d].kind==='combo')return'';
+  if(!R||R.lp0==null||DISC[R.cfg.d].kind==='combo'||DISC[R.cfg.d].react)return'';
   const now=lpState(R.cfg.d,R.cfg.tech).cur;if(now<=R.lp0)return'';
   return'<div class="gwin">'+icon('trophy')+'<b>Lernpfad: Stufe „'+LP.names[R.lp0]+'“ geschafft</b><span>'+(now>2?'alle Stufen':'weiter: '+LP.names[now])+'</span></div>';
 }

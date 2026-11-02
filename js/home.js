@@ -119,7 +119,7 @@ function cfgLabel(c){
   const d=DISC[c.d],wk=c.order==='weak',p=[d.n,(wk?techList(c,1).join('/'):c.tech)+(d.kind==='combo'?' + '+(wk?techList(c,2).join('/'):c.tech2):'')];
   if(hasPass(c))p.push(c.tP.map(x=>tl(x,'pass')).join('/'));
   if(hasShot(c))p.push(c.tS.map(x=>tl(x,'shot')).join(''));
-  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',c.timing==='signal'?'Signal':'frei');
+  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',d.react?(c.dyn?'dynamisch ab Stufe '+c.lvl:'Stufe '+c.lvl):c.timing==='signal'?'Signal':'frei');
   if(hasShot(c))p.push(c.scoring==='exact'?'genau':'einfach');
   if(prOn(c))p.push('Druck '+c.pr);
   p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
@@ -132,7 +132,7 @@ function cfgSummary(c){
   const p=[];
   if(hasPass(c))p.push('Pass: '+c.tP.map(x=>tl(x,'pass')).join('/'));
   if(hasShot(c))p.push((c.tS.length===1&&c.tS[0]===0)?'Tor (egal)':'Ziele '+c.tS.join(' '));
-  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',c.timing==='signal'?'auf Signal':'freies Tempo');
+  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',d.react?(c.dyn?'dynamisch ab Stufe '+c.lvl:'Stufe '+c.lvl):c.timing==='signal'?'auf Signal':'freies Tempo');
   if(hasShot(c))p.push(c.scoring==='exact'?'genau':'einfach');
   if(prOn(c))p.push('Druck '+c.pr+' in Folge');
   p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
@@ -154,7 +154,14 @@ function renderHome(){
   if(typeof renderLp==='function')renderLp();
   chips($('#cDisc'),Object.entries(DISC).map(([v,x])=>({v,t:x.n})),v=>c.d===v,v=>{
     c.d=v;const n=DISC[v];if(!n.techs.includes(c.tech))c.tech=n.techs[0];if(n.techs2&&!n.techs2.includes(c.tech2))c.tech2=n.techs2[0];c.wt=(c.wt||[]).filter(x=>n.techs.includes(x));if(!c.wt.length)c.wt=[c.tech];if(n.techs2){c.wt2=(c.wt2||[]).filter(x=>n.techs2.includes(x));if(!c.wt2.length)c.wt2=[c.tech2]}});
-  const wk=c.order==='weak';
+  const wk=c.order==='weak',rx=!!d.react;
+  $('#wReact').classList.toggle('hidden',!rx);$('#wTiming').classList.toggle('hidden',rx);
+  if(rx){
+    chips($('#cDyn'),[{v:false,t:'Fest'},{v:true,t:'Dynamisch'}],v=>!!c.dyn===v,v=>c.dyn=v);
+    $('#lLvl').firstChild.textContent=c.dyn?'Startstufe ':'Stufe ';
+    slider($('#sLvl'),{min:1,max:10,step:1,value:c.lvl,fmt:n=>n+(n<=3?' · leicht':n>=8?' · schwer':''),onInput:v=>c.lvl=v});
+    $('#hLvl').textContent=rxHint(c);$('#hRx').classList.toggle('hidden',!!S.mic);
+  }
   $('#lTech').innerHTML=(d.kind==='combo'?'Pass-Technik':'Technik')+(wk?' <span class="lmulti">mehrere möglich</span>':'');$('#cTech').classList.toggle('multi',wk);$('#cTech2').classList.toggle('multi',wk);
   if(wk)chips($('#cTech'),d.techs.map(t=>({v:t,t})),v=>techList(c,1).includes(v),v=>toggleTech(c,1,v));
   else chips($('#cTech'),d.techs.map(t=>({v:t,t})),v=>c.tech===v,v=>c.tech=v);
@@ -166,7 +173,7 @@ function renderHome(){
   }
   $('#wTP').classList.toggle('hidden',!hasPass(c));$('#wTS').classList.toggle('hidden',!hasShot(c));
   chips($('#cTP'),[{v:0,t:'Egal'},{v:'wall',t:'Wall'},{v:'lane',t:'Lane'}],v=>c.tP.includes(v),v=>c.tP=toggleTarget(c.tP,v));
-  chips($('#cTS'),[{v:0,t:'Tor (egal)'},1,2,3,4,5].map(x=>typeof x==='number'?{v:x,t:String(x)}:x),v=>c.tS.includes(v),v=>c.tS=toggleTarget(c.tS,v));
+  chips($('#cTS'),(rx?[1,2,3,4,5]:[{v:0,t:'Tor (egal)'},1,2,3,4,5]).map(x=>typeof x==='number'?{v:x,t:String(x)}:x),v=>c.tS.includes(v),v=>c.tS=toggleTarget(c.tS,v));
   chips($('#cOrder'),[{v:'mix',t:'Gemischt'},{v:'series',t:'Serie'},{v:'weak',t:'Schwachstellen'}],v=>c.order===v,v=>c.order=v);
   $('#wWeak').classList.toggle('hidden',c.order!=='weak');
   if(c.order==='weak'){
@@ -177,7 +184,7 @@ function renderHome(){
   $('#hTiming').textContent=c.timing==='free'
     ?'Nach der Aufbauzeit wird das Ziel angesagt, du spielst in deinem Rhythmus.'
     :'Nach „Bereit“ kommt das Ziel zufällig innerhalb der Regelzeit ('+d.rule+' s) – dann bleibt nur das Reaktionsfenster.';
-  $('#wWindow').classList.toggle('hidden',c.timing!=='signal');
+  $('#wWindow').classList.toggle('hidden',c.timing!=='signal'||rx);
   slider($('#cWindow'),{min:1,max:4,step:.5,value:c.window,fmt:n=>fmt(n,n%1?1:0)+' s',onInput:v=>c.window=v});
   // Aufbauzeit gilt für alle Modi. „Aus“ gibt es nur bei freiem Tempo (bei Signal und beim Schuss der Kombi ist „Bereit“ Pflicht)
   const needSetup=c.timing==='signal'||d.kind==='combo';
@@ -192,7 +199,7 @@ function renderHome(){
   $('#wScore').classList.toggle('hidden',!hasShot(c));
   chips($('#cScore'),[{v:'simple',t:'Einfach'},{v:'exact',t:'Genau'}],v=>c.scoring===v,v=>c.scoring=v);
   $('#hScore').textContent=c.scoring==='exact'?'Du meldest, wohin der Ball ging: Segment 1–5, links oder rechts neben dem Tor, oder „Miss“ (daneben, unklar wohin).':'Du meldest nur Treffer oder Daneben („Ja“ / „Miss“).';
-  $('#wPr').classList.toggle('hidden',d.kind==='combo');
+  $('#wPr').classList.toggle('hidden',d.kind==='combo'||rx);
   slider($('#cPr'),{stops:[0,3,4,5,6,7,8,9,10],value:c.pr||0,fmt:n=>n?n+' in Folge':'Aus',onInput:v=>c.pr=v,after:()=>{saveS();$('#hPr').textContent=prHint(c);renderHome()}});
   $('#hPr').textContent=prHint(c);
   chips($('#cAmtC'),[{v:'count',t:'Anzahl'},{v:'time',t:'Zeit'}],v=>c.amt===v,v=>c.amt=v);

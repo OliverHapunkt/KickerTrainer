@@ -39,6 +39,7 @@ function drawTarget(){
 function isDone(){return R.cfg.amt==='count'?R.reps>=R.cfg.count:Date.now()-R.t0>=R.cfg.minutes*60000}
 
 async function startSession(cfg,plan){
+  if(DISC[cfg.d].react){const ts=cfg.tS.filter(x=>x>0);cfg=Object.assign({},cfg,{timing:'free',pr:0,tS:ts.length?ts:[1,2,3,4,5]})} // Reaktionsschießen: eigenes Timing, immer auf ein Segment
   if(!prOn(cfg)&&cfg.pr)cfg=Object.assign({},cfg,{pr:0}); // Druckmodus gibt es nicht bei Kombi
   const micP=S.mic?detStart():null; // im Tap anfragen
   ensureAudio();speak(' ');beep(660,.08,.2); // im Tap → entsperrt Audio auf iOS
@@ -46,13 +47,14 @@ async function startSession(cfg,plan){
   const d=DISC[cfg.d];
   R={id:Date.now().toString(36),cfg:clone(cfg),D:d,plan,entries:[],reps:0,stage:d.kind==='shot'?'shot':'pass',
      deckP:[],deckS:[],pending:null,phase:'idle',target:null,callAt:0,detectAt:null,phaseStart:performance.now(),phaseDur:0,
-     timers:[],active:true,undo:null,lastHit:null,t0:Date.now()};
-  R.lp0=DISC[cfg.d].kind==='combo'?null:lpState(cfg.d,cfg.tech).cur; // Lernpfad-Stufe vor der Session
+     timers:[],active:true,undo:null,lastHit:null,t0:Date.now(),lvl:cfg.lvl||5,rx:null,rxAdj:0};
+  R.lp0=(DISC[cfg.d].kind==='combo'||DISC[cfg.d].react)?null:lpState(cfg.d,cfg.tech).cur; // Lernpfad-Stufe vor der Session
   R.gam0=gamSnapshot(); // Stand vor der Session (XP, Challenges) für die Auswertung
   D.sessions.push({id:R.id,start:Date.now(),d:cfg.d,cfg:clone(cfg)});save(LS_DATA,D);
   show('train');renderTrain();wake(true);
   $('#mLive').classList.toggle('hidden',!S.mic);
   if(micP&&!await micP)toast('Schusserkennung unvollständig – siehe Anzeige');
+  if(d.react&&!S.mic)toast('Ohne Schusserkennung: kein Timing, nur Treffer/Daneben');
   if(S.mic&&S.voiceIn)toast('Hinweis: iOS kann Mikrofon und Spracheingabe nicht immer gleichzeitig');
   if(S.voiceIn)recStart();
   if(R.cfg.order==='weak'){R.share0={};weakKinds(R.cfg).forEach(k=>{const m={};weakShares(R.cfg,k).list.forEach(c=>m[c.k+'|'+c.g]=c.share);R.share0[k]=m});showWeakIntro()}
@@ -61,7 +63,7 @@ async function startSession(cfg,plan){
 }
 function setPhase(p,dur){R.phase=p;R.phaseStart=performance.now();R.phaseDur=dur||0;renderTrain()}
 function startRep(){
-  clearTimers();R.corr=null;R.detectAt=null;R.undo=null;
+  clearTimers();R.corr=null;R.detectAt=null;R.undo=null;R.lastTm=null;R.rx=null;rxAdapt();
   if(R.nextStage){R.stage=R.nextStage;R.nextStage=null}
   const first=R.D.kind==='shot'?'shot':'pass';
   if(prGoal()&&prState().ok)return finish(); // Druckmodus: Serie geschafft
@@ -92,17 +94,19 @@ function call(){
   const sig=R.cfg.timing==='signal';
   R.callAt=performance.now();R.detectAt=null;
   setPhase(sig?'call':'aim',sig?R.cfg.window*1000:ruleMs());
+  if(R.D.react)rxArm();
   if(sig)beep();
   const k=curKind(),t=R.target,mb=prMatch()?'Matchball. ':'';
   if(k==='shot'&&t>0)speak(mb+NUM[t]);
   else if(k==='pass'&&t)speak(mb+t,'en-US');
   else if(mb)speak('Matchball');
   else if(!sig)beep();
-  pulse();
+  if(!R.D.react)pulse();
   later(timeUp,sig?R.cfg.window*1000:ruleMs());
 }
 function timeUp(){ // zwei tiefe Töne = Zeit abgelaufen
   if(!R||!R.active||R.detectAt!=null)return;
+  if(reactOn()&&S.mic){input(0,true,'none');return} // Reaktionsschießen mit Erkennung: kein Schuss = verpasst
   beep(330,.22,.5);setTimeout(()=>beep(247,.35,.5),280);
 }
 const SEGC=[null,'#4a96ee','#f0743a','#22b98a','#a07cf0','#e0609a'],PASSC={wall:'#4a96ee',lane:'#f0743a'}; // wie --s1…--s5 in app.css
@@ -148,18 +152,20 @@ function renderTrain(){
   $('#btnMiss').classList.toggle('hidden',m!=='seg');$('#btnMissL').classList.toggle('hidden',m!=='seg');$('#btnMissR').classList.toggle('hidden',m!=='seg'); // „Genau“: links / unklar / rechts immer
   $('#bNo').classList.toggle('hidden',dir);$('#bNoL').classList.toggle('hidden',!dir);$('#bNoR').classList.toggle('hidden',!dir);$('#simple').classList.toggle('dir',dir);
   $('#area').classList.toggle('off',!live&&R.phase!=='ready'&&!R.corr);
-  [...segs.children].forEach((s,i)=>s.classList.toggle('target',live&&R.target===i+1));
-  updateBeam(live);
+  [...segs.children].forEach((s,i)=>s.classList.toggle('target',live&&!reactOn()&&R.target===i+1));
+  updateBeam(live&&!reactOn());
   $('#bYes').textContent=k==='pass'?'Gefangen':'Treffer';$('#bNo').textContent=k==='pass'?'Verloren':'Daneben';
   $('#tMode').textContent=R.D.n+' · '+curTech()+(R.D.kind==='combo'?' ('+(k==='pass'?'Pass':'Schuss')+')':'')+(R.plan?' · Station '+(R.plan.i+1)+'/'+R.plan.steps.length:'');
   const n=R.entries.length,h=R.entries.filter(s=>s.h).length;
   const pg=prGoal();
   $('#tRate').innerHTML=pg?'Serie '+prState().streak+' / '+pg+(n?' · '+h+'/'+n:''):n?h+'/'+n+' · '+pct(h/n)+gamStreak(R.entries):'';
   updateWeakLive();
+  rxPaint();
 }
 let lastTxt='';
 function tick(){
   if(!R||!R.active)return;
+  rxTick(performance.now());
   const el=performance.now()-R.phaseStart,rem=R.phaseDur-el,k=curKind(),tgt=tl(R.target,k).toUpperCase();
   let txt='',frac=0,cls='';
   if(R.undo){txt='Korrektur · '+tgt}
@@ -170,17 +176,20 @@ function tick(){
     case 'grip':txt='Griffe …';break;
     case 'wait':txt='Achtung …';cls='alert';break;
     case 'call':txt=rem>0?tgt+' – JETZT':tgt+' · Zeit um';cls=rem>0?'alert':'late';frac=Math.max(0,rem/R.phaseDur);break;
-    case 'aim':txt=tgt+' · '+(rem>0?Math.ceil(rem/1000)+' s':'Zeit um');frac=Math.max(0,rem/R.phaseDur);if(rem<=0)cls='late';break;
+    case 'aim':
+      if(reactOn()&&rem>0){const o=rxTargetOpen();txt=tgt+(o?' · JETZT':' · warten');cls=o?'alert':'';frac=Math.max(0,rem/R.phaseDur);break}
+      txt=tgt+' · '+(rem>0?Math.ceil(rem/1000)+' s':'Zeit um');frac=Math.max(0,rem/R.phaseDur);if(rem<=0)cls='late';break;
     case 'result':txt=R.lastHit?(k==='pass'?'Gefangen':'Treffer'):(k==='pass'?'Verloren':'Daneben');cls=R.lastHit?'ok':'late';
+      if(R.lastTm&&R.lastTm!=='ok'){txt=RX_TXT[R.lastTm];cls='late'}
       if(R.corr){ // Auto-Treffer: deutlich als vorläufig kennzeichnen, Balken zeigt die Restzeit zum Überschreiben
-        txt=(R.corr.e.auto?'Auto-Treffer':txt)+(inputMode()==='seg'&&R.corr.e.l>0?' · Segment '+R.corr.e.l:'')+' · falsch? '+(S.voiceIn?'sagen oder tippen':'tippen')+' · '+Math.max(1,Math.ceil(rem/1000))+' s';
+        txt=(R.corr.e.auto?(R.corr.e.tm==='ok'?'Im Fenster ⚡ '+fmt(R.corr.e.rt/1000)+' s':'Auto-Treffer'):txt)+(inputMode()==='seg'&&R.corr.e.l>0?' · Segment '+R.corr.e.l:'')+' · falsch? '+(S.voiceIn?'sagen oder tippen':'tippen')+' · '+Math.max(1,Math.ceil(rem/1000))+' s';
         frac=Math.max(0,rem/R.phaseDur)}break;
   }
   const mb=prMatch()&&!R.undo&&(R.phase==='call'||R.phase==='aim');
   if(mb){txt='MATCHBALL · '+txt;if(!cls.includes('late'))cls='alert'}
   if(S.mic&&R.detectAt!=null&&!R.undo&&(R.phase==='call'||R.phase==='aim'))txt+=' · ⚡ '+fmt((R.detectAt-R.callAt)/1000)+' s'+(inputMode()==='seg'?' · wohin?':'');
   const key=txt+cls;
-  const sc=(R.phase==='aim'||R.phase==='call')&&!R.undo&&!cls.includes('late')&&!mb&&curKind()==='shot'?targetColor():null;
+  const sc=(R.phase==='aim'||R.phase==='call')&&!R.undo&&!cls.includes('late')&&!mb&&curKind()==='shot'&&!reactOn()?targetColor():null;
   if(key+sc!==lastTxt){const st=$('#tStatus');st.textContent=txt;st.className='status '+cls+(txt.length>26?' long':'');st.style.color=sc||'';lastTxt=key+sc}
   $('#tBar').style.width=(frac*100)+'%';
   // Zähler
@@ -198,7 +207,7 @@ function correct(v){
   el.classList.add(h?'fhit':'fmiss');setTimeout(()=>el.classList.remove('fhit','fmiss'),450);
   setPhase('result');later(startRep,800);
 }
-function input(v,auto){
+function input(v,auto,tm){
   if(!R||!R.active||v===null)return;
   if(v==='ready'){if(R.phase==='ready')goReady();return}
   if(R.phase==='result'&&R.corr){correct(v);return}
@@ -209,21 +218,23 @@ function input(v,auto){
   if(v==='hit')h=true;
   else if(v===0){h=false;if(m==='seg')l=0}
   else{l=v;h=R.target===0?true:v===R.target}
+  const fail=!!tm&&tm!=='ok';if(fail){h=false;l=null} // Reaktionsschießen: Ziel war zu / kein Schuss
   let rt=null,late=null;
   if(R.undo){rt=R.undo.rt;late=R.undo.late;R.undo=null}
-  else if(S.mic&&R.detectAt!=null){rt=Math.round(R.detectAt-R.callAt);if(R.cfg.timing==='signal')late=rt>R.cfg.window*1000}
+  else if(S.mic&&R.detectAt!=null){rt=reactOn()?(tm==='ok'?R.rxRt:null):Math.round(R.detectAt-R.callAt);if(R.cfg.timing==='signal')late=rt>R.cfg.window*1000}
   const passOk=R.D.kind==='combo'&&R.stage==='pass'&&h,end=!passOk;
   const e={s:R.id,t:Date.now(),d:R.cfg.d,st:k,k:curTech(),g:R.target,l,h,rt,late,sig:R.cfg.timing==='signal',end};
   if(auto)e.auto=true;
+  if(tm)e.tm=tm;if(reactOn())e.lv=Math.round(R.lvl*10)/10;
   if(md)e.md=md;
   R.entries.push(e);D.shots.push(e);save(LS_DATA,D);
-  R.pending=null;clearTimers();R.lastHit=h;
+  R.pending=null;clearTimers();R.lastHit=h;R.lastTm=tm||null;
   if(end){R.reps++;R.nextStage=R.D.kind==='combo'?'pass':R.stage}else R.nextStage='shot'; // Phasenwechsel erst beim nächsten Ziel, sonst stimmt die Anzeige im Korrekturfenster nicht
   beep(h?1200:400,.07,.2);
   const el=m==='seg'?(l>0?segs.children[l-1]:missEl(m,md)):(h?$('#bYes'):missEl(m,md));
   el.classList.add(h?'fhit':'fmiss');setTimeout(()=>el.classList.remove('fhit','fmiss'),450);
-  if(auto){const w=S.corrWin*1000;R.corr={e};setPhase('result',w);later(startRep,w)}
-  else{setPhase('result');later(startRep,550)}
+  if(auto&&!fail){const w=S.corrWin*1000;R.corr={e};setPhase('result',w);later(startRep,w)}
+  else{setPhase('result');later(startRep,fail?1200:550)}
 }
 function confirmCorr(){ // „Ja“ im Korrekturfenster: Eintrag stimmt, nächster Versuch ohne Restzeit
   if(!R||!R.active||!R.corr)return;
@@ -237,6 +248,7 @@ function undo(){
   if(e.end)R.reps--;
   R.nextStage=null;if(R.D.kind==='combo')R.stage=e.st;
   R.target=e.g;if(R.cfg.order==='weak')R.techNow=e.k;R.undo={rt:e.rt,late:e.late};R.detectAt=null;
+  if(reactOn()){R.rxAdj=Math.min(R.rxAdj,R.entries.length);R.rx=null;if(R.cfg.dyn&&e.lv!=null)R.lvl=e.lv}
   setPhase(R.cfg.timing==='signal'?'call':'aim',0);
 }
 function finish(){
@@ -280,6 +292,11 @@ function detailKV(a,b){
   let x='';
   if(b.rtAvg!=null)x+=kv('Ø Reaktionszeit (Mikro)',fmt(b.rtAvg/1000)+' s ('+b.rtN+')');
   if(b.inWin!=null)x+=kv('Im Reaktionsfenster',pct(b.inWin));
+  const tms=a.filter(z=>z.tm);
+  if(tms.length){x+=kv('Zeitfenster getroffen',tms.filter(z=>z.tm==='ok').length+' / '+tms.length);
+    x+=kv('Zu früh / zu spät / verpasst',['early','late','none'].map(k=>tms.filter(z=>z.tm===k).length).join(' / '))}
+  const lvs=a.filter(z=>z.lv!=null).map(z=>z.lv);
+  if(lvs.length){const av=lvs.reduce((p,c)=>p+c,0)/lvs.length;x+=kv('Schwierigkeit',rxLevelText(av).replace('Stufe ','Stufe Ø ')+(lvs[lvs.length-1]!==lvs[0]?' · zuletzt '+rxLevelText(lvs[lvs.length-1]).replace('Stufe ',''):''))}
   if(b.wrongN)x+=kv('Falsches Segment / daneben',b.wrongN+' / '+b.outN),x+=kv('Tendenz',tend(b));
   const sc=sideCount(a.filter(z=>z.md));if(sc.n)x+=kv('Daneben links / rechts',sc.l+' / '+sc.r);
   const unk=a.filter(z=>z.st==='shot'&&z.l===0&&!z.md).length;if(unk)x+=kv('Daneben ohne Angabe wohin',unk+' (nicht in „Wohin geht der Ball?“)');

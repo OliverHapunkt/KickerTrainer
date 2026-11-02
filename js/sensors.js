@@ -129,6 +129,7 @@ function onImpulse(now){
   if(now<ignoreUntil||ttsBusy)return;
   if((R.phase==='call'||R.phase==='aim')&&R.detectAt==null){
     R.detectAt=now;
+    if(reactOn()){reactShot(now);return} // Reaktionsschießen: Timing gegen die Lücken prüfen
     // Auto-Treffer: erkannter Schuss zählt als Treffer auf das angesagte Ziel (bei „Genau“ auf dessen Segment), Korrekturfenster folgt
     if(S.mic&&S.autoCount&&curKind()==='shot')input(inputMode()==='seg'&&R.target>0?R.target:'hit',true);
   }
