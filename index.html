@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.15.1',d:'2026-11-01'};
+window.KT_VER={v:'3.16.0',d:'2026-11-02'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -34,10 +34,13 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <div class="sub" id="wTech2"><label>Schuss-Technik</label><div class="chips" id="cTech2"></div></div>
       <div class="sub" id="wTP"><label>Pass-Ziele <span class="lmulti">mehrere möglich</span></label><div class="chips multi" id="cTP"></div></div>
       <div class="sub" id="wTS"><label>Schuss-Ziele <span class="lmulti">mehrere möglich</span> <button type="button" class="tipb" data-tip-k="segs" aria-label="Erklärung">ⓘ</button></label><div class="chips multi" id="cTS"></div></div>
+      <div class="sub hidden" id="wReact"><label id="lLvl">Stufe <button type="button" class="tipb" data-tip-k="react" aria-label="Erklärung">ⓘ</button></label>
+        <div class="chips sc" id="cDyn"></div><div id="sLvl" style="margin-top:6px"></div><p class="hint" id="hLvl"></p>
+        <p class="hint warn hidden" id="hRx">Empfohlen: mit Schusserkennung spielen. Ohne sie misst die App weder Timing noch Reaktionszeit, du meldest nur Treffer oder Daneben. Einrichten: Einstellungen › „Schusserkennung kalibrieren &amp; testen“.</p></div>
       <div class="sep"></div>
       <div class="sub"><label>Reihenfolge</label><div class="chips sc" id="cOrder"></div>
         <div id="wWeak" class="hidden"><div class="sub"><label>Datenbasis: letzte Sessions dieser Disziplin</label><div class="chips sc" id="cWeakN"></div></div><p class="hint" id="hWeak"></p></div></div>
-      <div class="sub"><label>Timing <button type="button" class="tipb" data-tip-k="timing" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cTiming"></div><p class="hint" id="hTiming"></p></div>
+      <div class="sub" id="wTiming"><label>Timing <button type="button" class="tipb" data-tip-k="timing" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cTiming"></div><p class="hint" id="hTiming"></p></div>
       <div class="sub" id="wWindow"><label>Reaktionsfenster nach Signal</label><div id="cWindow"></div></div>
       <div class="sub" id="wReady"><label>Aufbauzeit / „Bereit“ <button type="button" class="tipb" data-tip-k="setup" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cReady"></div><div class="hidden" id="sReady"></div><p class="hint" id="hReady"></p></div>
       <div class="sub" id="wScore"><label>Wertung Schuss <button type="button" class="tipb" data-tip-k="scoring" aria-label="Erklärung">ⓘ</button></label><div class="chips sc" id="cScore"></div><p class="hint" id="hScore"></p></div>
@@ -242,7 +245,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <div id="summary" class="overlay hidden"><div class="sheet" id="summaryBody"></div></div>
 <script>
 // Skripte in fester Reihenfolge laden (async=false), alle teilen sich denselben globalen Gültigkeitsbereich
-['core','ui','detector','sensors','home','training','stats','gamification','learn','play','tools','calibrate','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
+['core','ui','detector','sensors','home','training','reaktion','stats','gamification','learn','play','tools','calibrate','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
 </script>
 </body>
 </html>

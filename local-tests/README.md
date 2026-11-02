@@ -17,6 +17,8 @@ node local-tests/bestaetigung.test.js
 node local-tests/erkennung.test.js      # kein Browser nötig
 node local-tests/kalibrierung.test.js
 node local-tests/simple-modus.test.js
+node local-tests/reaktion.test.js            # kein Browser nötig
+node local-tests/reaktionsschiessen.test.js
 ```
 
 | Datei | Inhalt |
@@ -28,6 +30,8 @@ node local-tests/simple-modus.test.js
 | `erkennung.test.js` | Erkennungslogik (`detector.js`) mit künstlichen Signalen: Knall, Abschlag+Einschlag, leiser Schuss, lauter Raum, Sprechen, Dauerrauschen, Ruck, Rechnung der Kalibrierung. Gibt die bekannten Grenzen (abruptes lautes Sprechen) als „Grenze“ aus |
 | `kalibrierung.test.js` | Kalibrierung im Browser mit Fake-Mikrofon und künstlichen Signalen: Ablauf, Schwellen, automatische Wahl der Erkennung, Auto-Treffer im Training, Gegenproben (Sprechen ohne Ruck, Ruck ohne Ton), Zurücksetzen, Abbruch, Zeitüberschreitung |
 | `simple-modus.test.js` | Simple-/Profi-Modus: Voreinstellungen frischer Installationen, bestehende Nutzer bleiben bei Profi, nur Schuss 3er/Pass 5er und 10/20/50, keine Technik, feste Übung, Aufklappen über die Kopfzeile, Start mit der Simple-Übung, dazu die Regler (Bereiche, Anzeige, Übernahme, kein Neuzeichnen beim Ziehen) |
+| `reaktion.test.js` | Lückenlogik des Reaktionsschießens ohne Browser: 1–3 Lücken, Dauer je Stufe, Ziel geht regelmäßig auf, Pausen, Beurteilung (ok / zu früh / zu spät, 150 ms Toleranz), dynamische Stufe |
+| `reaktionsschiessen.test.js` | Reaktionsschießen im Browser mit Fake-Mikrofon: Einstellungen, Anzeige der Lücken, Schuss bei grünem/grauem Ziel, Einleitung, zu spät, verpasst, Korrektur, dynamische Stufe samt Rückgängig, ohne Erkennung, Auswertung |
 | `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal`/`settle_match` |
 
 ## Grenzen
