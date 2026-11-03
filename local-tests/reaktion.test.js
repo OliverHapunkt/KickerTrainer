@@ -23,7 +23,11 @@ function sim(L,target,secs){
 
 console.log('== Stufen ==');
 const p1=gpParams(1),p10=gpParams(10);
-ok(p10.on[0]===400&&p10.on[1]===700,'Stufe 10: grün nur noch 0,4–0,7 s (vorher 0,6–1,0)');
+ok(p10.on[0]===140&&p10.on[1]===230,'Stufe 10: grün meist nur 0,14–0,23 s, unter der Reaktionsschwelle');
+ok(p10.longP>=.1&&p10.longP<=.2&&p1.longP===0&&p10.longOn[0]>=500,'Stufe 10: selten (~'+Math.round(p10.longP*100)+' %) längere Grünzeiten ab '+p10.longOn[0]+' ms, Stufe 1 keine nötig');
+ok(p10.grace<p1.grace&&p10.grace<=60,'Toleranz nach dem Schließen sinkt mit der Stufe ('+p1.grace+' → '+p10.grace+' ms)');
+{let sh=0,tot=0,mx=0;for(let i=0;i<4000;i++)for(const q of gpRhythm(p10,0,rnd,'A')){tot++;if(q.on>300)sh++;mx=Math.max(mx,q.on)}
+ ok(sh/tot>.07&&sh/tot<.22&&mx>=600,'Stufe 10 simuliert: '+Math.round(sh/tot*100)+' % der Lücken länger als 0,3 s (Varianz), Rest kurz')}
 ok(p1.on[0]>=1500&&p1.off[0]>p10.off[0],'Stufe 1: lange Lücken (ab '+p1.on[0]+' ms) und längere Pausen');
 ok(p1.pool===1&&p10.pool===4,'Leicht 1 Rhythmus, schwer 4 verschiedene');
 ok(p1.reps[0]>=4&&p10.reps[1]<=2,'Leicht '+p1.reps.join('–')+' Wiederholungen, schwer '+p10.reps.join('–'));
@@ -58,7 +62,7 @@ console.log('== Beurteilung Lücken ==');
   let j=rxJudge(x,1400);ok(j.tm==='ok'&&Math.round(j.rt)===400&&j.s===2,'Mit Ansage, Ziel grün: ok, 400 ms');
   j=rxJudge(x,990);ok(j.tm==='early','Kurz vor dem Grünwerden: zu früh');
   x.open[2]=0;x.closedAt[2]=2000;
-  ok(rxJudge(x,2120).tm==='ok','120 ms nach dem Schließen: noch ok (Flugzeit)');
+  ok(rxJudge(x,2090).tm==='ok','90 ms nach dem Schließen: noch ok (Flugzeit)');
   ok(rxJudge(x,2400).tm==='late','400 ms danach: zu spät');
   ok(rxJudge(x,3500).tm==='early','1,5 s danach: zu früh (wartet aufs nächste Grün)');
   x.cur={s:4,on:800,off:200,t0:2300};x.open[4]=2300;x.lastOpen[4]=2300;

@@ -29,7 +29,7 @@ const rms=(rnd,a,b)=>Math.round((a+rnd()*(b-a))/10)*10;
    chaos    = Anteil der zufälligen Blöcke, colors = Zahl der Ablenkfarben (ab Stufe 6) */
 function gpParams(L){
   L=clampL(L);const f=(L-1)/9,r=(a,b)=>Math.round(a+(b-a)*f);
-  return{on:[r(1600,400),r(2400,700)],off:[r(500,100),r(900,300)],len:[2+Math.round(f),3+Math.round(2*f)],pool:1+Math.round(3*f),
+  return{on:[r(1600,140),r(2400,230)],longP:Math.round(.14*f*100)/100,longOn:[600,1000],grace:r(150,60),off:[r(500,100),r(900,300)],len:[2+Math.round(f),3+Math.round(2*f)],pool:1+Math.round(3*f),
     reps:[Math.max(1,Math.round(4-3*f)),Math.max(1,Math.round(5-3*f))],chaos:Math.round((.1+.25*f)*100)/100,chaosLen:[2,3+Math.round(2*f)],
     colors:L>=6?1+Math.floor((L-6)/2):0,deco:[r(1400,500),r(2200,900)],decoGap:[r(900,250),r(1600,600)]};
 }
@@ -37,7 +37,7 @@ function gpParams(L){
    Mit Ansage enthält jeder Rhythmus das Ziel, sonst könnte man ewig warten. */
 function gpRhythm(p,target,rnd,label){
   const n=rint(rnd,p.len[0],p.len[1]),st=[];
-  for(let i=0;i<n;i++){let s;do s=rint(rnd,1,5);while(i&&s===st[i-1].s);st.push({s,on:rms(rnd,p.on[0],p.on[1]),off:rms(rnd,p.off[0],p.off[1]),b:label})}
+  for(let i=0;i<n;i++){let s;do s=rint(rnd,1,5);while(i&&s===st[i-1].s);st.push({s,on:p.longP&&rnd()<p.longP?rms(rnd,p.longOn[0],p.longOn[1]):rms(rnd,p.on[0],p.on[1]),off:rms(rnd,p.off[0],p.off[1]),b:label})}
   if(target&&!st.some(x=>x.s===target)){
     const ok=st.map((_,i)=>i).filter(i=>(!i||st[i-1].s!==target)&&(i===n-1||st[i+1].s!==target));
     st[ok.length?ok[rint(rnd,0,ok.length-1)]:0].s=target;
@@ -95,7 +95,8 @@ function rxJudge(x,t){
   if(os&&t>=x.open[os])return{tm:'ok',rt:t-x.open[os],s:os};
   let ls=tg,lc=tg?x.closedAt[tg]:-1e9;
   if(!tg)for(let k=1;k<=5;k++)if(x.closedAt[k]>lc){lc=x.closedAt[k];ls=k}
-  if(lc>x.t0&&t-lc<=RX.GRACE)return{tm:'ok',rt:Math.max(0,t-x.lastOpen[ls]),s:ls};
+  const gr=x.p&&x.p.grace!=null?x.p.grace:RX.GRACE;
+  if(lc>x.t0&&t-lc<=gr)return{tm:'ok',rt:Math.max(0,t-x.lastOpen[ls]),s:ls};
   if(lc>x.t0&&t-lc<=RX.NEAR)return{tm:'late',s:ls};
   return{tm:'early',s:tg||0};
 }
@@ -128,6 +129,7 @@ function rxPersonal(shots,kind){
   const c=Math.max(350,Math.min(2400,m*1.3));return{L:clampL(1+9*(2000-c)/1450),m,n:rts.length};
 }
 function rxLevelText(L){return'Stufe '+(Math.round(L*10)%10?(Math.round(L*10)/10).toString().replace('.',','):Math.round(L))}
+const dur=ms=>ms<1000?Math.round(ms/10)*10+' ms':sec(ms)+' s';
 const sec=ms=>(Math.round(ms/100)/10).toString().replace('.',',');
 function rxHint(c,shots){
   const sig=DISC[c.d]&&DISC[c.d].react==='sig',m=rxMode(c);
@@ -138,7 +140,7 @@ function rxHint(c,shots){
   }
   let t;
   if(sig)t='Reaktionsfenster '+sec(sgWindow(c.lvl))+' s nach dem Piep.';
-  else{const p=gpParams(c.lvl);t='Grün '+sec(p.on[0])+'–'+sec(p.on[1])+' s, '+p.pool+(p.pool>1?' Rhythmen':' Rhythmus')+', je '+p.reps[0]+(p.reps[1]>p.reps[0]?'–'+p.reps[1]:'')+'× wiederholt'+(p.colors?', '+p.colors+(p.colors>1?' Ablenkfarben':' Ablenkfarbe'):'')+'.'}
+  else{const p=gpParams(c.lvl);t='Grün '+dur(p.on[0])+'–'+dur(p.on[1])+(p.longP?' (selten länger)':'')+', '+p.pool+(p.pool>1?' Rhythmen':' Rhythmus')+', je '+p.reps[0]+(p.reps[1]>p.reps[0]?'–'+p.reps[1]:'')+'× wiederholt'+(p.colors?', '+p.colors+(p.colors>1?' Ablenkfarben':' Ablenkfarbe'):'')+'.'}
   return t+(m==='dyn'?' Dynamisch: Treffer +0,5 Stufen, Daneben −1 Stufe.':'');
 }
 
