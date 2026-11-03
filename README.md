@@ -82,7 +82,7 @@ Ein Chip „Reaktionsschießen“, darunter zwei Varianten (eigene Disziplinen `
 - **Lücken:** Immer nur **ein** Segment ist grün (pulsiert zusätzlich). Die Lücke wandert in **Rhythmen**: kurze Muster aus Segment + Dauer, die sich am Stück wiederholen, dazwischen Chaos (z. B. A×4, B×3, Chaos, A×4 …)
   - **Mit Ansage** (Standard): Ziel wird angesagt und mit Bernstein-Rahmen markiert, geschossen wird, wenn das Ziel grün ist. Jeder Rhythmus und jeder Chaos-Block enthält das Ziel
   - **Ohne Ansage:** geschossen wird aufs Segment, das gerade grün ist. Das wird dann als Ziel gespeichert
-  - Stufe 1: grün 1,6–2,4 s, 1 Rhythmus, 4–5 Wiederholungen. Stufe 10: grün 0,4–0,7 s, 4 Rhythmen, 1–2 Wiederholungen, mehr Chaos
+  - Stufe 1: grün 1,6–2,4 s, 1 Rhythmus, 4–5 Wiederholungen. Stufe 10: grün meist 0,14–0,23 s (unter der Reaktionsschwelle, nur über den Rhythmus zu treffen) plus ca. 14 % längere Lücken (0,6–1,0 s), 4 Rhythmen, 1–2 Wiederholungen, mehr Chaos
   - **Ablenkfarben** ab Stufe 6 (blau), ab 8 (+violett), bei 10 (+weiß), höchstens zwei gleichzeitig, nie auf dem grünen Segment. Keine Rot/Orange/Gelb-Töne (Farbschwäche, Verwechslung mit dem Zielrahmen)
 - **Signal:** Ziel wird angesagt, nach 1,5–4 s zufälliger Wartezeit kommt ein **Piep mit Aufleuchten** des ganzen Bildschirms, das Ziel wird grün. Reaktionsfenster Stufe 1 = 1,5 s, Stufe 10 = 0,4 s. Vor dem Piep = zu früh, nach dem Fenster = zu langsam (Zeit wird trotzdem gespeichert). **Nur mit Schusserkennung startbar**
 - **Schwierigkeit:** Fest (Stufe 1–10), Dynamisch (Startstufe per Regler, Treffer +0,5, Daneben −1), **Individuell**: aus deinen letzten 20 Reaktionszeiten (Median, mindestens 5), sodass du etwa jeden zweiten schaffst. Signal: Fenster = Median (0,25–1,5 s). Lücken: Grün ≈ 1,3× Median
