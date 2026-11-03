@@ -82,13 +82,21 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute
 @keyframes beamIn{0%{opacity:1}100%{opacity:.3}}
 #train>*:not(.beam){position:relative;z-index:1}
 .seg.pulse{animation:pulse .3s 2}
-/* Reaktionsschießen: grau = zu, grün = Lücke, weißer Rand = Ziel */
-.seg.rx{background:#23262d;border-color:#2b2f38;color:#8a8f99;transition:background .06s,box-shadow .06s}
+/* Reaktionsschießen: grau = zu, grün (pulsierend) = Lücke, Bernstein-Rahmen = Ziel, blau/violett/weiß = Ablenkung */
+.seg.rx{background:#23262d;border-color:#2b2f38;color:#8a8f99;transition:none}
 .seg.rx::before{opacity:0}
-.seg.rx.open{background:var(--hit);border-color:var(--hit);color:#0b1f12;box-shadow:0 0 34px var(--hit)}
-.seg.rx.tgt{outline:4px solid #fff;outline-offset:-6px}
-.seg.rx.tgt:not(.open){color:#fff}
-.seg.rx.tgt.open{box-shadow:0 0 0 5px #fff inset,0 0 52px var(--hit)}
+.seg.rx.open{background:var(--hit);border-color:var(--hit);color:#0b1f12;box-shadow:0 0 34px var(--hit);animation:rxPulse .5s ease-in-out infinite alternate}
+@keyframes rxPulse{from{filter:brightness(1)}to{filter:brightness(1.3)}}
+.seg.rx.tgt{outline:7px solid var(--acc);outline-offset:-9px;box-shadow:0 0 30px rgba(255,176,32,.55)}
+.seg.rx.tgt:not(.open){color:var(--acc)}
+.seg.rx.tgt.open{box-shadow:0 0 0 2px var(--acc),0 0 52px var(--hit)}
+.seg.rx.d1{background:#2f63c8;border-color:#2f63c8;color:#e8eefc}
+.seg.rx.d2{background:#7d4fd6;border-color:#7d4fd6;color:#f1eafe}
+.seg.rx.d3{background:#e8eaed;border-color:#e8eaed;color:#2a2d33}
+#flash{position:fixed;inset:0;background:#eafff1;opacity:0;pointer-events:none;z-index:50}
+#flash.on{animation:flashA .25s ease-out}
+@keyframes flashA{0%{opacity:.9}100%{opacity:0}}
+.dchk{margin-top:6px}
 .hint.warn{color:var(--acc)}
 @keyframes pulse{50%{filter:brightness(1.35)}}
 .fhit{background:var(--hit)!important;color:#000!important;border-color:var(--hit)!important}

@@ -9,7 +9,8 @@ const PASS53_T=['Brush','Stick','Kick','Bande','Frei'];
 const DISC={
   s3:{n:'Schuss 3er',kind:'shot',techs:SHOT_T,rule:15},
   s2:{n:'Schuss 2er',kind:'shot',techs:['Gerade','Bande','Lücke','Frei'],rule:15},
-  r3:{n:'Reaktionsschießen',kind:'shot',techs:SHOT_T,rule:12,react:true},
+  r3:{n:'Reaktion · Lücken',kind:'shot',techs:SHOT_T,rule:12,react:'gap'},
+  r3s:{n:'Reaktion · Signal',kind:'shot',techs:SHOT_T,rule:12,react:'sig'},
   p53:{n:'Pass 5er→3er',kind:'pass',techs:PASS53_T,rule:10},
   p25:{n:'Pass 2er→5er',kind:'pass',techs:['Gerade','Bande','Frei'],rule:15},
   p23:{n:'Pass 2er→3er',kind:'pass',techs:['Gerade','Bande','Frei'],rule:15},
@@ -18,7 +19,7 @@ const DISC={
 const NUM=['','Eins','Zwei','Drei','Vier','Fünf'];
 const TORDER=[0,1,2,3,4,5,'wall','lane'];
 // ready = Aufbauzeit nach jedem Versuch: 'auto' (Countdown, „Ja“/Tippen verkürzt), 'tap' (wartet auf „Ja“/Tippen), 'off' (nur bei freiem Tempo)
-const DEFCFG={d:'s3',tech:'Snake',tech2:'Snake',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',wt:['Snake'],wt2:['Snake'],weakN:10,timing:'free',window:2,lvl:5,dyn:false,ready:'auto',auto:5,scoring:'exact',amt:'count',count:20,minutes:10,pr:0};
+const DEFCFG={d:'s3',tech:'Snake',tech2:'Snake',tP:['wall','lane'],tS:[1,2,3,4,5],order:'mix',wt:['Snake'],wt2:['Snake'],weakN:10,timing:'free',window:2,lvl:5,dyn:false,rxd:'fix',rxa:true,ready:'auto',auto:5,scoring:'exact',amt:'count',count:20,minutes:10,pr:0};
 const DEF={cfg:DEFCFG,plan:[],presets:[],cfgOpen:false,mode:'train',missDir:false,lp:false,stdOn:false,voiceOut:true,voiceIn:false,mic:false,sens:3,msens:4,cal:null,det:'audio',autoCount:false,corrWin:3,simple:{d:'s3',count:20}};
 
 /* Simple-Modus: feste Übung, nur Disziplin (Schuss 3er / Pass 5er) und Anzahl sind wählbar; Technik ist immer „Frei“.

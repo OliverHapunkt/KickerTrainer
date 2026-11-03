@@ -53,7 +53,7 @@ function micLoop(){
   const bl=blockRms(mic.buf),thr=cal.on?cal.thrA():thrA(),now=performance.now(),o=findOnset(bl,thr);
   mic.rms=o.peak;mic.thr=thr;mic.peak=o.peak;
   if(cal.on)cal.frame('a',o.peak,now);
-  if(o.ok){if(now-mic.last>mic.gap){mic.last=now;sensorHit('a',now,o.peak)}}
+  if(o.ok&&now>=ignoreUntil){if(now-mic.last>mic.gap){mic.last=now;sensorHit('a',now,o.peak)}} // eigene Pieptöne zählen nicht – sonst sperren sie den nächsten Schuss 400 ms lang
   else if(!S.cal||!S.cal.a){ // Umgebungspegel nur ohne Kalibrierung nachführen
     const mean=bl.reduce((a,b)=>a+b,0)/bl.length;if(mean<thr)mic.amb=mic.amb*.98+mean*.02}
   mic.raf=requestAnimationFrame(micLoop);

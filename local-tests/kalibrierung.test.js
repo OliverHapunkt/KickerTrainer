@@ -79,7 +79,8 @@ let fails=0;const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m);if(!c)fails++}
   ok(await pg.evaluate(()=>mic.thr===S.cal.a),'Das Messgerät im Test zeigt die kalibrierte Schwelle');
 
   console.log('== Prüfen im Test ==');
-  await pg.evaluate(()=>{__shot(150,.3,1.0)});await pg.waitForTimeout(600);
+  // 0,4 s warten: der Bestätigungston der Kalibrierung wird ausgeblendet (eigene Töne zählen nicht als Schuss)
+  await pg.waitForTimeout(400);await pg.evaluate(()=>{__shot(150,.3,1.0)});await pg.waitForTimeout(600);
   ok((await pg.textContent('#micVerdict')).includes('Schuss erkannt'),'Schuss aufs Tor → „Schuss erkannt ✓“');
   await pg.evaluate(()=>{__sy.speech.push({from:performance.now()+100,to:performance.now()+2000,rms:.03})});
   await pg.waitForTimeout(2300);

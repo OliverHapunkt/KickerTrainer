@@ -115,11 +115,13 @@ function closeIntro(){
   if(R){clearTimeout(R.introT);if(R.active&&!R.began){R.began=true;later(startRep,400)}}
 }
 $('#intro').addEventListener('pointerdown',e=>{e.preventDefault();closeIntro()});
+function rxCfgText(c){const m=rxMode(c),d=DISC[c.d];
+  return(d.react==='gap'&&c.rxa===false?'ohne Ansage · ':'')+(m==='ind'?'individuell':m==='dyn'?'dynamisch ab Stufe '+c.lvl:'Stufe '+c.lvl)}
 function cfgLabel(c){
   const d=DISC[c.d],wk=c.order==='weak',p=[d.n,(wk?techList(c,1).join('/'):c.tech)+(d.kind==='combo'?' + '+(wk?techList(c,2).join('/'):c.tech2):'')];
   if(hasPass(c))p.push(c.tP.map(x=>tl(x,'pass')).join('/'));
   if(hasShot(c))p.push(c.tS.map(x=>tl(x,'shot')).join(''));
-  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',d.react?(c.dyn?'dynamisch ab Stufe '+c.lvl:'Stufe '+c.lvl):c.timing==='signal'?'Signal':'frei');
+  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',d.react?rxCfgText(c):c.timing==='signal'?'Signal':'frei');
   if(hasShot(c))p.push(c.scoring==='exact'?'genau':'einfach');
   if(prOn(c))p.push('Druck '+c.pr);
   p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
@@ -132,7 +134,7 @@ function cfgSummary(c){
   const p=[];
   if(hasPass(c))p.push('Pass: '+c.tP.map(x=>tl(x,'pass')).join('/'));
   if(hasShot(c))p.push((c.tS.length===1&&c.tS[0]===0)?'Tor (egal)':'Ziele '+c.tS.join(' '));
-  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',d.react?(c.dyn?'dynamisch ab Stufe '+c.lvl:'Stufe '+c.lvl):c.timing==='signal'?'auf Signal':'freies Tempo');
+  p.push(c.order==='mix'?'gemischt':c.order==='weak'?'Schwachstellen':'Serie',d.react?rxCfgText(c):c.timing==='signal'?'auf Signal':'freies Tempo');
   if(hasShot(c))p.push(c.scoring==='exact'?'genau':'einfach');
   if(prOn(c))p.push('Druck '+c.pr+' in Folge');
   p.push(c.amt==='count'?c.count+'×':c.minutes+' min');
@@ -152,15 +154,24 @@ function renderHome(){
   renderPresets();
   if(typeof renderGam==='function')renderGam();
   if(typeof renderLp==='function')renderLp();
-  chips($('#cDisc'),Object.entries(DISC).map(([v,x])=>({v,t:x.n})),v=>c.d===v,v=>{
+  chips($('#cDisc'),Object.entries(DISC).filter(([v])=>v!=='r3s').map(([v,x])=>({v,t:x.react?'Reaktionsschießen':x.n})),v=>v==='r3'?!!DISC[c.d].react:c.d===v,v=>{
+    if(v==='r3'&&DISC[c.d].react)return; // beide Reaktions-Varianten hängen an einem Chip, gewechselt wird darunter
     c.d=v;const n=DISC[v];if(!n.techs.includes(c.tech))c.tech=n.techs[0];if(n.techs2&&!n.techs2.includes(c.tech2))c.tech2=n.techs2[0];c.wt=(c.wt||[]).filter(x=>n.techs.includes(x));if(!c.wt.length)c.wt=[c.tech];if(n.techs2){c.wt2=(c.wt2||[]).filter(x=>n.techs2.includes(x));if(!c.wt2.length)c.wt2=[c.tech2]}});
   const wk=c.order==='weak',rx=!!d.react;
   $('#wReact').classList.toggle('hidden',!rx);$('#wTiming').classList.toggle('hidden',rx);
   if(rx){
-    chips($('#cDyn'),[{v:false,t:'Fest'},{v:true,t:'Dynamisch'}],v=>!!c.dyn===v,v=>c.dyn=v);
-    $('#lLvl').firstChild.textContent=c.dyn?'Startstufe ':'Stufe ';
-    slider($('#sLvl'),{min:1,max:10,step:1,value:c.lvl,fmt:n=>n+(n<=3?' · leicht':n>=8?' · schwer':''),onInput:v=>c.lvl=v});
-    $('#hLvl').textContent=rxHint(c);$('#hRx').classList.toggle('hidden',!!S.mic);
+    const sig=d.react==='sig',m=rxMode(c);
+    chips($('#cRxm'),[{v:'r3',t:'Lücken'},{v:'r3s',t:'Signal'}],v=>c.d===v,v=>c.d=v);
+    $('#cRxa').classList.toggle('hidden',sig);
+    chips($('#cRxa'),[{v:true,t:'Mit Ansage'},{v:false,t:'Ohne Ansage'}],v=>(c.rxa!==false)===v,v=>c.rxa=v);
+    chips($('#cDyn'),[{v:'fix',t:'Fest'},{v:'dyn',t:'Dynamisch'},{v:'ind',t:'Individuell'}],v=>m===v,v=>{c.rxd=v;c.dyn=v==='dyn'});
+    $('#lLvl').firstChild.textContent=m==='dyn'?'Startstufe ':'Stufe ';
+    $('#lLvl').classList.toggle('hidden',m==='ind');$('#sLvl').classList.toggle('hidden',m==='ind');
+    if(m!=='ind')slider($('#sLvl'),{min:1,max:10,step:1,value:c.lvl,fmt:n=>n+(n<=3?' · leicht':n>=8?' · schwer':''),onInput:v=>c.lvl=v});
+    $('#hLvl').textContent=rxHint(c,D.shots);
+    $('#hRx').textContent=sig?'Braucht die Schusserkennung: Sie misst die Zeit vom Piep bis zum Schuss. Einrichten: Einstellungen › „Schusserkennung kalibrieren & testen“.'
+      :'Empfohlen: mit Schusserkennung spielen. Ohne sie misst die App weder Timing noch Reaktionszeit, du meldest nur Treffer oder Daneben. Einrichten: Einstellungen › „Schusserkennung kalibrieren & testen“.';
+    $('#hRx').classList.toggle('hidden',!!S.mic);
   }
   $('#lTech').innerHTML=(d.kind==='combo'?'Pass-Technik':'Technik')+(wk?' <span class="lmulti">mehrere möglich</span>':'');$('#cTech').classList.toggle('multi',wk);$('#cTech2').classList.toggle('multi',wk);
   if(wk)chips($('#cTech'),d.techs.map(t=>({v:t,t})),v=>techList(c,1).includes(v),v=>toggleTech(c,1,v));
@@ -171,7 +182,7 @@ function renderHome(){
     if(wk)chips($('#cTech2'),d.techs2.map(t=>({v:t,t})),v=>techList(c,2).includes(v),v=>toggleTech(c,2,v));
     else chips($('#cTech2'),d.techs2.map(t=>({v:t,t})),v=>c.tech2===v,v=>c.tech2=v);
   }
-  $('#wTP').classList.toggle('hidden',!hasPass(c));$('#wTS').classList.toggle('hidden',!hasShot(c));
+  $('#wTP').classList.toggle('hidden',!hasPass(c));$('#wTS').classList.toggle('hidden',!hasShot(c)||(d.react==='gap'&&c.rxa===false));
   chips($('#cTP'),[{v:0,t:'Egal'},{v:'wall',t:'Wall'},{v:'lane',t:'Lane'}],v=>c.tP.includes(v),v=>c.tP=toggleTarget(c.tP,v));
   chips($('#cTS'),(rx?[1,2,3,4,5]:[{v:0,t:'Tor (egal)'},1,2,3,4,5]).map(x=>typeof x==='number'?{v:x,t:String(x)}:x),v=>c.tS.includes(v),v=>c.tS=toggleTarget(c.tS,v));
   chips($('#cOrder'),[{v:'mix',t:'Gemischt'},{v:'series',t:'Serie'},{v:'weak',t:'Schwachstellen'}],v=>c.order===v,v=>c.order=v);

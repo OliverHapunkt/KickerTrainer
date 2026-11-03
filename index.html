@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.17.0',d:'2026-11-02'};
+window.KT_VER={v:'3.18.0',d:'2026-11-03'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -34,9 +34,11 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <div class="sub" id="wTech2"><label>Schuss-Technik</label><div class="chips" id="cTech2"></div></div>
       <div class="sub" id="wTP"><label>Pass-Ziele <span class="lmulti">mehrere möglich</span></label><div class="chips multi" id="cTP"></div></div>
       <div class="sub" id="wTS"><label>Schuss-Ziele <span class="lmulti">mehrere möglich</span> <button type="button" class="tipb" data-tip-k="segs" aria-label="Erklärung">ⓘ</button></label><div class="chips multi" id="cTS"></div></div>
-      <div class="sub hidden" id="wReact"><label id="lLvl">Stufe <button type="button" class="tipb" data-tip-k="react" aria-label="Erklärung">ⓘ</button></label>
-        <div class="chips sc" id="cDyn"></div><div id="sLvl" style="margin-top:6px"></div><p class="hint" id="hLvl"></p>
-        <p class="hint warn hidden" id="hRx">Empfohlen: mit Schusserkennung spielen. Ohne sie misst die App weder Timing noch Reaktionszeit, du meldest nur Treffer oder Daneben. Einrichten: Einstellungen › „Schusserkennung kalibrieren &amp; testen“.</p></div>
+      <div class="sub hidden" id="wReact"><label>Reaktion <button type="button" class="tipb" data-tip-k="react" aria-label="Erklärung">ⓘ</button></label>
+        <div class="chips sc" id="cRxm"></div><div class="chips sc" id="cRxa" style="margin-top:8px"></div>
+        <label style="margin-top:12px">Schwierigkeit</label><div class="chips sc" id="cDyn"></div>
+        <label id="lLvl" style="margin-top:10px">Stufe </label><div id="sLvl"></div><p class="hint" id="hLvl"></p>
+        <p class="hint warn hidden" id="hRx"></p></div>
       <div class="sep"></div>
       <div class="sub"><label>Reihenfolge</label><div class="chips sc" id="cOrder"></div>
         <div id="wWeak" class="hidden"><div class="sub"><label>Datenbasis: letzte Sessions dieser Disziplin</label><div class="chips sc" id="cWeakN"></div></div><p class="hint" id="hWeak"></p></div></div>
@@ -61,6 +63,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 
 </section>
 
+<div id="flash" aria-hidden="true"></div>
 <section id="train" class="hidden">
   <div class="beam" id="beam"></div>
   <div class="thead"><div><button type="button" class="tipb" data-tip-k="vocab" aria-label="Sprachbefehle und Bedeutung der Eingaben">ⓘ</button> <span id="tMode"></span></div><div id="tCount" class="count"></div><div id="tRate"></div></div>
