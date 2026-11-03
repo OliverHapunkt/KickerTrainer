@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.17.0-green)
+![Version](https://img.shields.io/badge/version-3.18.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.17.0 · 2026-11-02`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.18.0 · 2026-11-03`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -78,13 +78,18 @@ Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.17.0 · 202
 - Die ganze Kopfzeile der Kachel klappt die Auswahl auf (Pfeil ▾/▴ am Knopf)
 
 ### Reaktionsschießen (Profi, Schuss 3er)
-- Das Ziel-Segment wird angesagt und mit weißem Rand markiert. Nach 1,2 s gehen **1 bis 3 Lücken grün** auf und wieder zu (zufällige Segmente, zufällige Dauer). Geschossen wird, wenn das **Ziel grün** ist
-- **Schwierigkeit:** Chips Fest | Dynamisch und Regler Stufe 1–10. Stufe 1: Lücken 2,4–3,6 s offen. Stufe 10: 0,6–1,0 s, kürzer geht nie. Dynamisch: Treffer +0,5 Stufen, Daneben −1 Stufe (Startstufe = Regler)
-- **Das Ziel geht spätestens nach 4,5 s (Stufe 1) bis 2 s (Stufe 10) auf**, bleibt nach dem Schließen mindestens 0,3–0,9 s zu. Ein Versuch dauert höchstens 12 s
-- **Mit Schusserkennung** wird das Timing automatisch beurteilt: Schuss bei grünem Ziel (oder bis 0,15 s nach dem Schließen, Flugzeit des Balls) = Treffer-Kandidat mit Korrekturfenster wie beim Auto-Treffer, Reaktionszeit ab Grünwerden. Schuss bei grauem Ziel = „zu früh“ oder „zu spät“ (Heuristik: bis 0,7 s nach dem Schließen = zu spät), zählt als Fehlschuss. Kein Schuss in 12 s = „verpasst“
-- **Ohne Schusserkennung** läuft die Anzeige, aber Timing und Reaktionszeit sind nicht messbar: Treffer/Daneben von Hand. Hinweis „Empfohlen: mit Schusserkennung spielen“ steht in der Konfiguration
-- Einträge tragen `tm` (ok/early/late/none) und `lv` (Stufe), sie laufen über das `extra`-Feld in die Cloud, keine Datenbank-Änderung. Logik in `js/reaktion.js`
-- Grenze: Die Erkennung hört nur, DASS geschossen wurde. Ob der Ball im Segment landete, meldest du selbst
+Ein Chip „Reaktionsschießen“, darunter zwei Varianten (eigene Disziplinen `r3` / `r3s`, damit die Statistik sie trennt). Logik in `js/reaktion.js`.
+- **Lücken:** Immer nur **ein** Segment ist grün (pulsiert zusätzlich). Die Lücke wandert in **Rhythmen**: kurze Muster aus Segment + Dauer, die sich am Stück wiederholen, dazwischen Chaos (z. B. A×4, B×3, Chaos, A×4 …)
+  - **Mit Ansage** (Standard): Ziel wird angesagt und mit Bernstein-Rahmen markiert, geschossen wird, wenn das Ziel grün ist. Jeder Rhythmus und jeder Chaos-Block enthält das Ziel
+  - **Ohne Ansage:** geschossen wird aufs Segment, das gerade grün ist. Das wird dann als Ziel gespeichert
+  - Stufe 1: grün 1,6–2,4 s, 1 Rhythmus, 4–5 Wiederholungen. Stufe 10: grün 0,4–0,7 s, 4 Rhythmen, 1–2 Wiederholungen, mehr Chaos
+  - **Ablenkfarben** ab Stufe 6 (blau), ab 8 (+violett), bei 10 (+weiß), höchstens zwei gleichzeitig, nie auf dem grünen Segment. Keine Rot/Orange/Gelb-Töne (Farbschwäche, Verwechslung mit dem Zielrahmen)
+- **Signal:** Ziel wird angesagt, nach 1,5–4 s zufälliger Wartezeit kommt ein **Piep mit Aufleuchten** des ganzen Bildschirms, das Ziel wird grün. Reaktionsfenster Stufe 1 = 1,5 s, Stufe 10 = 0,4 s. Vor dem Piep = zu früh, nach dem Fenster = zu langsam (Zeit wird trotzdem gespeichert). **Nur mit Schusserkennung startbar**
+- **Schwierigkeit:** Fest (Stufe 1–10), Dynamisch (Startstufe per Regler, Treffer +0,5, Daneben −1), **Individuell**: aus deinen letzten 20 Reaktionszeiten (Median, mindestens 5), sodass du etwa jeden zweiten schaffst. Signal: Fenster = Median (0,25–1,5 s). Lücken: Grün ≈ 1,3× Median
+- **Wertung mit Schusserkennung:** Timing automatisch, Ergebnis (Segment getroffen) per Korrekturfenster. 150 ms Toleranz nach dem Schließen (Flugzeit). „Zu spät“ bei Lücken ist eine Heuristik (bis 0,7 s nach dem Schließen)
+- **Hilfe** beim Start als Dialog, mit „Nicht mehr anzeigen“; immer erreichbar über das ⓘ in der Konfiguration
+- Einträge: `tm` (ok/early/late/none), `lv` (Stufe), `w` (Fenster, Signal), `na` (ohne Ansage). Laufen über das `extra`-Feld in die Cloud, keine Datenbank-Änderung
+- Eigene Pieptöne der App sperren die Schusserkennung nicht mehr 400 ms lang (vorher hätte ein schneller Schuss nach dem Piep verschluckt werden können)
 
 ### Labor: Kamera-Probe (versteckt)
 - Freischalten: in den Einstellungen **7× auf die Versionsnummer** tippen. Danach gibt es dort den Knopf „Labor · Kamera-Probe“. Kein Schutz, nur versteckt; der Code ist ohnehin öffentlich

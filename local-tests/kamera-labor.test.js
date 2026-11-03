@@ -74,7 +74,7 @@ r=labAnalyze(frames({secs:1,shot:500}).filter(f=>f.t<400),2000);ok(r.pick===0&&r
   await pg.click('#labTruth button[data-v="3"]');
   ok((await pg.evaluate(()=>lab.shots[0].truth))===3&&/Segment richtig: [01] von 1/.test(await pg.textContent('#labSum')),'Wahrheit eingetragen, Zusammenfassung zählt');
   ok(await pg.isHidden('#labTruth'),'Ohne offenen Schuss sind die Knöpfe wieder weg');
-  const txt=await pg.evaluate(()=>labText());ok(/#1 wahr 3 erkannt/.test(txt)&&/Kamera-Probe 3\.17\.0/.test(txt),'Ergebnis-Text zum Kopieren enthält Schuss und Version');
+  const txt=await pg.evaluate(()=>labText());ok(/#1 wahr 3 erkannt/.test(txt)&&txt.includes('Kamera-Probe '+(await pg.evaluate(()=>APP_VERSION))),'Ergebnis-Text zum Kopieren enthält Schuss und Version');
   console.log('== Ausschnitt ==');
   await pg.fill('#labSr input','60');await pg.waitForTimeout(100);
   ok((await pg.evaluate(()=>lab.roi.r))===60,'Regler verschiebt den Ausschnitt (rechts 60 %)');
