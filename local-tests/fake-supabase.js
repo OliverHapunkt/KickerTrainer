@@ -4,13 +4,15 @@
    SQL-Tests geprüft (supabase/local-tests). */
 (function(){
   // Schlüssel = echte Tabellennamen, sonst gehen Abfragen ins Leere
-  const EMPTY = {players:[], matches:[], match_players:[], match_sets:[], goals:[], match_confirmations:[]};
+  const EMPTY = {players:[], matches:[], match_players:[], match_sets:[], goals:[], match_confirmations:[],
+                 ratings:[], team_ratings:[], rating_history:[]};
   // Datenbank und angemeldetes Konto überleben einen Neustart der Seite. Nur so
   // lassen sich zwei Personen nacheinander in derselben Umgebung nachstellen.
   let DB, seq;
   try{ const raw = JSON.parse(localStorage.getItem('__fakedb') || 'null');
        DB = raw ? raw.db : JSON.parse(JSON.stringify(EMPTY)); seq = raw ? raw.seq : 0; }
   catch(e){ DB = JSON.parse(JSON.stringify(EMPTY)); seq = 0 }
+  for(const k of Object.keys(EMPTY)) if(!DB[k]) DB[k] = [];
   function persist(){ try{ localStorage.setItem('__fakedb', JSON.stringify({db:DB, seq})) }catch(e){} }
   const uid = () => { seq++; persist(); return 'id-' + seq };
   // Konto bei JEDEM Zugriff frisch lesen, nicht einmal beim Laden: Im Test werden
@@ -60,7 +62,7 @@
         persist();
         return Promise.resolve(res(made));
       }
-      if(this.upd){ const a=this._rows; a.forEach(r=>Object.assign(r,this.upd)); persist(); return Promise.resolve(res(a)) }
+      if(this.upd){ const a=this._rows; a.forEach(r=>Object.assign(r,this.upd)); if(this.t==='matches') recompute(); persist(); return Promise.resolve(res(a)) }
       if(this.del){ const a=this._rows; DB[this.t]=rows(this.t).filter(r=>!a.includes(r)); persist(); return Promise.resolve(res(a)) }
       // Eingebettete Unterabfrage wie select('...,match_sets(...)') nachbilden:
       // PostgREST hängt die verknüpften Zeilen an. Reicht für match_id-Beziehungen.
@@ -103,17 +105,66 @@
     return DB.match_confirmations.some(c=>c.match_id===id && c.rev===m.rev
       && c.decision==='ok' && able.some(a=>a.player_id===c.player_id));
   }
+  /* Spiegelt recompute_ratings(): komplett neu aus allen bestätigten Wertungsspielen */
+  function recompute(){
+    DB.ratings=[]; DB.team_ratings=[]; DB.rating_history=[];
+    const at=m=>m.finished_at||m.started_at||m.created_at;
+    const ms=DB.matches.filter(m=>m.state==='confirmed'&&(m.category||'ranked')==='ranked')
+      .sort((a,b)=>at(a)<at(b)?-1:at(a)>at(b)?1:(a.id<b.id?-1:1));
+    const R=(pid,k)=>{let r=DB.ratings.find(x=>x.player_id===pid&&x.kind===k);
+      if(!r){r={player_id:pid,kind:k,rating:1000,games:0,wins:0};DB.ratings.push(r)}return r};
+    for(const m of ms){
+      const ss=DB.match_sets.filter(x=>x.match_id===m.id);
+      const w1=ss.filter(x=>x.winner_team===1).length,w2=ss.filter(x=>x.winner_team===2).length;
+      if(w1===w2) continue;
+      const k=m.mode==='single'?'single':'double';
+      const t1=DB.match_players.filter(x=>x.match_id===m.id&&x.team===1).map(x=>x.player_id).sort();
+      const t2=DB.match_players.filter(x=>x.match_id===m.id&&x.team===2).map(x=>x.player_id).sort();
+      const avg=t=>t.reduce((a,p)=>a+R(p,k).rating,0)/t.length;
+      const r1=avg(t1),r2=avg(t2),e1=1/(1+Math.pow(10,(r2-r1)/400)),s1=w1>w2?1:0;
+      for(const p of t1.concat(t2)){
+        const sc=t1.includes(p)?s1:1-s1, ex=t1.includes(p)?e1:1-e1, r=R(p,k), K=r.games<10?48:24, b=r.rating;
+        r.rating=b+K*(sc-ex); r.games++; if(sc===1)r.wins++;
+        DB.rating_history.push({match_id:m.id,player_id:p,kind:k,before:b,after:r.rating,at:at(m)});
+      }
+      if(k==='double'&&t1.length===2&&t2.length===2){
+        const T=t=>{let r=DB.team_ratings.find(x=>x.p1===t[0]&&x.p2===t[1]);if(!r){r={p1:t[0],p2:t[1],rating:1000,games:0,wins:0};DB.team_ratings.push(r)}return r};
+        const a=T(t1),b=T(t2),e=1/(1+Math.pow(10,(b.rating-a.rating)/400));
+        for(const [x,sc,ex] of [[a,s1,e],[b,1-s1,1-e]]){x.rating+=(x.games<10?48:24)*(sc-ex);x.games++;if(sc===1)x.wins++}
+      }
+    }
+    DB.matches.forEach(m=>{m.rated=DB.rating_history.some(h=>h.match_id===m.id)});
+  }
   function settle(id){
     const m = DB.matches.find(x=>x.id===id);
     if(!m || !['finished','confirmed','disputed'].includes(m.state)) return;
     if(DB.match_confirmations.some(c=>c.match_id===id&&c.rev===m.rev&&c.decision==='reject')){
-      m.state='disputed'; return }
-    if(teamDone(id,1)&&teamDone(id,2)){ m.state='confirmed'; return }
-    m.state='finished';
+      m.state='disputed'; recompute(); return }
+    if(teamDone(id,1)&&teamDone(id,2)){ m.state='confirmed'; recompute(); return }
+    m.state='finished'; recompute();
   }
 
   const RPC = {
     match_state: a => res(state(a.p_match)),
+    my_ratings: () => {
+      const me = DB.players.find(p=>p.user_id===UID()); if(!me) return res({});
+      const one=k=>{const r=DB.ratings.find(x=>x.player_id===me.id&&x.kind===k);return r?{rating:Math.round(r.rating),games:r.games,wins:r.wins}:null};
+      return res({me:me.id, single:one('single'), double:one('double'),
+        teams:DB.team_ratings.filter(t=>t.p1===me.id||t.p2===me.id).map(t=>{const o=DB.players.find(p=>p.id===(t.p1===me.id?t.p2:t.p1));
+          return {partner:o.id,nick:o.nickname,kind:o.kind,rating:Math.round(t.rating),games:t.games,wins:t.wins}}),
+        history:DB.rating_history.filter(h=>h.player_id===me.id).map(h=>({at:h.at,kind:h.kind,after:Math.round(h.after),
+          delta:Math.round(h.after-h.before),match:h.match_id}))});
+    },
+    leaderboard: a => {
+      const me = DB.players.find(p=>p.user_id===UID());
+      const ok=p=>p&&p.kind==='account'&&p.ranking_opt_in&&!p.deleted_at;
+      if(a.p_kind==='team') return res(DB.team_ratings.filter(t=>t.games>=10&&ok(DB.players.find(p=>p.id===t.p1))&&ok(DB.players.find(p=>p.id===t.p2)))
+        .sort((x,y)=>y.rating-x.rating).map(t=>({id:t.p1+'+'+t.p2,nick:DB.players.find(p=>p.id===t.p1).nickname+' & '+DB.players.find(p=>p.id===t.p2).nickname,
+          rating:Math.round(t.rating),games:t.games,wins:t.wins,me:!!me&&(t.p1===me.id||t.p2===me.id)})));
+      return res(DB.ratings.filter(r=>r.kind===a.p_kind&&r.games>=10&&ok(DB.players.find(p=>p.id===r.player_id)))
+        .sort((x,y)=>y.rating-x.rating).map(r=>{const p=DB.players.find(q=>q.id===r.player_id);
+          return {id:p.id,nick:p.nickname,rating:Math.round(r.rating),games:r.games,wins:r.wins,me:!!me&&p.id===me.id}}));
+    },
     // Spiegelt my_match_history(): eigene Spiele mit Ergebnis, neueste zuerst
     my_match_history: () => {
       const me = DB.players.find(p=>p.user_id===UID()); if(!me) return res([]);
@@ -124,7 +175,10 @@
           category:m.category||'ranked', state:m.state, host:m.host_id===me.id,
           team:DB.match_players.find(x=>x.match_id===m.id&&x.player_id===me.id).team,
           players:DB.match_players.filter(x=>x.match_id===m.id).map(x=>{const p=DB.players.find(y=>y.id===x.player_id)||{};
-            return {id:x.player_id, nick:p.nickname, kind:p.kind, team:x.team, pos:x.position, del:!!p.deleted_at}}),
+            const r=DB.ratings.find(y=>y.player_id===x.player_id&&y.kind===(m.mode==='single'?'single':'double'));
+            return {id:x.player_id, nick:p.nickname, kind:p.kind, team:x.team, pos:x.position, del:!!p.deleted_at,
+                    elo:r?Math.round(r.rating):null}}),
+          elo:(h=>h?Math.round(h.after-h.before):null)(DB.rating_history.find(h=>h.match_id===m.id&&h.player_id===me.id)),
           sets:DB.match_sets.filter(x=>x.match_id===m.id).sort((a,b)=>a.set_no-b.set_no).map(x=>[x.score1,x.score2,x.winner_team]),
           goals:m.detail==='full' ? DB.goals.filter(g=>g.match_id===m.id).map(g=>[g.set_no,g.team,g.scorer_id,g.scorer_position,g.own_goal]) : []}));
       return res(out);
@@ -189,7 +243,7 @@
       DB.match_sets=DB.match_sets.filter(s=>!(s.match_id===m.id&&s.winner_team==null&&s.score1===0&&s.score2===0&&s.set_no>1));
       const last=DB.match_sets.filter(s=>s.match_id===m.id).sort((x,y)=>y.set_no-x.set_no)[0];
       if(last) last.winner_team=null;
-      m.state='running'; m.finished_at=null; m.rated=false; m.rev=(m.rev||1)+1;
+      m.state='running'; m.finished_at=null; m.rated=false; m.rev=(m.rev||1)+1; recompute();
       persist(); return res(m);
     },
     create_lobby: a => {

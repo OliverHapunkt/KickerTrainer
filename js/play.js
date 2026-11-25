@@ -524,6 +524,15 @@ async function pSummary(){
   // Sonst fehlt noch das Wort der Gegenseite.
   if(P.state === 'confirmed'){
     h += '<div class="blockh">Wertung</div>' + kv('Stand', 'bestätigt und wertbar');
+    // Elo entsteht auf dem Server in derselben Bewegung wie die Bestätigung
+    if(P.cat !== 'casual' && PL.me){
+      try{ const {sb} = await pSb();
+        const {data} = await sb.from('rating_history').select('before,after')
+          .eq('match_id', P.id).eq('player_id', PL.me.id).maybeSingle();
+        if(data){ const d = Math.round(data.after - data.before);
+          h += kv('Deine Wertung', (d > 0 ? '+' : d < 0 ? '−' : '±') + Math.abs(d) + ' → ' + Math.round(data.after)) }
+      }catch(e){}
+    }
   } else if(P.state === 'finished'){
     const warte = P.players.filter(p=>p.kind === 'account' && !p.deleted_at
       && p.player_id !== P.host && p.team !== (P.players.find(x=>x.player_id===P.host)||{}).team);

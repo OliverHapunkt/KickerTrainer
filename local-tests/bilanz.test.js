@@ -5,8 +5,8 @@ const vm=require('vm'),fs=require('fs'),path=require('path');
 const ctx={};vm.createContext(ctx);
 const src=fs.readFileSync(path.resolve(__dirname,'../js/bilanz.js'),'utf8');
 vm.runInContext(src.slice(0,src.indexOf('/* ---------- Darstellung'))
-  +';Object.assign(this,{bzNorm,bzPrep,bzSum,bzStreaks,bzOpponents,bzPartners,bzPairs,bzMonths,bzGoals,BZ_MIN_RATE});',ctx);
-const {bzNorm,bzPrep,bzSum,bzOpponents,bzPartners,bzPairs,bzMonths,bzGoals}=ctx;
+  +';Object.assign(this,{bzEloSeries,bzNorm,bzPrep,bzSum,bzStreaks,bzOpponents,bzPartners,bzPairs,bzMonths,bzGoals,BZ_MIN_RATE});',ctx);
+const {bzEloSeries,bzNorm,bzPrep,bzSum,bzOpponents,bzPartners,bzPairs,bzMonths,bzGoals}=ctx;
 let fails=0;const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m);if(!c)fails++};
 
 const ME='me', NOW=Date.parse('2026-11-25T18:00:00Z');
@@ -99,6 +99,15 @@ console.log('== Eigene Tore (Erweitert) ==');
  ok(g.matches===2,'Nur Erweitert-Spiele gezählt');
  ok(g.goals===4&&g.own===1,'4 eigene Tore, 1 Eigentor getrennt ('+g.goals+'/'+g.own+')');
  ok(g.off===1&&g.def===1,'Sturm/Abwehr 1/1');}
+
+console.log('== Elo-Kurve und Delta ==');
+{const h=[{kind:'single',after:1024,delta:24},{kind:'double',after:976,delta:-24},{kind:'single',after:1045,delta:21}];
+ const a=bzEloSeries(h,'single');
+ ok(a.join(',')==='1000,1024,1045','Einzel-Kurve beginnt beim Wert vor dem ersten Spiel: '+a.join(','));
+ ok(bzEloSeries(h,'double').join(',')==='1000,976','Doppel getrennt');
+ ok(bzEloSeries([],'single').length===0&&bzEloSeries(null,'single').length===0,'Ohne Verlauf leer');
+ ok(bzNorm(single(1,frank,[[5,3,1]],1,{elo:24})).elo===24,'Elo-Delta wird durchgereicht');
+ ok(bzNorm(single(1,frank,[[5,3,1]],1)).elo===null,'Ohne Wertung: null');}
 
 console.log(fails?'\n'+fails+' FEHLER':'\nAlle Prüfungen bestanden');
 process.exit(fails?1:0);

@@ -22,6 +22,7 @@ node local-tests/reaktionsschiessen.test.js
 node local-tests/kamera-labor.test.js
 node local-tests/bilanz.test.js             # kein Browser nötig
 node local-tests/bilanz-browser.test.js
+node local-tests/elo.test.js
 ```
 
 | Datei | Inhalt |
@@ -38,7 +39,8 @@ node local-tests/bilanz-browser.test.js
 | `kamera-labor.test.js` | Kamera-Probe: Auswertung mit künstlichen Bildfolgen (Streifen 1–5, 30/60 fps, Wackeln, unsicher, kein Ball), dazu im Browser mit dem Fake-Video von Chromium: Freischalten per 7× Tippen, Kamera, Bildrate, Schuss, Wahrheit eintragen, Text zum Kopieren, Ausschnitt-Regler, Abschalten |
 | `bilanz.test.js` | Rechenlogik der Bilanz ohne Browser: Sieg aus meiner Sicht (Team 1 und 2), Filter Zeitraum/Modus/Art, strittige zählen nicht, Serien, Form, zwei Franks als zwei Gegner, Partner, Paare, Monate, eigene Tore |
 | `bilanz-browser.test.js` | Zwei Konten legen je einen Gast „Frank“ an, doppelter Gast beim selben Host, Kürzel, Art Wertung/locker beim Anlegen und in der Lobby, Bilanz-Tab mit Übersicht, Gegnern, Filtern, Direktvergleich, offline aus dem Zwischenspeicher |
-| `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal`/`settle_match` |
+| `elo.test.js` | Elo im Browser: +24 → 1024 in der Auswertung, lockeres Spiel ohne Elo, Wertungskarte mit Kurve und „vorläufig“, Elo je Begegnung und Gegner-Elo, Rangliste mit Zustimmungsdialog (Abbrechen ändert nichts), Aufnahme ab 10 Spielen, Gast nie, Widerruf, Korrektur rechnet neu |
+| `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal`/`settle_match` und die Elo-Rechnung aus `recompute_ratings` |
 
 ## Grenzen
 
