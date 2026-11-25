@@ -16,13 +16,17 @@
  */
 
 const LS_PLAY = 'kt2_play';
-const PL0 = () => ({uid:null, me:null, guests:[], cfg:{mode:'double',detail:'full',gps:5,stw:2,invite:false,cat:'ranked'},
+const PL0 = () => ({uid:null, me:null, guests:[], cfg:{mode:'double',detail:'full',gps:5,stw:2,invite:false,cat:'ranked',winBy:1,scope:'decider',cap:null,draw:false},
+                    presets:[],
                     lineup:[null,null,null,null], queue:[]});
 let PL = Object.assign(PL0(), load(LS_PLAY, {}));
 if(!Array.isArray(PL.lineup) || PL.lineup.length !== 4) PL.lineup=[null,null,null,null];
 if(!Array.isArray(PL.queue)) PL.queue=[];
 if(!Array.isArray(PL.guests)) PL.guests=[];
 if(PL.cfg.cat !== 'casual') PL.cfg.cat = 'ranked';
+PL.cfg = Object.assign({winBy:1, scope:'decider', cap:null, draw:false}, PL.cfg);
+if(!Array.isArray(PL.presets)) PL.presets = [];
+let pRulesOpen = false;   // Regel-Bereich beim Anlegen aufgeklappt?
 function savePL(){ save(LS_PLAY, PL) }
 
 let P = null;        // laufendes Spiel: {id,mode,detail,gps,stw,players,st}
@@ -156,8 +160,8 @@ function renderPlay(id){
 }
 
 function pStepHint(){
-  return '<p class="hint">Mitspieler mit eigenem Konto (Beitritt per Code), die Bestätigung des Ergebnisses '
-    + 'und die Wertungen kommen in den nächsten Schritten. Jetzt schon möglich: Spiele mit eigenen Gästen erfassen.</p>';
+  return '<p class="hint">Spiele mit Gästen erfassen, Mitspieler per Code einladen, Ergebnisse bestätigen lassen. '
+    + 'Gruppen kommen in einem späteren Schritt.</p>';
 }
 
 function renderPlayHome(){
@@ -197,12 +201,17 @@ function renderPlayHome(){
   const c = PL.cfg, ready = pLineupReady();
   let h = '<div class="card qcard"><div class="qhead"><h2>Neues Spiel</h2>'
     + '<button class="link" id="pNick2">' + esc(PL.me.nickname) + '</button></div>';
+  h += rlPresetBar();
   h += '<div class="sub"><label>Modus ' + tipBtn('pMode') + '</label><div class="chips sc" id="pcMode"></div></div>';
   h += '<div class="sub"><label>Erfassung ' + tipBtn('pDetail') + '</label><div class="chips sc" id="pcDetail"></div>'
      + '<p class="hint" id="pcDetailHint"></p></div>';
   h += '<div class="sub"><label>Satz bis … Tore</label><div id="pcGps"></div></div>';
   h += '<div class="sub"><label>Spiel bis … Gewinnsätze</label><div class="chips sc" id="pcStw"></div>'
      + '<p class="hint" id="pcStwHint"></p></div>';
+  const rr = rlFromCfg(c);
+  h += '<div class="sub"><label>Regeln ' + tipBtn('rlRules') + '</label>'
+     + '<button class="rltog" id="pRulesTog"><span>' + esc(rlText(rr, c.gps, c.stw)) + '</span><i>' + (pRulesOpen ? '▴' : '▾') + '</i></button>'
+     + (pRulesOpen ? '<div id="pRules" class="rlbox"></div>' : '') + '</div>';
   h += '<div class="sub"><label>Art ' + tipBtn('pCat') + '</label><div class="chips sc" id="pcCat"></div>'
      + '<p class="hint" id="pcCatHint"></p></div>';
   h += '<div class="sub"><label>Mitspieler ' + tipBtn('pJoin') + '</label><div class="chips sc" id="pcInvite"></div>'
@@ -221,11 +230,15 @@ function renderPlayHome(){
   el.innerHTML = h + pStepHint();
 
   $('#pNick2').onclick = async ()=>{ if(await pSetNickname()) renderPlayHome() };
+  rlWirePresets();
+  $('#pRulesTog').onclick = ()=>{ pRulesOpen = !pRulesOpen; renderPlayHome() };
+  if($('#pRules')) rlFields($('#pRules'), c, ()=>{ savePL(); renderPlayHome() });
   chips($('#pcMode'), [{v:'single',t:'Einzel 1:1'},{v:'double',t:'Doppel 2:2'}], v=>c.mode===v,
     v=>{ c.mode=v; if(v==='single'){PL.lineup[1]=null;PL.lineup[3]=null} savePL() }, renderPlayHome);
   chips($('#pcDetail'), [{v:'simple',t:'Einfach'},{v:'full',t:'Erweitert'}], v=>c.detail===v,
     v=>{ c.detail=v; savePL() }, renderPlayHome);
-  slider($('#pcGps'), {min:3, max:15, step:1, value:c.gps, fmt:n=>n+' Tore', onInput:v=>{ c.gps=v; savePL() }, after:renderPlayHome});
+  slider($('#pcGps'), {min:3, max:15, step:1, value:c.gps, fmt:n=>n+' Tore',
+    onInput:v=>{ c.gps=v; if(c.cap && c.cap <= v) c.cap = null; savePL() }, after:renderPlayHome});
   chips($('#pcStw'), [1,2,3].map(n=>({v:n,t:n===1?'Nur ein Satz':n+' Gewinnsätze'})), v=>c.stw===v,
     v=>{ c.stw=v; savePL() }, renderPlayHome);
   $('#pcDetailHint').textContent = c.detail === 'full'
@@ -317,7 +330,7 @@ async function pLoadRecent(){
         + '<small>' + (m.mode==='single'?'Einzel':'Doppel')
         + (m.host_id === PL.me.id ? '' : ' · als Mitspieler') + ' · '
         + s.map(x=>x.score1+':'+x.score2).join('  ') + (m.category === 'casual' ? ' · locker' : '')
-        + ' · ' + pStateText(m.state) + '</small></div>'
+        + '</small>' + pStateBadge(m.state) + '</div>'
         + '<span>' + (m.finished_at ? fmtDate(Date.parse(m.finished_at), true) : '') + '</span></div>';
     }).join('') + '</div>';
     el.querySelectorAll('[data-mid]').forEach(r=>r.onclick = ()=>pOpenLobby(r.dataset.mid));
@@ -335,7 +348,7 @@ async function pStart(){
     const {data, error} = await sb.rpc('create_match', {
       p_mode:PL.cfg.mode, p_detail:PL.cfg.detail,
       p_goals_per_set:PL.cfg.gps, p_sets_to_win:PL.cfg.stw,
-      p_group_id:null, p_players:players, p_category:PL.cfg.cat});
+      p_group_id:null, p_players:players, p_category:PL.cfg.cat, p_rules:rlFromCfg(PL.cfg)});
     if(error) throw error;
     await pOpen(data.id);
   }catch(e){
@@ -361,6 +374,7 @@ async function pOpen(id){
     const nm = {}; (names||[]).forEach(p=>nm[p.id]=p);
     P = {id, mode:m.data.mode, detail:m.data.detail, gps:m.data.goals_per_set, stw:m.data.sets_to_win,
          host:m.data.host_id, rev:m.data.rev, finished_at:m.data.finished_at, cat:m.data.category || 'ranked',
+         rules:rlFromMatch(m.data), flip:!!(P && P.id === id && P.flip),
          players:mp.data.map(x=>Object.assign({}, x, {
            nickname:(nm[x.player_id]||{}).nickname||'?',
            kind:(nm[x.player_id]||{}).kind, deleted_at:(nm[x.player_id]||{}).deleted_at})),
@@ -379,10 +393,17 @@ function pSlotOf(p){ return p.position === 'off' ? 'Sturm' : p.position === 'def
 function renderMatch(){
   if(!P) return;
   const s = P.st, done = s.match_done;
-  $('#mHead').innerHTML = '<div>' + (done ? 'Spiel beendet'
-      : 'Satz ' + s.set_no + (P.stw>1 ? ' · Sätze ' + s.sets1 + ':' + s.sets2 : ''))
-    + '</div><div>' + (P.mode==='single'?'Einzel':'Doppel') + ' · bis ' + P.gps + '</div>';
-  $('#mScore').innerHTML = '<b>' + s.score1 + '</b><i>:</i><b>' + s.score2 + '</b>';
+  const L1 = P.flip ? 2 : 1, R1 = P.flip ? 1 : 2;       // welches Team links/rechts steht
+  const sc = t => t === 1 ? s.score1 : s.score2, st = t => t === 1 ? s.sets1 : s.sets2;
+  const decider = s.sets1 === P.stw - 1 && s.sets2 === P.stw - 1;
+  $('#mHead').innerHTML = '<button class="mhbtn" id="mFlip" aria-label="Seiten tauschen">⇆ <small>Seiten</small></button>'
+    + '<div class="msets">' + (done ? (s.draw || (s.sets||[]).some(x=>x.winner_team===0) ? 'Unentschieden' : 'Spiel beendet')
+        : (P.stw > 1 ? '<span>Sätze</span><b>' + st(L1) + ' : ' + st(R1) + '</b><span>Satz ' + s.set_no + (decider ? ' · Entscheidung' : '') + '</span>'
+                     : '<span>Satz bis ' + P.gps + '</span>'))
+    + '</div><button class="mhbtn" id="mRules" aria-label="Regeln">⚙ <small>' + esc('bis ' + P.gps) + '</small></button>';
+  $('#mScore').innerHTML = '<b>' + sc(L1) + '</b><i>:</i><b>' + sc(R1) + '</b>';
+  $('#mFlip').onclick = ()=>{ P.flip = !P.flip; renderMatch() };
+  $('#mRules').onclick = pEditRulesMatch;
   const q = PL.queue.length;
   $('#mSync').textContent = q === 0 ? ''
     : q === 1 ? '1 Tipp noch nicht gespeichert – wird nachgeholt'
@@ -399,7 +420,7 @@ function renderMatch(){
       + (P.mode==='double' ? '<button class="swapbtn" data-swap="' + t + '">' + icon('swap') + ' tauschen</button>' : '')
       + '</div>';
   };
-  $('#mArea').innerHTML = teamCol(1) + '<div class="tsep"></div>' + teamCol(2);
+  $('#mArea').innerHTML = teamCol(L1) + '<div class="tsep"></div>' + teamCol(R1);
   $('#mArea').classList.toggle('off', done);
   $('#mOwn').classList.toggle('on', !!P.own);
   $('#mOwn').classList.toggle('hidden', P.detail !== 'full' || done);
@@ -408,19 +429,7 @@ function renderMatch(){
 
 /* Lokale Vorhersage – dieselben Regeln wie record_goal auf dem Server.
    Sobald der Server antwortet, gilt seine Antwort. */
-function pPredict(team){
-  const s = P.st;
-  const n1 = s.score1 + (team===1?1:0), n2 = s.score2 + (team===2?1:0);
-  if(Math.max(n1,n2) >= P.gps){
-    const w = n1 > n2 ? 1 : 2;
-    const sets1 = s.sets1 + (w===1?1:0), sets2 = s.sets2 + (w===2?1:0);
-    const over = Math.max(sets1, sets2) >= P.stw;
-    P.st = Object.assign({}, s, {sets1, sets2, match_done:over,
-      set_no: over ? s.set_no : s.set_no + 1, score1: over ? n1 : 0, score2: over ? n2 : 0});
-  } else {
-    P.st = Object.assign({}, s, {score1:n1, score2:n2});
-  }
-}
+function pPredict(team){ P.st = rlPredict(P.st, P.rules, P.gps, P.stw, team) }
 
 function pGoal(team, scorer, position){
   if(!P || P.st.match_done) return;
@@ -502,9 +511,11 @@ async function pSummary(){
   const w1 = s.sets1, w2 = s.sets2;
   let h = '<div class="sumhead"><div><div class="blockh">Ergebnis</div>'
     + '<div class="bigpct">' + w1 + ' : ' + w2 + '</div>'
+    + (sets.some(x=>x.winner_team===0) ? '<p class="center"><b>Unentschieden</b></p>' : '')
     + '<p class="center">' + sets.map(x=>x.score1+':'+x.score2).join(' · ') + '</p></div></div>';
   h += kv('Teams', pTeam(1).map(p=>esc(p.nickname)).join(' & ') + '  gegen  ' + pTeam(2).map(p=>esc(p.nickname)).join(' & '));
   h += kv('Art', P.cat === 'casual' ? 'locker' : 'Wertung');
+  h += kv('Regeln', esc(rlText(P.rules, P.gps, P.stw)));
   if(goals.length){
     h += '<div class="blockh">Torschützen</div>';
     for(const p of P.players){
@@ -531,6 +542,8 @@ async function pSummary(){
           .eq('match_id', P.id).eq('player_id', PL.me.id).maybeSingle();
         if(data){ const d = Math.round(data.after - data.before);
           h += kv('Deine Wertung', (d > 0 ? '+' : d < 0 ? '−' : '±') + Math.abs(d) + ' → ' + Math.round(data.after)) }
+        else if([1,2].some(t=>!P.players.some(p=>p.team===t && p.kind==='account')))
+          h += '<p class="hint">Zählt nicht für die Wertung: Auf einer Seite spielen nur Gäste, niemand hat gegengeprüft. In deiner Bilanz steht das Spiel trotzdem.</p>';
       }catch(e){}
     }
   } else if(P.state === 'finished'){
@@ -582,6 +595,21 @@ function pSwap(team){
   ))).catch(()=>toast('Tausch noch nicht gespeichert'));
 }
 $('#mUndo').onclick = ()=>pUndo();
+async function pEditRulesMatch(){
+  if(!P || P.st.match_done) return;
+  if(PL.queue.length){ toast('Erst müssen alle Tipps gespeichert sein'); return }
+  const ch = await rlEditDialog({mode:P.mode, detail:P.detail, gps:P.gps, stw:P.stw, cat:P.cat, rules:P.rules, state:'running'});
+  if(!ch) return;
+  try{
+    const {sb} = await pSb();
+    const {data, error} = await sb.rpc('update_match_rules', Object.assign({p_match:P.id}, ch));
+    if(error) throw error;
+    P.detail = data.detail; P.gps = data.goals_per_set; P.stw = data.sets_to_win; P.rules = rlFromMatch(data);
+    const mp = await sb.from('match_players').select('player_id,position').eq('match_id', P.id);
+    (mp.data||[]).forEach(x=>{ const p = P.players.find(y=>y.player_id===x.player_id); if(p) p.position = x.position });
+    toast('Regeln geändert'); renderMatch();
+  }catch(e){ toast(errText(e, 'Nicht geändert')) }
+}
 $('#mOwn').onclick = ()=>{ if(!P) return; P.own = !P.own; renderMatch();
   if(P.own) toast('Nächster Tipp zählt als Eigentor') };
 $('#mEnd').onclick = async ()=>{
@@ -615,7 +643,8 @@ async function pOpenLobbyNew(){
     const {sb} = await pSb();
     const {data, error} = await sb.rpc('create_lobby', {
       p_mode:PL.cfg.mode, p_detail:PL.cfg.detail,
-      p_goals_per_set:PL.cfg.gps, p_sets_to_win:PL.cfg.stw, p_group_id:null, p_category:PL.cfg.cat});
+      p_goals_per_set:PL.cfg.gps, p_sets_to_win:PL.cfg.stw, p_group_id:null, p_category:PL.cfg.cat,
+      p_rules:rlFromCfg(PL.cfg)});
     if(error) throw error;
     await pOpenLobby(data.id);
   }catch(e){ toast(errText(e, 'Lobby konnte nicht geöffnet werden')) }
@@ -635,13 +664,18 @@ async function pJoin(){
     const {data, error} = await sb.rpc('join_match_by_code', {p_code:code});
     if(error) throw error;
     await pOpenLobby(data);
-  }catch(e){ toast(errText(e, 'Beitritt nicht möglich')) }
+  }catch(e){
+    if(e && e.code === 'P0001' && /Kein offenes Spiel/i.test(e.message||''))
+      info('Keine Lobby gefunden', '<p class="dmsg">Zum Code <b>' + esc(code) + '</b> gibt es keine offene Lobby.</p>'
+        + '<p class="dmsg">Prüfe die Ziffern. Der Code gilt nur, solange die Lobby offen ist – sobald der Host startet, ist er ungültig.</p>');
+    else toast(errText(e, 'Beitritt nicht möglich'));
+  }
 }
 
 async function pLobbyLoad(id){
   const {sb} = await pSb();
   const [m, mp] = await Promise.all([
-    sb.from('matches').select('id,host_id,mode,detail,goals_per_set,sets_to_win,state,join_code,rev,finished_at,category').eq('id', id).single(),
+    sb.from('matches').select('id,host_id,mode,detail,goals_per_set,sets_to_win,state,join_code,rev,finished_at,category,win_by,win_by_scope,goal_cap,draw_at').eq('id', id).single(),
     sb.from('match_players').select('player_id,team,position,is_host').eq('match_id', id)]);
   if(m.error) throw m.error; if(mp.error) throw mp.error;
   const ids = mp.data.map(x=>x.player_id);
@@ -653,9 +687,15 @@ async function pLobbyLoad(id){
   L = {id, host:m.data.host_id, mode:m.data.mode, detail:m.data.detail,
        gps:m.data.goals_per_set, stw:m.data.sets_to_win, state:m.data.state,
        code:m.data.join_code, rev:m.data.rev, finished_at:m.data.finished_at, cat:m.data.category || 'ranked',
+       rules:rlFromMatch(m.data),
        players:mp.data.map(x=>Object.assign({}, x, {
          nickname:(nm[x.player_id]||{}).nickname||'?',
          kind:(nm[x.player_id]||{}).kind, deleted_at:(nm[x.player_id]||{}).deleted_at}))};
+  // Läuft das Spiel und ich zähle nicht: Spielstand live mitlesen
+  if(L.state === 'running'){
+    const st = await sb.rpc('match_state', {p_match:id});
+    L.live = st.error ? null : st.data;
+  }
   // Für ein durchgespieltes Spiel zusätzlich Ergebnis und Bestätigungen
   if(['finished','confirmed','disputed'].includes(L.state)){
     const [ss, cc] = await Promise.all([
@@ -693,6 +733,11 @@ function pFixLeft(){
   if(!src) return 0;
   return Math.max(0, Math.ceil((Date.parse(src) + 7200000 - Date.now()) / 60000));
 }
+function pStateBadge(st){
+  const t = st === 'confirmed' ? ['ok','✓ bestätigt'] : st === 'disputed' ? ['bad','⚠ strittig']
+    : st === 'finished' ? ['wait','⏳ wartet auf Bestätigung'] : ['', pStateText(st)];
+  return '<span class="stbadge ' + t[0] + '">' + t[1] + '</span>';
+}
 function pStateText(st){
   return st === 'confirmed' ? 'bestätigt'
     : st === 'disputed' ? 'strittig'
@@ -721,7 +766,7 @@ function pLobbyPoll(){
       if(L.state !== before || true) renderLobby();
     }catch(e){ /* offline: beim nächsten Durchgang erneut */ }
     pLobbyPoll();
-  }, L.state === 'lobby' ? 3000 : 15000);
+  }, L.state === 'lobby' ? 3000 : L.state === 'running' && !pIsHost() ? 4000 : 15000);
 }
 
 function renderLobby(){
@@ -740,8 +785,13 @@ function renderLobby(){
       h += '<div class="card"><h2>Du bist dabei</h2><p class="lead">Der Host stellt die Teams zusammen und startet. '
         + 'Danach zählt er die Tore – auf deinem Gerät passiert währenddessen nichts.</p></div>';
   } else if(L.state === 'running'){
-    h += '<div class="card"><h2>Das Spiel läuft</h2><p class="lead">Der Host zählt die Tore. '
-      + 'Sobald das Spiel vorbei ist, findest du es in deiner Liste.</p></div>';
+    const lv = L.live;
+    h += '<div class="card"><h2>Das Spiel läuft · live</h2>'
+      + (lv ? '<div class="bigpct">' + lv.score1 + ' : ' + lv.score2 + '</div>'
+            + '<p class="center hint">' + (L.stw > 1 ? 'Sätze ' + lv.sets1 + ' : ' + lv.sets2 + ' · ' : '') + 'Satz ' + (lv.set_no || '') + '</p>'
+            + (lv.sets||[]).filter(x=>x.winner_team!=null).map(x=>'<p class="center hint" style="margin:2px 0">Satz ' + x.set_no + ': ' + x.score1 + ':' + x.score2 + '</p>').join('')
+          : '<p class="lead">Der Host zählt die Tore.</p>')
+      + '<p class="hint">Aktualisiert sich alle paar Sekunden. Team 1 links.</p></div>';
   } else if(L.state === 'cancelled'){
     h += '<div class="card"><h2>Abgebrochen</h2>'
       + '<p class="lead">Der Host hat das Spiel abgebrochen, es wird nicht gewertet.</p></div>';
@@ -778,7 +828,9 @@ function renderLobby(){
 
   // Aufstellung, je Team. Die Art steht dabei, damit jeder vor dem Start weiß, ob es zählt.
   h += '<div class="card"><h2>Aufstellung</h2>'
-    + kv('Art', L.cat === 'casual' ? 'locker – zählt nicht für Wertungen' : 'Wertung – zählt');
+    + kv('Art', L.cat === 'casual' ? 'locker – zählt nicht für Wertungen' : 'Wertung – zählt')
+    + kv(L.mode === 'single' ? 'Einzel' : 'Doppel', esc(rlShort(L.gps, L.stw, L.rules)))
+    + (host && L.state === 'lobby' ? '<button class="big" id="lobRules">Einstellungen ändern</button>' : '');
   for(const t of [1,2]){
     const ps = L.players.filter(p=>p.team===t);
     h += '<div class="blockh">Team ' + t + '</div>';
@@ -839,6 +891,18 @@ function renderLobby(){
   on('lobOk', ()=>pConfirm('ok'));
   on('lobNo', ()=>pConfirm('reject'));
   on('lobFix', pReopen);
+  on('lobRules', pEditRulesLobby);
+}
+async function pEditRulesLobby(){
+  if(!L) return;
+  const ch = await rlEditDialog({mode:L.mode, detail:L.detail, gps:L.gps, stw:L.stw, cat:L.cat, rules:L.rules, state:'lobby'});
+  if(!ch) return;
+  try{
+    const {sb} = await pSb();
+    const {error} = await sb.rpc('update_match_rules', Object.assign({p_match:L.id}, ch));
+    if(error) throw error;
+    await pLobbyLoad(L.id); renderLobby(); toast('Geändert');
+  }catch(e){ toast(errText(e, 'Nicht geändert')) }
 }
 
 $('#lobBody').addEventListener('click', async e=>{

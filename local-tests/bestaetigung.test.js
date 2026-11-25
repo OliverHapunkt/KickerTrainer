@@ -120,7 +120,8 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   ok(await dbState()==='running','Spiel läuft wieder');
   ok(await dbRev()===2,'rev ist hochgezählt');
   // Der Kern des Nachtrags: ein laufendes Spiel braucht einen laufenden Satz
-  ok((await txt('#mHead')).includes('Satz 1'),'Der letzte Satz ist wieder der laufende');
+  ok(await pg.evaluate(()=>P&&P.st&&P.st.set_no===1&&!P.st.match_done),'Der letzte Satz ist wieder der laufende');
+  ok(!(await txt('#mHead')).includes('null'),'Kopfzeile ohne „null“');
   ok((await txt('#mScore')).replace(/\s/g,'')==='3:0','Der alte Stand steht noch');
 
   await pg.click('#mUndo'); await pg.waitForTimeout(600);
