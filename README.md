@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.19.0-green)
+![Version](https://img.shields.io/badge/version-3.20.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.19.0 · 2026-11-25`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.20.0 · 2026-11-26`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -212,9 +212,9 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Das Schema liegt als Migrationen in `supabase/migrations/`. Die GitHub-Integration von Supabase spielt neue Migrationen beim Merge nach `main` ein – ein Merge verändert also sofort die echte Datenbank
 - Tabellen **Üben** (Phase 1): `profiles`, `sessions`, `shots`
 - Tabellen **Spielen** (Paket 4): `players`, `groups`, `group_members`, `matches`, `match_players`, `match_sets`, `goals`, `match_confirmations`
-- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()` – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
+- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()`, `my_ratings()`, `leaderboard()`, `recompute_ratings()` (nur intern) – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
 - Konto löschen läuft über die Funktion `delete_my_account()`
-- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 277 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
+- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 353 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
 - Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
 
 ### Einrichtung in Supabase
@@ -242,7 +242,7 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Bei falschem Code kommt immer dieselbe Meldung – sonst ließe sich herauslesen, welche Codes existieren
 - Solange die Lobby offen ist, wird alle 3 s nachgesehen, wer dazugekommen ist; während des Spiels alle 15 s
 - Spiele erscheinen auch bei Mitspielern in der Liste, gekennzeichnet als „als Mitspieler"
-- Noch nicht dabei: Wertungen (5), Gruppen und Ranglisten (6). QR-Code und Scanner stehen im Backlog
+- Noch nicht dabei: Gruppen (6). QR-Code und Scanner stehen im Backlog
 
 ### Spielen: Ergebnis bestätigen und korrigieren (v3.12, Schritt 4)
 
@@ -265,6 +265,16 @@ Nur der Host zählt die Tore. Damit ein Spiel gewertet werden kann, braucht es e
 - **Gegner = Person, nicht Name.** Grundlage ist `my_match_history()`: alle eigenen Spiele mit Aufstellung, Sätzen und Toren in einem Aufruf. Gerechnet wird im Client (`js/bilanz.js`), zwischengespeichert in `kt2_bilanz` – offline lesbar
 - **Gastnamen** sind nur noch je Besitzer (bzw. je Gruppe) eindeutig, Konto-Nicknames weiter weltweit. Vorher sperrte ein Gast „Frank“ den Namen für alle anderen Nutzer und für Konten. Gäste ab 2 Zeichen (Kürzel)
 - Behoben: Die Gästeauswahl zeigte auch fremde Gäste aus gemeinsamen Spielen
+
+### Spielen: Elo (v3.20, Schritt 5)
+
+- **Drei Wertungen:** Einzel, Doppel persönlich (über alle Partner, Teamstärke = Mittel beider), feste Doppel-Paarung. Tabellen `ratings`, `team_ratings`, Verlauf `rating_history`
+- **Gewertet** werden nur Spiele mit `state = 'confirmed'` **und** `category = 'ranked'`. Nur Sieg/Niederlage zählt, kein Satz- oder Torabstand
+- **Parameter:** Start 1000, K = 24, in den ersten 10 Spielen je Wertung K = 48 („vorläufig“). Im Doppel ist die Erwartung für beide gleich, das K das eigene
+- **Nur der Server rechnet**, und immer komplett neu aus dem Verlauf (`recompute_ratings()`). Ein Trigger auf `matches` löst das aus, sobald ein Spiel in `confirmed` hinein- oder herausfällt oder die Art eines bestätigten Spiels wechselt. Korrekturen brauchen damit keinen Sonderweg. Gemessen ~0,4 ms je Spiel: ab etwa 2000 bestätigten Spielen (≈ 0,8 s je Bestätigung) auf inkrementell umstellen
+- **Client schreibt nie:** Die Tabellen sind nur lesbar, sichtbar wie der Spieler selbst; `recompute_ratings()` ist für Clients gesperrt
+- **Oberfläche:** Karte „Wertung“ oben in der Bilanz mit Kurve je Wertung und festen Paarungen; Elo-Änderung in der Auswertung nach dem Spiel und bei jeder Begegnung; Gegner-Elo im Direktvergleich
+- **Rangliste** (`leaderboard()`): nur Konten mit ausdrücklicher Zustimmung und mindestens 10 Spielen, Gäste nie, Paarungen nur wenn beide zugestimmt haben. Zustimmung mit Dialog, Widerruf sofort
 
 ### Spielen: Datenmodell (Paket 4)
 

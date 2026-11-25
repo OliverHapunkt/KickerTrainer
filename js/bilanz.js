@@ -31,7 +31,8 @@ function bzNorm(m){
   const meId = m.me || null;
   return {id:m.id, at:Date.parse(m.at), mode:m.mode, detail:m.detail, cat:m.category || 'ranked',
     state:m.state, host:!!m.host, win:sw > sl, sw, sl, gf, ga, sets:m.sets, team:T,
-    me:meId, partner:mine.find(p=>p.id !== meId) || null, opps, goals:m.goals || []};
+    me:meId, partner:mine.find(p=>p.id !== meId) || null, opps, goals:m.goals || [],
+    elo:m.elo == null ? null : m.elo};
 }
 
 /* Rohliste → aufbereitete, gefilterte Liste. f = {range, mode, cat}, now = Zeitpunkt. */
@@ -114,24 +115,33 @@ function bzGoals(list){
   return r;
 }
 
+/* Elo-Verlauf einer Wertung als Punkte für eine Kurve: Start 1000, dann nach jedem Spiel */
+const BZ_ELO_PROV = 10;   // so viele Spiele gilt eine Wertung als vorläufig (K = 48)
+function bzEloSeries(history, kind){
+  const h = (history || []).filter(x=>x.kind === kind);
+  if(!h.length) return [];
+  return [h[0].after - h[0].delta].concat(h.map(x=>x.after));
+}
+
 /* ---------- Darstellung ---------- */
 const LS_BZ = 'kt2_bilanz';
-const BZ = {f:{range:'all', mode:'all', cat:'all'}, opp:null, raw:null, err:null, loading:false};
+const BZ = {f:{range:'all', mode:'all', cat:'all'}, opp:null, view:null, lbKind:'single', lb:null, el:null, raw:null, err:null, loading:false};
 (function(){ const x = load(LS_BZ, null); if(x && x.f) BZ.f = Object.assign(BZ.f, x.f) })();
 function bzSaveF(){ const x = load(LS_BZ, {}); x.f = BZ.f; save(LS_BZ, x) }
 
 /* Verlauf holen. Zwischengespeichert je Konto, damit die Bilanz auch offline lesbar ist. */
 async function bzLoad(){
   const x = load(LS_BZ, {});
-  if(CL && CL.user && x.uid === CL.user.id && Array.isArray(x.raw) && !BZ.raw) BZ.raw = x.raw;
+  if(CL && CL.user && x.uid === CL.user.id && Array.isArray(x.raw) && !BZ.raw){ BZ.raw = x.raw; BZ.el = x.el || null }
   if(BZ.loading) return;
   BZ.loading = true;
   try{
     const {sb, uid} = await pSb();
-    const {data, error} = await sb.rpc('my_match_history');
-    if(error) throw error;
-    BZ.raw = data || []; BZ.err = null;
-    const y = load(LS_BZ, {}); y.uid = uid; y.raw = BZ.raw; y.at = Date.now(); save(LS_BZ, y);
+    if(!PL.me) await pLoadMe().catch(()=>{});
+    const [h, r] = await Promise.all([sb.rpc('my_match_history'), sb.rpc('my_ratings')]);
+    if(h.error) throw h.error;
+    BZ.raw = h.data || []; BZ.el = (!r.error && r.data) || BZ.el; BZ.err = null;
+    const y = load(LS_BZ, {}); y.uid = uid; y.raw = BZ.raw; y.el = BZ.el; y.at = Date.now(); save(LS_BZ, y);
   }catch(e){ BZ.err = e }
   finally{ BZ.loading = false }
 }
@@ -173,7 +183,7 @@ function bzWireFilters(){
 
 /* Einstieg aus dem Tab. Zeigt sofort den Zwischenstand, holt dann frisch. */
 function renderBilanzTab(){
-  BZ.opp = null;
+  BZ.opp = null; BZ.view = null;
   renderBilanz();
   bzLoad().then(()=>{ if(curScreen() === 'rank') renderBilanz() });
 }
@@ -191,22 +201,23 @@ function renderBilanz(){
       + '</p></div>';
     return;
   }
+  if(BZ.view === 'rank') return renderLeaderboard(el);
   const list = bzPrep(BZ.raw, BZ.f, Date.now());
   const disputed = BZ.raw.filter(m=>m.state === 'disputed').length;
   if(BZ.opp) return renderBilanzOpp(el, list);
 
-  let h = bzFilters();
+  let h = bzEloCard() + bzFilters();
   if(!list.length){
     h += '<div class="card"><h2>Noch nichts</h2><p class="lead">' + (BZ.raw.length
       ? 'Für diese Auswahl gibt es keine Spiele.'
       : 'Sobald du ein Spiel zu Ende gespielt hast, steht hier, gegen wen du wie oft gewonnen hast.') + '</p></div>';
-    el.innerHTML = h; bzWireFilters(); return;
+    el.innerHTML = h; bzWireFilters(); bzWireElo(); return;
   }
   const s = bzSum(list);
   h += '<div class="card"><h2>Übersicht ' + tipBtn('bzSum') + '</h2>'
     + '<div class="bigpct">' + bzSL(s) + '</div>'
     + '<p class="center hint" style="margin-top:4px">Siege – Niederlagen · ' + bzRateLine(s) + '</p>'
-    + kv('Form (letzte ' + s.form.length + ')', bzForm(s.form))
+    + kv('Form', bzForm(s.form))
     + kv('Aktuelle Serie', bzStreakText(s.cur))
     + kv('Längste Siegserie', s.best)
     + kv('Sätze', bzDiff(s.sw, s.sl))
@@ -245,7 +256,7 @@ function renderBilanz(){
     h += '</div>';
   }
   el.innerHTML = h;
-  bzWireFilters();
+  bzWireFilters(); bzWireElo();
   el.querySelectorAll('[data-opp]').forEach(r=>r.onclick = ()=>{ BZ.opp = r.dataset.opp; renderBilanz(); window.scrollTo(0,0) });
 }
 
@@ -261,6 +272,9 @@ function renderBilanzOpp(el, list){
     el.innerHTML = h; bzWireFilters(); $('#bzBack').onclick = ()=>{ BZ.opp = null; renderBilanz() }; return;
   }
   const s = bzSum(ms);
+  const oe = k=>{ const x = ms.filter(m=>m.mode === k).pop(); const p = x && x.opps.find(q=>q.id === BZ.opp); return p && p.elo };
+  const oel = [['single','Einzel'],['double','Doppel']].filter(([k])=>oe(k) != null).map(([k,t])=>t + ' ' + oe(k));
+  if(oel.length) h += '<p class="center hint" style="margin:-4px 0 6px">Elo ' + esc(oel.join(' · ')) + '</p>';
   h += '<div class="bigpct">' + bzSL(s) + '</div>'
     + '<p class="center hint" style="margin-top:4px">' + bzRateLine(s) + '</p>'
     + kv('Form', bzForm(s.form)) + kv('Aktuelle Serie', bzStreakText(s.cur)) + kv('Längste Siegserie', s.best)
@@ -286,11 +300,104 @@ function renderBilanzOpp(el, list){
     return '<div class="mrow" data-mid="' + m.id + '"><div><b class="' + (m.win ? 'up' : 'down') + '">'
       + (m.win ? 'S' : 'N') + ' ' + m.sw + ':' + m.sl + '</b><small>'
       + (m.mode === 'single' ? 'Einzel' : 'Doppel') + mit + ' · ' + sets
-      + (m.cat === 'casual' ? ' · locker' : '') + (m.state === 'finished' ? ' · unbestätigt' : '') + '</small></div>'
+      + (m.cat === 'casual' ? ' · locker' : '') + (m.state === 'finished' ? ' · unbestätigt' : '')
+      + (m.elo != null ? ' · Elo ' + bzSigned(m.elo) : '') + '</small></div>'
       + '<span>' + fmtDate(m.at) + '</span></div>';
   }).join('') + '</div>';
   el.innerHTML = h;
   bzWireFilters();
   $('#bzBack').onclick = ()=>{ BZ.opp = null; renderBilanz(); window.scrollTo(0,0) };
   el.querySelectorAll('[data-mid]').forEach(r=>r.onclick = ()=>pOpenLobby(r.dataset.mid));
+}
+
+function bzSigned(n){ return (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n) }
+
+/* Kleine Kurve (SVG), ohne Achsen. Linie bei 1000 als Bezug. */
+function bzSpark(pts){
+  if(pts.length < 2) return '';
+  const W = 300, H = 56, lo = Math.min(1000, ...pts) - 10, hi = Math.max(1000, ...pts) + 10;
+  const x = i=>Math.round(i * (W - 4) / (pts.length - 1)) + 2, y = v=>Math.round(H - 3 - (v - lo) * (H - 6) / (hi - lo));
+  return '<svg class="bzspark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">'
+    + '<line x1="0" x2="' + W + '" y1="' + y(1000) + '" y2="' + y(1000) + '" class="ref"/>'
+    + '<polyline points="' + pts.map((v,i)=>x(i) + ',' + y(v)).join(' ') + '"/></svg>';
+}
+
+/* Wertungskarte: Einzel, Doppel, feste Paarungen. Unabhängig von den Filtern. */
+function bzEloCard(){
+  const E = BZ.el;
+  if(!E || (!E.single && !E.double)){
+    return '<div class="card"><h2>Wertung ' + tipBtn('bzElo') + '</h2><p class="lead">Noch keine. '
+      + 'Gewertet werden bestätigte Spiele mit der Art „Wertung“.</p>'
+      + '<button class="big" id="bzRank">Rangliste</button></div>';
+  }
+  let h = '<div class="card"><h2>Wertung ' + tipBtn('bzElo') + '</h2><div class="bzelo">';
+  for(const [k,t] of [['single','Einzel'],['double','Doppel']]){
+    const r = E[k];
+    h += '<div><small>' + t + '</small>' + (r
+      ? '<b>' + r.rating + '</b><small>' + r.games + (r.games === 1 ? ' Spiel' : ' Spiele')
+        + (r.games < BZ_ELO_PROV ? ' · vorläufig' : '') + '</small>' + bzSpark(bzEloSeries(E.history, k))
+      : '<b class="mute">–</b><small>noch keine</small>') + '</div>';
+  }
+  h += '</div>';
+  const teams = (E.teams || []).filter(x=>x.games > 0);
+  if(teams.length){
+    h += '<div class="blockh">Feste Paarungen</div>' + teams.slice(0, 5).map(x=>kv('mit ' + esc(x.nick),
+      x.rating + ' <small>(' + x.wins + ' – ' + (x.games - x.wins) + ')</small>')).join('');
+  }
+  return h + '<button class="big" id="bzRank" style="margin-top:12px">Rangliste</button></div>';
+}
+function bzWireElo(){
+  const b = $('#bzRank'); if(b) b.onclick = ()=>{ BZ.view = 'rank'; BZ.lb = null; renderBilanz(); window.scrollTo(0,0); bzLoadLb() };
+}
+
+/* ---------- Rangliste ---------- */
+async function bzLoadLb(){
+  try{
+    const {sb} = await pSb();
+    const {data, error} = await sb.rpc('leaderboard', {p_kind:BZ.lbKind});
+    if(error) throw error;
+    BZ.lb = {kind:BZ.lbKind, rows:data || []};
+  }catch(e){ BZ.lb = {kind:BZ.lbKind, rows:null} }
+  if(curScreen() === 'rank' && BZ.view === 'rank') renderBilanz();
+}
+
+function renderLeaderboard(el){
+  const me = PL.me, opt = !!(me && me.ranking_opt_in);
+  let h = '<button class="link" id="bzBack" style="padding-left:0">‹ Bilanz</button>'
+    + '<div class="filters"><div class="chips sc" id="lbKind"></div></div>';
+  const lb = BZ.lb && BZ.lb.kind === BZ.lbKind ? BZ.lb : null;
+  h += '<div class="card"><h2>Rangliste ' + tipBtn('bzRanking') + '</h2>';
+  if(!lb) h += '<p class="hint" style="margin:0">Wird geladen …</p>';
+  else if(!lb.rows) h += '<p class="hint" style="margin:0">Konnte nicht geladen werden.</p>';
+  else if(!lb.rows.length) h += '<p class="lead">Noch niemand. In der Rangliste steht, wer zugestimmt und mindestens 10 gewertete Spiele hat.</p>';
+  else h += lb.rows.map((r,i)=>'<div class="mrow lbrow' + (r.me ? ' me' : '') + '"><b class="lbpos">' + (i + 1) + '</b><div><b>'
+      + esc(r.nick) + '</b><small>' + r.games + ' Spiele · ' + r.wins + ' – ' + (r.games - r.wins) + '</small></div>'
+      + '<span><b>' + r.rating + '</b></span></div>').join('');
+  h += '</div>';
+  h += '<div class="card"><h2>Deine Teilnahme</h2><p class="lead">' + (opt
+      ? 'Du stehst in der Rangliste, sobald du 10 gewertete Spiele hast. Alle Nutzer sehen dann deinen Nickname und deine Wertung.'
+      : 'Du stehst nicht in der Rangliste. Deine Wertung sehen nur Leute, mit denen du gespielt hast.') + '</p>'
+    + '<button class="big' + (opt ? '' : ' primary') + '" id="lbOpt">' + (opt ? 'Aus der Rangliste nehmen' : 'In der Rangliste erscheinen') + '</button>'
+    + '<p class="hint">Gäste stehen nie in der Rangliste. Feste Paarungen nur, wenn beide zugestimmt haben.</p></div>';
+  el.innerHTML = h;
+  chips($('#lbKind'), [{v:'single',t:'Einzel'},{v:'double',t:'Doppel'},{v:'team',t:'Paarungen'}], v=>BZ.lbKind===v,
+    v=>{ BZ.lbKind = v }, ()=>{ renderBilanz(); bzLoadLb() });
+  $('#bzBack').onclick = ()=>{ BZ.view = null; renderBilanz(); window.scrollTo(0,0) };
+  $('#lbOpt').onclick = bzToggleOptIn;
+}
+
+/* Zustimmung ist ausdrücklich und widerrufbar – darum mit eigenem Dialog. */
+async function bzToggleOptIn(){
+  if(!PL.me) return;
+  const on = !PL.me.ranking_opt_in;
+  if(on && !await ask('Alle Nutzer der App sehen dann deinen Nickname, deine Wertung und deine Bilanz in der Rangliste. '
+      + 'Du kannst das jederzeit zurücknehmen; dein Eintrag verschwindet dann sofort.', {title:'In der Rangliste erscheinen?', ok:'Zustimmen'})) return;
+  try{
+    const {sb} = await pSb();
+    const {error} = await sb.from('players').update({ranking_opt_in:on}).eq('id', PL.me.id);
+    if(error) throw error;
+    PL.me.ranking_opt_in = on; savePL();
+    toast(on ? 'Zugestimmt' : 'Aus der Rangliste genommen');
+  }catch(e){ toast(errText(e, 'Nicht gespeichert')) }
+  BZ.lb = null; renderBilanz(); bzLoadLb();
 }
