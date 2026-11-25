@@ -23,6 +23,8 @@ node local-tests/kamera-labor.test.js
 node local-tests/bilanz.test.js             # kein Browser nötig
 node local-tests/bilanz-browser.test.js
 node local-tests/elo.test.js
+node local-tests/regeln.test.js             # kein Browser nötig
+node local-tests/regeln-browser.test.js
 ```
 
 | Datei | Inhalt |

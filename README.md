@@ -2,10 +2,10 @@
 
 Web-App für gezieltes Tischfußball-Training: Schüsse und Pässe üben, Treffer erfassen, Schwächen in der Statistik finden. Läuft komplett im Browser, optimiert für das iPad am Kickertisch.
 
-![Version](https://img.shields.io/badge/version-3.20.1-green)
+![Version](https://img.shields.io/badge/version-3.21.0-green)
 ![Platform](https://img.shields.io/badge/platform-iPad%20%7C%20Web-orange)
 
-Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.20.1 · 2026-11-25`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
+Die aktuelle Version steht auf dem Home-Screen ganz unten (z. B. `v3.21.0 · 2026-11-26`). Nach einem Deploy kannst du dort prüfen, ob dein Gerät die neue Version geladen hat.
 
 ---
 
@@ -214,7 +214,7 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Tabellen **Spielen** (Paket 4): `players`, `groups`, `group_members`, `matches`, `match_players`, `match_sets`, `goals`, `match_confirmations`
 - Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()`, `my_ratings()`, `leaderboard()`, `recompute_ratings()` (nur intern) – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
 - Konto löschen läuft über die Funktion `delete_my_account()`
-- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 353 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
+- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 433 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
 - Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
 
 ### Einrichtung in Supabase
@@ -266,10 +266,20 @@ Nur der Host zählt die Tore. Damit ein Spiel gewertet werden kann, braucht es e
 - **Gastnamen** sind nur noch je Besitzer (bzw. je Gruppe) eindeutig, Konto-Nicknames weiter weltweit. Vorher sperrte ein Gast „Frank“ den Namen für alle anderen Nutzer und für Konten. Gäste ab 2 Zeichen (Kürzel)
 - Behoben: Die Gästeauswahl zeigte auch fremde Gäste aus gemeinsamen Spielen
 
+### Spielen: Regeln, Vorlagen, Unentschieden (v3.21)
+
+- **Regeln je Spiel:** zwei Tore Vorsprung (aus / nur Entscheidungssatz / jeder Satz), Obergrenze, Remis bei (Ziel−1):(Ziel−1) im Entscheidungssatz. Spalten `win_by`, `win_by_scope`, `goal_cap`, `draw_at`; Satzende rechnet `set_end()`, die App rechnet dasselbe in `js/regeln.js` vor
+- **Vorlagen** speichern Einzel/Doppel, Erfassung, Tore, Sätze, Art und Regeln (lokal je Gerät)
+- **Regeln ändern** (`update_match_rules`): in der Lobby alles inkl. Einzel/Doppel und Art, im laufenden Spiel über ⚙ – abgelehnt, wenn damit etwas rückwirkend entschieden wäre
+- **Unentschieden:** Satz mit `winner_team = 0`, Elo 0,5, Bilanz S–U–N
+- **Elo nur mit Konto auf beiden Seiten** (Option A). Spiele gegen reine Gäste stehen in der Bilanz, zählen aber nicht
+- Zählbildschirm: große Satzanzeige, **Seitenwechsel** (⇆). Mitspieler sehen den **Spielstand live** (alle 4 s). Historie mit ✓/⏳/⚠. Falscher Code: Dialog „Keine Lobby gefunden“
+- Bekannt: Rückgängig bei Erfassung **Einfach** kennt den letzten Torschützen nicht und nimmt bei Gleichstand Team 1 zurück (bestand schon vorher)
+
 ### Spielen: Elo (v3.20, Schritt 5)
 
 - **Drei Wertungen:** Einzel, Doppel persönlich (über alle Partner, Teamstärke = Mittel beider), feste Doppel-Paarung. Tabellen `ratings`, `team_ratings`, Verlauf `rating_history`
-- **Gewertet** werden nur Spiele mit `state = 'confirmed'` **und** `category = 'ranked'`. Nur Sieg/Niederlage zählt, kein Satz- oder Torabstand
+- **Gewertet** werden nur Spiele mit `state = 'confirmed'` **und** `category = 'ranked'` und (seit v3.21) mit Konto auf beiden Seiten. Nur Sieg/Niederlage zählt, kein Satz- oder Torabstand
 - **Parameter:** Start 1000, K = 24, in den ersten 10 Spielen je Wertung K = 48 („vorläufig“). Im Doppel ist die Erwartung für beide gleich, das K das eigene
 - **Nur der Server rechnet**, und immer komplett neu aus dem Verlauf (`recompute_ratings()`). Ein Trigger auf `matches` löst das aus, sobald ein Spiel in `confirmed` hinein- oder herausfällt oder die Art eines bestätigten Spiels wechselt. Korrekturen brauchen damit keinen Sonderweg. Gemessen ~0,4 ms je Spiel: ab etwa 2000 bestätigten Spielen (≈ 0,8 s je Bestätigung) auf inkrementell umstellen
 - **Client schreibt nie:** Die Tabellen sind nur lesbar, sichtbar wie der Spieler selbst; `recompute_ratings()` ist für Clients gesperrt

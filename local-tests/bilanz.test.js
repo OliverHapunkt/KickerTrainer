@@ -100,6 +100,16 @@ console.log('== Eigene Tore (Erweitert) ==');
  ok(g.goals===4&&g.own===1,'4 eigene Tore, 1 Eigentor getrennt ('+g.goals+'/'+g.own+')');
  ok(g.off===1&&g.def===1,'Sturm/Abwehr 1/1');}
 
+console.log('== Unentschieden ==');
+{const dr=bzNorm(single(1,frank,[[5,4,1],[0,5,2],[4,4,0]],1));
+ ok(dr&&dr.draw&&!dr.win,'Remis-Satz → Remis, kein Sieg');
+ const l=[bzNorm(single(1,frank,[[5,0,1]],3)),dr,bzNorm(single(1,frank,[[0,5,2]],0))];
+ const s=bzSum(l);
+ ok(s.w===1&&s.d===1&&s.l===1,'S–U–N 1–1–1');
+ ok(Math.abs(s.rate-0.5)<1e-9,'Quote: Remis halb (1,5 von 3)');
+ ok(s.form.join(',')==='true,d,false','Form mit U');
+ ok(bzSum(l.slice(0,2)).cur===0,'Remis unterbricht die Serie')}
+
 console.log('== Elo-Kurve und Delta ==');
 {const h=[{kind:'single',after:1024,delta:24},{kind:'double',after:976,delta:-24},{kind:'single',after:1045,delta:21}];
  const a=bzEloSeries(h,'single');
