@@ -503,3 +503,15 @@ body.play{--acc:#1fb8a6}
 .labrow em{font-style:normal;font-weight:700;padding:2px 8px;border-radius:8px;background:var(--panel2)}
 .labrow em.ok{background:#1f5a39}.labrow em.bad{background:#6a2a2a}.labrow small{color:var(--mute)}
 #labTruth{margin:10px 0}
+
+/* Bilanz (Spielen) */
+.bzform{display:inline-flex;gap:3px}
+.bzform i{font-style:normal;font-size:12px;font-weight:800;width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#111}
+.bzform i.w{background:var(--hit)}.bzform i.l{background:var(--miss)}
+.bzrow{cursor:pointer}.bzrow .bznick{font-size:17px}
+.bzsl{display:flex;flex-direction:column;align-items:flex-end}.bzsl b{font-size:18px;color:var(--text)}.bzsl small{font-size:13px}
+.mrow small.tag,.bznick small.tag{display:inline;font-size:11px;font-weight:600;color:var(--mute);border:1px solid var(--line);border-radius:6px;padding:1px 5px;vertical-align:2px}
+.mrow b.up{color:var(--hit)}.mrow b.down{color:var(--miss)}
+.wrow.faint{opacity:.45}
+.kv b small{color:var(--mute);font-weight:500}
+#rank .filters{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}

@@ -20,6 +20,8 @@ node local-tests/simple-modus.test.js
 node local-tests/reaktion.test.js            # kein Browser nötig
 node local-tests/reaktionsschiessen.test.js
 node local-tests/kamera-labor.test.js
+node local-tests/bilanz.test.js             # kein Browser nötig
+node local-tests/bilanz-browser.test.js
 ```
 
 | Datei | Inhalt |
@@ -34,6 +36,8 @@ node local-tests/kamera-labor.test.js
 | `reaktion.test.js` | Rechenlogik Reaktionsschießen ohne Browser: Stufen, Rhythmen wiederholen sich, Chaos, immer nur ein Grün, Ablenkfarben nie auf Grün, Wartezeit aufs Ziel, Beurteilung mit/ohne Ansage, Signal-Fenster, Individuell (Median der letzten 20), Dynamisch |
 | `reaktionsschiessen.test.js` | Reaktionsschießen im Browser mit Fake-Mikrofon: Konfiguration, Hilfe-Dialog samt „nicht mehr anzeigen“, ein Grün, Bernstein-Rahmen, Ablenkfarben, zu früh/spät/verpasst, ohne Ansage, Signal mit Piep und Aufleuchten (schneller Schuss wird nicht verschluckt), Signal ohne Erkennung gesperrt, Individuell, Dynamisch, ohne Erkennung |
 | `kamera-labor.test.js` | Kamera-Probe: Auswertung mit künstlichen Bildfolgen (Streifen 1–5, 30/60 fps, Wackeln, unsicher, kein Ball), dazu im Browser mit dem Fake-Video von Chromium: Freischalten per 7× Tippen, Kamera, Bildrate, Schuss, Wahrheit eintragen, Text zum Kopieren, Ausschnitt-Regler, Abschalten |
+| `bilanz.test.js` | Rechenlogik der Bilanz ohne Browser: Sieg aus meiner Sicht (Team 1 und 2), Filter Zeitraum/Modus/Art, strittige zählen nicht, Serien, Form, zwei Franks als zwei Gegner, Partner, Paare, Monate, eigene Tore |
+| `bilanz-browser.test.js` | Zwei Konten legen je einen Gast „Frank“ an, doppelter Gast beim selben Host, Kürzel, Art Wertung/locker beim Anlegen und in der Lobby, Bilanz-Tab mit Übersicht, Gegnern, Filtern, Direktvergleich, offline aus dem Zwischenspeicher |
 | `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal`/`settle_match` |
 
 ## Grenzen

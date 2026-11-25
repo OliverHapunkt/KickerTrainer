@@ -69,7 +69,7 @@ const MODES={
     ['stats','Statistik','tStats'],['settings','Mehr','tSettings']]},
   play:{n:'Spielen',start:'play',tabs:[
     ['play','Spiel','tPlay'],['groups','Gruppen','tGroups'],
-    ['rank','Rangliste','tRank'],['settings','Mehr','tSettings']]}
+    ['rank','Bilanz','tRank'],['settings','Mehr','tSettings']]}
 };
 const SCREENS=['home','train','chal','stats','settings','test','lab','play','groups','rank','match','lobby'];
 const TABS=[...new Set(Object.keys(MODES).flatMap(m=>MODES[m].tabs.map(t=>t[0])))];
@@ -108,7 +108,8 @@ function go(id){
   else if(id==='chal'){renderChal();show('chal')}
   else if(id==='stats'){ST.session=null;ST.open=null;ST.edit=null;show('stats');renderStats()}
   else if(id==='settings'){renderSettings();show('settings')}
-  else if(id==='play'||id==='groups'||id==='rank'){renderPlay(id);show(id)}
+  else if(id==='rank'){show(id);renderBilanzTab()}
+  else if(id==='play'||id==='groups'){renderPlay(id);show(id)}
   else show(id);
 }
 document.addEventListener('click',e=>{

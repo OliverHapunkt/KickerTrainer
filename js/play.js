@@ -16,12 +16,13 @@
  */
 
 const LS_PLAY = 'kt2_play';
-const PL0 = () => ({uid:null, me:null, guests:[], cfg:{mode:'double',detail:'full',gps:5,stw:2,invite:false},
+const PL0 = () => ({uid:null, me:null, guests:[], cfg:{mode:'double',detail:'full',gps:5,stw:2,invite:false,cat:'ranked'},
                     lineup:[null,null,null,null], queue:[]});
 let PL = Object.assign(PL0(), load(LS_PLAY, {}));
 if(!Array.isArray(PL.lineup) || PL.lineup.length !== 4) PL.lineup=[null,null,null,null];
 if(!Array.isArray(PL.queue)) PL.queue=[];
 if(!Array.isArray(PL.guests)) PL.guests=[];
+if(PL.cfg.cat !== 'casual') PL.cfg.cat = 'ranked';
 function savePL(){ save(LS_PLAY, PL) }
 
 let P = null;        // laufendes Spiel: {id,mode,detail,gps,stw,players,st}
@@ -55,9 +56,12 @@ async function pLoadMe(){
   return PL.me;
 }
 async function pLoadGuests(){
+  if(!PL.me) return PL.guests;
   const {sb} = await pSb();
+  // Nur eigene Gäste: Sichtbar sind auch die Gäste anderer Hosts aus gemeinsamen
+  // Spielen – die gehören nicht in meine Auswahl (und create_match würde sie ablehnen).
   const {data, error} = await sb.from('players').select('id,nickname')
-    .eq('kind','guest').is('deleted_at', null).order('nickname');
+    .eq('kind','guest').eq('owner_id', PL.me.id).is('deleted_at', null).order('nickname');
   if(error) throw error;
   PL.guests = data || []; savePL();
   return PL.guests;
@@ -91,10 +95,11 @@ async function pSetNickname(){
 
 async function pAddGuest(){
   const v = await askText('Neuer Gast', {placeholder:'Vorname oder Kürzel', max:20, ok:'Anlegen',
-    hint:'Gäste spielen ohne eigenes Konto mit. Nimm Vorname oder Kürzel – der Name ist für deine Mitspieler sichtbar.'});
+    hint:'Gäste spielen ohne eigenes Konto mit. Nimm Vorname oder Kürzel – der Name ist für deine Mitspieler sichtbar. '
+      + 'Er muss nur unter deinen eigenen Gästen eindeutig sein.'});
   if(v === null) return null;
   const nick = v.trim();
-  if(nick.length < 3){ toast('Mindestens 3 Zeichen'); return null }
+  if(nick.length < 2){ toast('Mindestens 2 Zeichen'); return null }
   try{
     const {sb} = await pSb();
     const {data, error} = await sb.from('players')
@@ -103,7 +108,8 @@ async function pAddGuest(){
     PL.guests.push(data); PL.guests.sort((a,b)=>a.nickname.localeCompare(b.nickname,'de')); savePL();
     return data;
   }catch(e){
-    toast(/duplicate|unique/i.test(String(e.message||e)) ? 'Der Name ist schon vergeben' : errText(e,'Nicht angelegt'));
+    toast(/duplicate|unique/i.test(String(e.message||e))
+      ? 'Du hast schon einen Gast „' + nick + '“ – unterscheide ihn, z. B. „' + nick + ' M.“' : errText(e,'Nicht angelegt'));
     return null;
   }
 }
@@ -144,9 +150,7 @@ async function pPick(slot){
 function renderPlay(id){
   if(id === 'play') return renderPlayHome();
   const x = {groups:{t:'Gruppen',p:['Eine Gruppe ist ein Verein oder Stammtisch. Wer den Einladungscode hat, ist drin.',
-      'Gemeinsame Gästeliste, Stellvertreter, eigene Rangliste je Gruppe.']},
-    rank:{t:'Rangliste',p:['Wertungen aus echten Spielen: Einzel, Doppel über alle Partner, feste Doppel-Paarungen.',
-      'Berechnet wird nur auf dem Server, aus dem gesamten Spielverlauf. In der allgemeinen Rangliste stehst du nur mit ausdrücklicher Zustimmung.']}}[id];
+      'Gemeinsame Gästeliste, Stellvertreter, eigene Rangliste je Gruppe.']}}[id];
   $('#'+id+'Body').innerHTML = '<div class="card">' + x.p.map(t=>'<p class="lead">'+t+'</p>').join('')
     + '</div><p class="hint">Kommt in einem späteren Schritt. Zum Üben geht es über den Umschalter links unten.</p>';
 }
@@ -199,6 +203,8 @@ function renderPlayHome(){
   h += '<div class="sub"><label>Satz bis … Tore</label><div id="pcGps"></div></div>';
   h += '<div class="sub"><label>Spiel bis … Gewinnsätze</label><div class="chips sc" id="pcStw"></div>'
      + '<p class="hint" id="pcStwHint"></p></div>';
+  h += '<div class="sub"><label>Art ' + tipBtn('pCat') + '</label><div class="chips sc" id="pcCat"></div>'
+     + '<p class="hint" id="pcCatHint"></p></div>';
   h += '<div class="sub"><label>Mitspieler ' + tipBtn('pJoin') + '</label><div class="chips sc" id="pcInvite"></div>'
      + '<p class="hint" id="pcInviteHint"></p></div>';
   if(!c.invite)
@@ -228,6 +234,10 @@ function renderPlayHome(){
   $('#pcStwHint').textContent = c.stw === 1 ? 'Ein Satz bis ' + c.gps + ' Tore, dann ist Schluss.'
     : 'Wer zuerst ' + c.stw + ' Sätze hat, gewinnt – also höchstens ' + (c.stw*2-1) + ' Sätze.';
 
+  chips($('#pcCat'), [{v:'ranked',t:'Wertung'},{v:'casual',t:'Locker'}], v=>c.cat===v,
+    v=>{ c.cat=v; savePL() }, renderPlayHome);
+  $('#pcCatHint').textContent = c.cat === 'casual'
+    ? 'Zählt nur für deine Bilanz, nicht für Wertungen.' : 'Zählt für die Wertung und für deine Bilanz.';
   chips($('#pcInvite'), [{v:false,t:'Nur Gäste'},{v:true,t:'Per Code einladen'}], v=>!!c.invite===v,
     v=>{ c.invite=v; savePL() }, renderPlayHome);
   $('#pcInviteHint').textContent = c.invite
@@ -296,7 +306,7 @@ async function pLoadRecent(){
     const el = $('#pRecent'); if(!el) return;
     if(!ids.length){ el.innerHTML=''; return }
     const {data} = await sb.from('matches')
-      .select('id,host_id,mode,detail,state,finished_at,match_sets(set_no,score1,score2,winner_team)')
+      .select('id,host_id,mode,detail,state,category,finished_at,match_sets(set_no,score1,score2,winner_team)')
       .in('id', ids).in('state',['finished','confirmed','disputed'])
       .order('finished_at',{ascending:false}).limit(10);
     if(!data || !data.length){ el.innerHTML=''; return }
@@ -306,7 +316,8 @@ async function pLoadRecent(){
       return '<div class="mrow" data-mid="' + m.id + '"><div><b>' + w1 + ' : ' + w2 + '</b>'
         + '<small>' + (m.mode==='single'?'Einzel':'Doppel')
         + (m.host_id === PL.me.id ? '' : ' · als Mitspieler') + ' · '
-        + s.map(x=>x.score1+':'+x.score2).join('  ') + ' · ' + pStateText(m.state) + '</small></div>'
+        + s.map(x=>x.score1+':'+x.score2).join('  ') + (m.category === 'casual' ? ' · locker' : '')
+        + ' · ' + pStateText(m.state) + '</small></div>'
         + '<span>' + (m.finished_at ? fmtDate(Date.parse(m.finished_at), true) : '') + '</span></div>';
     }).join('') + '</div>';
     el.querySelectorAll('[data-mid]').forEach(r=>r.onclick = ()=>pOpenLobby(r.dataset.mid));
@@ -324,7 +335,7 @@ async function pStart(){
     const {data, error} = await sb.rpc('create_match', {
       p_mode:PL.cfg.mode, p_detail:PL.cfg.detail,
       p_goals_per_set:PL.cfg.gps, p_sets_to_win:PL.cfg.stw,
-      p_group_id:null, p_players:players});
+      p_group_id:null, p_players:players, p_category:PL.cfg.cat});
     if(error) throw error;
     await pOpen(data.id);
   }catch(e){
@@ -349,7 +360,7 @@ async function pOpen(id){
     const {data:names} = await sb.from('players').select('id,nickname,kind,deleted_at').in('id', ids);
     const nm = {}; (names||[]).forEach(p=>nm[p.id]=p);
     P = {id, mode:m.data.mode, detail:m.data.detail, gps:m.data.goals_per_set, stw:m.data.sets_to_win,
-         host:m.data.host_id, rev:m.data.rev, finished_at:m.data.finished_at,
+         host:m.data.host_id, rev:m.data.rev, finished_at:m.data.finished_at, cat:m.data.category || 'ranked',
          players:mp.data.map(x=>Object.assign({}, x, {
            nickname:(nm[x.player_id]||{}).nickname||'?',
            kind:(nm[x.player_id]||{}).kind, deleted_at:(nm[x.player_id]||{}).deleted_at})),
@@ -492,7 +503,8 @@ async function pSummary(){
   let h = '<div class="sumhead"><div><div class="blockh">Ergebnis</div>'
     + '<div class="bigpct">' + w1 + ' : ' + w2 + '</div>'
     + '<p class="center">' + sets.map(x=>x.score1+':'+x.score2).join(' · ') + '</p></div></div>';
-  h += kv('Teams', pTeam(1).map(p=>p.nickname).join(' & ') + '  gegen  ' + pTeam(2).map(p=>p.nickname).join(' & '));
+  h += kv('Teams', pTeam(1).map(p=>esc(p.nickname)).join(' & ') + '  gegen  ' + pTeam(2).map(p=>esc(p.nickname)).join(' & '));
+  h += kv('Art', P.cat === 'casual' ? 'locker' : 'Wertung');
   if(goals.length){
     h += '<div class="blockh">Torschützen</div>';
     for(const p of P.players){
@@ -594,7 +606,7 @@ async function pOpenLobbyNew(){
     const {sb} = await pSb();
     const {data, error} = await sb.rpc('create_lobby', {
       p_mode:PL.cfg.mode, p_detail:PL.cfg.detail,
-      p_goals_per_set:PL.cfg.gps, p_sets_to_win:PL.cfg.stw, p_group_id:null});
+      p_goals_per_set:PL.cfg.gps, p_sets_to_win:PL.cfg.stw, p_group_id:null, p_category:PL.cfg.cat});
     if(error) throw error;
     await pOpenLobby(data.id);
   }catch(e){ toast(errText(e, 'Lobby konnte nicht geöffnet werden')) }
@@ -620,7 +632,7 @@ async function pJoin(){
 async function pLobbyLoad(id){
   const {sb} = await pSb();
   const [m, mp] = await Promise.all([
-    sb.from('matches').select('id,host_id,mode,detail,goals_per_set,sets_to_win,state,join_code,rev,finished_at').eq('id', id).single(),
+    sb.from('matches').select('id,host_id,mode,detail,goals_per_set,sets_to_win,state,join_code,rev,finished_at,category').eq('id', id).single(),
     sb.from('match_players').select('player_id,team,position,is_host').eq('match_id', id)]);
   if(m.error) throw m.error; if(mp.error) throw mp.error;
   const ids = mp.data.map(x=>x.player_id);
@@ -631,7 +643,7 @@ async function pLobbyLoad(id){
   }
   L = {id, host:m.data.host_id, mode:m.data.mode, detail:m.data.detail,
        gps:m.data.goals_per_set, stw:m.data.sets_to_win, state:m.data.state,
-       code:m.data.join_code, rev:m.data.rev, finished_at:m.data.finished_at,
+       code:m.data.join_code, rev:m.data.rev, finished_at:m.data.finished_at, cat:m.data.category || 'ranked',
        players:mp.data.map(x=>Object.assign({}, x, {
          nickname:(nm[x.player_id]||{}).nickname||'?',
          kind:(nm[x.player_id]||{}).kind, deleted_at:(nm[x.player_id]||{}).deleted_at}))};
@@ -755,8 +767,9 @@ function renderLobby(){
     }
   }
 
-  // Aufstellung, je Team
-  h += '<div class="card"><h2>Aufstellung</h2>';
+  // Aufstellung, je Team. Die Art steht dabei, damit jeder vor dem Start weiß, ob es zählt.
+  h += '<div class="card"><h2>Aufstellung</h2>'
+    + kv('Art', L.cat === 'casual' ? 'locker – zählt nicht für Wertungen' : 'Wertung – zählt');
   for(const t of [1,2]){
     const ps = L.players.filter(p=>p.team===t);
     h += '<div class="blockh">Team ' + t + '</div>';

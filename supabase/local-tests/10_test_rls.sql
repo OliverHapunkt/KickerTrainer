@@ -103,15 +103,16 @@ select tst('Zweites Profil für dasselbe Konto wird abgewiesen',
   'cccccccc-0000-4000-8000-000000000003',
   $$insert into players (user_id, nickname, kind)
     values ('cccccccc-0000-4000-8000-000000000003', 'Chris2', 'account')$$, 'err');
-select tst('Nickname doppelt (andere Schreibweise) wird abgewiesen', 'super',
+select tst('Gast-Nickname doppelt beim selben Besitzer (andere Schreibweise) wird abgewiesen', 'super',
   $$insert into players (nickname, kind, owner_id)
-    select 'oliver', 'guest', id from t_ids where name = 'Oliver'$$, 'err');
+    select 'Gast Eins', 'guest', id from t_ids where name = 'Oliver'
+    union all select 'gast eins ', 'guest', id from t_ids where name = 'Oliver'$$, 'err');
 select tst('Konto-Profil mit owner_id verletzt die Formprüfung', 'super',
   $$insert into players (nickname, kind, owner_id)
     select 'Krumm', 'account', id from t_ids where name = 'Oliver'$$, 'err');
-select tst('Nickname zu kurz wird abgewiesen', 'super',
+select tst('Gast-Nickname zu kurz wird abgewiesen', 'super',
   $$insert into players (nickname, kind, owner_id)
-    select 'Jo', 'guest', id from t_ids where name = 'Oliver'$$, 'err');
+    select 'J', 'guest', id from t_ids where name = 'Oliver'$$, 'err');
 
 \echo
 select '== Sichtbarkeit ohne Berührungspunkt ==';

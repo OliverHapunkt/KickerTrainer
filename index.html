@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.18.0',d:'2026-11-03'};
+window.KT_VER={v:'3.19.0',d:'2026-11-25'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -182,7 +182,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </section>
 
 <section id="rank" class="screen tabbed hidden">
-  <header class="ptitle"><h1>Rangliste</h1></header>
+  <header class="ptitle"><h1>Bilanz</h1></header>
   <div id="rankBody"></div>
 </section>
 
@@ -268,7 +268,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <div id="summary" class="overlay hidden"><div class="sheet" id="summaryBody"></div></div>
 <script>
 // Skripte in fester Reihenfolge laden (async=false), alle teilen sich denselben globalen Gültigkeitsbereich
-['core','ui','detector','sensors','home','training','reaktion','stats','gamification','learn','play','tools','lab','calibrate','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
+['core','ui','detector','sensors','home','training','reaktion','stats','gamification','learn','play','bilanz','tools','lab','calibrate','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
 </script>
 </body>
 </html>
