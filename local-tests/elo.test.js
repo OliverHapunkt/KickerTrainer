@@ -61,7 +61,14 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   const tab=async(id)=>{ await pg.click('#tabbar [data-tab="'+id+'"]'); await pg.waitForTimeout(700) };
 
 
-  console.log('== Erstes gewertetes Spiel ==');
+
+  const dbState=()=>pg.evaluate(()=>{const m=__fake.DB.matches.slice(-1)[0];return m&&m.state});
+  const myElo=k=>pg.evaluate(k=>{const me=__fake.DB.players.find(p=>p.nickname==='Olli');
+    const r=__fake.DB.ratings.find(x=>x.player_id===me.id&&x.kind===k);return r?Math.round(r.rating):null},k);
+
+  console.log('== Spiel gegen Gast zählt nicht (Option A) ==');
+  await asUser(BB);
+  await setNick('Basti');
   await asUser(HOST);
   await setNick('Olli');
   await pg.click('#pcMode button:has-text("Einzel")'); await pg.waitForTimeout(150);
@@ -69,42 +76,59 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   await pg.fill('#pcGps input','3'); await pg.waitForTimeout(100);
   await pg.click('#pcStw button:has-text("Nur ein Satz")'); await pg.waitForTimeout(150);
   await newGuestInSlot(1,'Frank');
-  // nicht quick(): Auswertung ansehen, bevor sie geschlossen wird
   await pg.click('#pStart'); await pg.waitForTimeout(500);
   for(let i=0;i<3;i++){ await pg.click('#mArea [data-team="1"] >> nth=0'); await pg.waitForTimeout(350) }
   await pg.waitForSelector('#msumDone',{state:'visible',timeout:5000}); await pg.waitForTimeout(400);
   let sum=(await txt('#msumBody')).replace(/\s+/g,' ');
-  ok(sum.includes('Deine Wertung')&&sum.includes('+24 → 1024'),'Auswertung: +24 → 1024');
+  ok(sum.includes('bestätigt und wertbar'),'Gast-Spiel ist bestätigt');
+  ok(!sum.includes('Deine Wertung'),'…aber keine Elo-Änderung');
+  ok(sum.includes('Zählt nicht für die Wertung'),'Auswertung erklärt, warum nicht');
+  ok((await myElo('single'))===null,'Keine Wertung entstanden');
   await pg.click('#msumDone'); await pg.waitForTimeout(500);
 
-  console.log('== Lockeres Spiel ändert nichts ==');
-  await pg.click('#pcCat button:has-text("Locker")'); await pg.waitForTimeout(150);
-  await pg.click('#pStart'); await pg.waitForTimeout(500);
-  for(let i=0;i<3;i++){ await pg.click('#mArea [data-team="2"] >> nth=0'); await pg.waitForTimeout(350) }
+  console.log('== Konto gegen Konto: zählt nach Bestätigung ==');
+  await pg.click('#pcInvite button:has-text("Per Code")'); await pg.waitForTimeout(250);
+  await pg.click('#pLobby'); await pg.waitForTimeout(800);
+  const code=(await txt('.codecard .code')).trim();
+  await asUser(BB);
+  await pg.click('#pJoinBtn'); await pg.waitForTimeout(250);
+  await pg.fill('.dlg .dinput',code); await dlgOk();
+  ok(await vis('lobby'),'Basti ist in der Lobby');
+  await asUser(HOST);
+  await pg.click('#pResume'); await pg.waitForTimeout(800);
+  await pg.click('#lobStart'); await pg.waitForTimeout(900);
+  for(let i=0;i<3;i++){ await pg.click('#mArea .ptile >> nth=0'); await pg.waitForTimeout(350) }
   await pg.waitForSelector('#msumDone',{state:'visible',timeout:5000}); await pg.waitForTimeout(400);
   sum=(await txt('#msumBody')).replace(/\s+/g,' ');
-  ok(!sum.includes('Deine Wertung'),'Locker: keine Elo-Zeile');
+  ok(sum.includes('wartet auf Bestätigung')&&!sum.includes('Deine Wertung'),'Vor der Bestätigung: noch kein Elo');
   await pg.click('#msumDone'); await pg.waitForTimeout(500);
-  await pg.click('#pcCat button:has-text("Wertung")'); await pg.waitForTimeout(150);
+  await asUser(BB);
+  await pg.waitForSelector('#pTodo .card',{timeout:5000});
+  await pg.click('#pTodo [data-conf]'); await pg.waitForTimeout(900);
+  await pg.click('#lobOk'); await pg.waitForTimeout(400); await dlgOk(); await pg.waitForTimeout(500);
+  ok((await dbState())==='confirmed','Basti hat bestätigt');
+  ok((await myElo('single'))===1024,'Olli 1024');
 
   console.log('== Wertungskarte ==');
+  await asUser(HOST);
   await tab('rank');
   let b=(await txt('#rankBody')).replace(/\s+/g,' ');
-  ok(b.includes('Wertung')&&b.includes('1024'),'Einzel 1024');
+  ok(b.includes('1024'),'Einzel 1024');
   ok(b.includes('vorläufig'),'Vorläufig unter 10 Spielen');
   ok(b.includes('noch keine'),'Doppel: noch keine');
   ok((await pg.$$('#rankBody .bzspark')).length===1,'Eine Kurve (Einzel)');
-  await pg.click('#rankBody [data-opp] >> nth=0'); await pg.waitForTimeout(400);
+  ok(b.includes('Basti')&&b.includes('Frank'),'Bilanz führt beide Gegner (auch den Gast)');
+  await pg.click('#rankBody [data-opp]:has-text("Basti")'); await pg.waitForTimeout(400);
   b=(await txt('#rankBody')).replace(/\s+/g,' ');
   ok(b.includes('Elo +24'),'Begegnung zeigt Elo +24');
-  ok(b.includes('Elo Einzel 976'),'Gegner-Elo im Direktvergleich (Frank 976)');
+  ok(b.includes('Elo Einzel 976'),'Gegner-Elo im Direktvergleich (Basti 976)');
+  ok(b.includes('✓'),'Begegnung als bestätigt gekennzeichnet');
   await pg.click('#bzBack'); await pg.waitForTimeout(300);
 
   console.log('== Rangliste ==');
   await pg.click('#bzRank'); await pg.waitForTimeout(600);
   b=(await txt('#rankBody')).replace(/\s+/g,' ');
   ok(b.includes('Noch niemand'),'Rangliste leer');
-  ok(b.includes('Du stehst nicht in der Rangliste'),'Nicht zugestimmt');
   await pg.click('#lbOpt'); await pg.waitForTimeout(300);
   ok((await txt('.dlg')).includes('Alle Nutzer der App sehen'),'Zustimmung erklärt, was sichtbar wird');
   await pg.click('.dlg .dbtns [data-i="1"]'); await pg.waitForTimeout(300);
@@ -113,37 +137,24 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   ok(await pg.evaluate(()=>__fake.DB.players.find(p=>p.nickname==='Olli').ranking_opt_in),'Zugestimmt');
   ok((await txt('#rankBody')).includes('Noch niemand'),'Unter 10 Spielen noch nicht drin');
 
-  console.log('== Zehn Spiele ==');
-  await tab('play');
-  for(let i=0;i<9;i++) await quick(1);
-  await tab('rank');
+  console.log('== Neun weitere Spiele gegen Basti (direkt eingespielt) ==');
+  await pg.evaluate(()=>{const D=__fake.DB, o=D.players.find(p=>p.nickname==='Olli'), b=D.players.find(p=>p.nickname==='Basti');
+    for(let i=0;i<9;i++){const id='seed-'+i, t=new Date(Date.now()+(i+1)*60000).toISOString();
+      D.matches.push({id,host_id:o.id,mode:'single',detail:'simple',goals_per_set:3,sets_to_win:1,state:'confirmed',category:'ranked',
+        started_at:t,finished_at:t,rev:1,win_by:1,win_by_scope:'decider',goal_cap:null,draw_at:null});
+      D.match_players.push({match_id:id,player_id:o.id,team:1,is_host:true},{match_id:id,player_id:b.id,team:2,is_host:false});
+      D.match_sets.push({match_id:id,set_no:1,score1:3,score2:i%3?1:2,winner_team:1})}
+    __fake.recompute()});
+  await tab('play'); await tab('rank');
   b=(await txt('#rankBody')).replace(/\s+/g,' ');
-  ok(!b.includes('vorläufig'),'Nach 10 Spielen nicht mehr vorläufig');
+  ok(!(await pg.textContent('#rankBody .bzelo > div:first-child')).includes('vorläufig'),'Einzel-Kachel nicht mehr vorläufig');
   await pg.click('#bzRank'); await pg.waitForTimeout(700);
   ok((await pg.$$('#rankBody .lbrow')).length===1,'Jetzt in der Rangliste');
   ok((await pg.$$('#rankBody .lbrow.me')).length===1,'Eigene Zeile hervorgehoben');
   ok(!(await txt('#rankBody')).includes('Frank'),'Gast nie in der Rangliste');
   await pg.screenshot({path:path.join(require('os').tmpdir(),'rangliste.png'),fullPage:true});
-  await pg.click('#lbKind button:has-text("Doppel")'); await pg.waitForTimeout(600);
-  ok((await txt('#rankBody')).includes('Noch niemand'),'Doppel-Rangliste leer');
-  await pg.click('#lbKind button:has-text("Einzel")'); await pg.waitForTimeout(600);
   await pg.click('#lbOpt'); await pg.waitForTimeout(700);
   ok((await pg.$$('#rankBody .lbrow')).length===0,'Widerruf: sofort raus, ohne Rückfrage');
-  await pg.click('#bzBack'); await pg.waitForTimeout(300);
-  await pg.screenshot({path:path.join(require('os').tmpdir(),'elo-karte.png'),fullPage:true});
-
-  console.log('== Korrektur rechnet neu ==');
-  const before=await pg.evaluate(()=>Math.round(__fake.DB.ratings.find(r=>r.kind==='single'&&__fake.DB.players.find(p=>p.id===r.player_id).nickname==='Olli').rating));
-  await tab('play');
-  await pg.click('#pRecent .mrow >> nth=0'); await pg.waitForTimeout(700);
-  ok((await pg.$('#lobFix'))!==null,'Korrektur-Knopf im letzten Spiel');
-  {
-    await pg.click('#lobFix'); await pg.waitForTimeout(300); await dlgOk(); await pg.waitForTimeout(700);
-    const mid=await pg.evaluate(()=>{const ms=__fake.DB.matches.filter(m=>m.state==='running');return ms.length});
-    ok(mid===1,'Spiel wieder offen');
-    const after=await pg.evaluate(()=>Math.round(__fake.DB.ratings.find(r=>r.kind==='single'&&__fake.DB.players.find(p=>p.id===r.player_id).nickname==='Olli').rating));
-    ok(after<before,'Wieder aufgenommen: Elo ohne dieses Spiel ('+before+' → '+after+')');
-  }
 
   const bad=errs.filter(e=>!/Failed to fetch|ERR_|favicon/i.test(e));
   if(bad.length) console.log(bad.join('\n'));

@@ -19,7 +19,7 @@
   // die Startskripte in fester Reihenfolge ausgeführt, und das Konto wird danach gesetzt.
   const UID = () => { try{ return localStorage.getItem('__fakeuid') ||
     '11111111-0000-4000-8000-000000000001' }catch(e){ return '11111111-0000-4000-8000-000000000001' } };
-  window.__fake = {get DB(){return DB}, offline:false, calls:[], persist,
+  window.__fake = {get DB(){return DB}, offline:false, calls:[], persist, recompute:()=>{recompute();persist()},
     setUid(u){ try{ localStorage.setItem('__fakeuid', u) }catch(e){} },
     reset(){ DB = JSON.parse(JSON.stringify(EMPTY)); seq = 0; persist() }};
 
@@ -105,6 +105,19 @@
     return DB.match_confirmations.some(c=>c.match_id===id && c.rev===m.rev
       && c.decision==='ok' && able.some(a=>a.player_id===c.player_id));
   }
+  /* Spiegelt set_end(): 1/2 Sieger, 0 Remis, null weiter */
+  function setEnd(m,setNo,s1,s2){
+    const prev=DB.match_sets.filter(x=>x.match_id===m.id&&x.set_no<setNo);
+    const w1=prev.filter(x=>x.winner_team===1).length,w2=prev.filter(x=>x.winner_team===2).length;
+    const dec=w1===m.sets_to_win-1&&w2===m.sets_to_win-1;
+    if(m.draw_at!=null&&dec&&s1===m.draw_at&&s2===m.draw_at) return 0;
+    if(m.goal_cap!=null&&Math.max(s1,s2)>=m.goal_cap&&s1!==s2) return s1>s2?1:2;
+    const lead=(m.win_by===2&&(m.win_by_scope==='all'||dec))?2:1;
+    if(Math.max(s1,s2)>=m.goals_per_set&&Math.abs(s1-s2)>=lead) return s1>s2?1:2;
+    return null;
+  }
+  function applyRules(m,r){ if(!r) return;
+    m.win_by=r.win_by||1; m.win_by_scope=r.scope||'decider'; m.goal_cap=r.cap??null; m.draw_at=r.draw_at??null }
   /* Spiegelt recompute_ratings(): komplett neu aus allen bestätigten Wertungsspielen */
   function recompute(){
     DB.ratings=[]; DB.team_ratings=[]; DB.rating_history=[];
@@ -112,19 +125,22 @@
     const ms=DB.matches.filter(m=>m.state==='confirmed'&&(m.category||'ranked')==='ranked')
       .sort((a,b)=>at(a)<at(b)?-1:at(a)>at(b)?1:(a.id<b.id?-1:1));
     const R=(pid,k)=>{let r=DB.ratings.find(x=>x.player_id===pid&&x.kind===k);
-      if(!r){r={player_id:pid,kind:k,rating:1000,games:0,wins:0};DB.ratings.push(r)}return r};
+      if(!r){r={player_id:pid,kind:k,rating:1000,games:0,wins:0,draws:0};DB.ratings.push(r)}return r};
     for(const m of ms){
       const ss=DB.match_sets.filter(x=>x.match_id===m.id);
       const w1=ss.filter(x=>x.winner_team===1).length,w2=ss.filter(x=>x.winner_team===2).length;
-      if(w1===w2) continue;
+      const draw=ss.some(x=>x.winner_team===0);
+      if(w1===w2&&!draw) continue;
       const k=m.mode==='single'?'single':'double';
-      const t1=DB.match_players.filter(x=>x.match_id===m.id&&x.team===1).map(x=>x.player_id).sort();
-      const t2=DB.match_players.filter(x=>x.match_id===m.id&&x.team===2).map(x=>x.player_id).sort();
+      const acc=id=>{const p=DB.players.find(y=>y.id===id);return p&&p.kind==='account'};
+      const t1=DB.match_players.filter(x=>x.match_id===m.id&&x.team===1).map(x=>x.player_id).filter(acc).sort();
+      const t2=DB.match_players.filter(x=>x.match_id===m.id&&x.team===2).map(x=>x.player_id).filter(acc).sort();
+      if(!t1.length||!t2.length) continue;   // Option A: Gast-Seite zählt nicht
       const avg=t=>t.reduce((a,p)=>a+R(p,k).rating,0)/t.length;
-      const r1=avg(t1),r2=avg(t2),e1=1/(1+Math.pow(10,(r2-r1)/400)),s1=w1>w2?1:0;
+      const r1=avg(t1),r2=avg(t2),e1=1/(1+Math.pow(10,(r2-r1)/400)),s1=draw?0.5:w1>w2?1:0;
       for(const p of t1.concat(t2)){
         const sc=t1.includes(p)?s1:1-s1, ex=t1.includes(p)?e1:1-e1, r=R(p,k), K=r.games<10?48:24, b=r.rating;
-        r.rating=b+K*(sc-ex); r.games++; if(sc===1)r.wins++;
+        r.rating=b+K*(sc-ex); r.games++; if(sc===1)r.wins++; if(sc===0.5)r.draws=(r.draws||0)+1;
         DB.rating_history.push({match_id:m.id,player_id:p,kind:k,before:b,after:r.rating,at:at(m)});
       }
       if(k==='double'&&t1.length===2&&t2.length===2){
@@ -146,9 +162,42 @@
 
   const RPC = {
     match_state: a => res(state(a.p_match)),
+    update_match_rules: a => {
+      const me = DB.players.find(p=>p.user_id===UID());
+      const m = DB.matches.find(x=>x.id===a.p_match);
+      if(!m) return res(null,{message:'Spiel nicht gefunden',code:'P0001'});
+      if(m.host_id!==me.id) return res(null,{message:'Nur der Host ändert die Regeln',code:'42501'});
+      if(!['lobby','running'].includes(m.state)) return res(null,{message:'Das Spiel ist schon vorbei',code:'P0001'});
+      if(m.state==='running'&&a.p_mode&&a.p_mode!==m.mode) return res(null,{message:'Einzel oder Doppel nur in der Lobby',code:'P0001'});
+      if(m.state==='running'&&a.p_category&&a.p_category!==m.category) return res(null,{message:'Die Art wird vor dem Spiel festgelegt',code:'P0001'});
+      const n=Object.assign({},m);
+      if(a.p_mode)n.mode=a.p_mode; if(a.p_detail)n.detail=a.p_detail; if(a.p_gps)n.goals_per_set=a.p_gps;
+      if(a.p_stw)n.sets_to_win=a.p_stw; if(a.p_win_by)n.win_by=a.p_win_by; if(a.p_scope)n.win_by_scope=a.p_scope;
+      if(a.p_category)n.category=a.p_category;
+      n.goal_cap=a.p_clear_cap?null:(a.p_cap??m.goal_cap); n.draw_at=a.p_clear_draw?null:(a.p_draw_at??m.draw_at);
+      if(n.goal_cap!=null&&n.goal_cap<=n.goals_per_set) return res(null,{message:'Die Obergrenze muss über dem Satzziel liegen',code:'P0001'});
+      if(n.mode!==m.mode){const need=n.mode==='single'?1:2;
+        if([1,2].some(t=>DB.match_players.filter(x=>x.match_id===m.id&&x.team===t).length>need))
+          return res(null,{message:'Für Einzel erst einen Spieler je Team entfernen',code:'P0001'})}
+      if(m.state==='running'){
+        const ss=DB.match_sets.filter(x=>x.match_id===m.id);
+        if(Math.max(ss.filter(x=>x.winner_team===1).length,ss.filter(x=>x.winner_team===2).length)>=n.sets_to_win)
+          return res(null,{message:'So wäre das Spiel schon entschieden',code:'P0001'});
+        const cur=ss.filter(x=>x.winner_team==null).sort((x,y)=>x.set_no-y.set_no)[0];
+        if(cur&&setEnd(n,cur.set_no,cur.score1,cur.score2)!==null)
+          return res(null,{message:'So wäre der laufende Satz ('+cur.score1+' : '+cur.score2+') schon entschieden',code:'P0001'});
+      }
+      Object.assign(m,n);
+      const mps=DB.match_players.filter(x=>x.match_id===m.id);
+      if(m.mode==='single') mps.forEach(x=>{x.position=null});
+      else if(m.detail==='full') [1,2].forEach(t=>{const ps=mps.filter(x=>x.team===t);
+        if(ps.length===2&&ps[0].position===ps[1].position){ps[0].position='off';ps[1].position='def'}
+        else ps.forEach((x,i)=>{if(!x.position)x.position=i?'def':'off'})});
+      persist(); return res(m);
+    },
     my_ratings: () => {
       const me = DB.players.find(p=>p.user_id===UID()); if(!me) return res({});
-      const one=k=>{const r=DB.ratings.find(x=>x.player_id===me.id&&x.kind===k);return r?{rating:Math.round(r.rating),games:r.games,wins:r.wins}:null};
+      const one=k=>{const r=DB.ratings.find(x=>x.player_id===me.id&&x.kind===k);return r?{rating:Math.round(r.rating),games:r.games,wins:r.wins,draws:r.draws||0}:null};
       return res({me:me.id, single:one('single'), double:one('double'),
         teams:DB.team_ratings.filter(t=>t.p1===me.id||t.p2===me.id).map(t=>{const o=DB.players.find(p=>p.id===(t.p1===me.id?t.p2:t.p1));
           return {partner:o.id,nick:o.nickname,kind:o.kind,rating:Math.round(t.rating),games:t.games,wins:t.wins}}),
@@ -189,7 +238,8 @@
       if(n1!==need||n2!==need) return res(null,{message:'Teamgröße',code:'P0001'});
       const m={id:uid(),host_id:DB.players.find(p=>p.user_id===UID()).id,mode:a.p_mode,detail:a.p_detail,
         goals_per_set:a.p_goals_per_set,sets_to_win:a.p_sets_to_win,state:'running',category:a.p_category||'ranked',
-        join_code:null,started_at:new Date().toISOString(),rev:1};
+        join_code:null,started_at:new Date().toISOString(),rev:1,win_by:1,win_by_scope:'decider',goal_cap:null,draw_at:null};
+      applyRules(m,a.p_rules);
       DB.matches.push(m);
       a.p_players.forEach(p=>DB.match_players.push({match_id:m.id,player_id:p.player_id,team:p.team,
         position:(a.p_detail==='full'&&a.p_mode==='double')?p.position:null,
@@ -206,10 +256,11 @@
         team:a.p_team,scorer_id:a.p_scorer||null,scorer_position:m.mode==='double'?a.p_position:null,
         own_goal:!!a.p_own});
       if(a.p_team===1)cur.score1++;else cur.score2++;
-      if(Math.max(cur.score1,cur.score2)>=m.goals_per_set){
-        cur.winner_team=cur.score1>cur.score2?1:2;
-        const wins=DB.match_sets.filter(s=>s.match_id===m.id&&s.winner_team===cur.winner_team).length;
-        if(wins>=m.sets_to_win){ m.state='finished'; m.finished_at=new Date().toISOString(); settle(m.id) }
+      const sw=setEnd(m,cur.set_no,cur.score1,cur.score2);
+      if(sw!==null){
+        cur.winner_team=sw;
+        const wins=DB.match_sets.filter(s=>s.match_id===m.id&&s.winner_team===sw).length;
+        if(sw===0||wins>=m.sets_to_win){ m.state='finished'; m.finished_at=new Date().toISOString(); settle(m.id) }
         else DB.match_sets.push({match_id:m.id,set_no:cur.set_no+1,score1:0,score2:0,winner_team:null});
       }
       persist(); return res(state(m.id));
@@ -252,7 +303,8 @@
       const m={id:uid(),host_id:me.id,mode:a.p_mode,detail:a.p_detail,
         goals_per_set:a.p_goals_per_set,sets_to_win:a.p_sets_to_win,state:'lobby',category:a.p_category||'ranked',
         join_code:String(Math.floor(Math.random()*1e6)).padStart(6,'0'),
-        created_at:new Date().toISOString(),rev:1};
+        created_at:new Date().toISOString(),rev:1,win_by:1,win_by_scope:'decider',goal_cap:null,draw_at:null};
+      applyRules(m,a.p_rules);
       DB.matches.push(m);
       DB.match_players.push({match_id:m.id,player_id:me.id,team:1,
         position:(a.p_detail==='full'&&a.p_mode==='double')?'off':null,is_host:true});

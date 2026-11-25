@@ -527,3 +527,19 @@ body.play{--acc:#1fb8a6}
 .lbrow .lbpos{width:28px;text-align:center;color:var(--mute);font-size:17px}
 .lbrow.me{background:color-mix(in srgb,var(--acc) 14%,transparent);border-radius:10px;padding-left:6px;padding-right:6px}
 .lbrow span b{font-size:19px;color:var(--text)}
+
+/* Regeln, Zählkopf, Stand-Kennzeichen */
+.rltog{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);font-size:15px;text-align:left}
+.rltog i{font-style:normal;color:var(--mute)}
+.rlbox{margin-top:8px;padding:4px 12px 10px;border:1px solid var(--line);border-radius:14px}
+.mhead{align-items:center}
+.mhbtn{min-width:76px;min-height:48px;border-radius:14px;border:1px solid var(--line);background:var(--panel);font-size:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+.mhbtn small{font-size:12px;color:var(--mute)}
+.msets{flex:1;display:flex;flex-direction:column;align-items:center;color:var(--text);font-size:16px;font-weight:700;text-align:center}
+.msets span{font-size:13px;color:var(--mute);font-weight:600}
+.msets b{font-size:clamp(28px,8vw,44px);font-weight:800;line-height:1.05;color:var(--acc)}
+.stbadge{display:inline-block;margin-top:3px;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute)}
+.stbadge.ok{color:var(--hit);border-color:color-mix(in srgb,var(--hit) 50%,transparent)}
+.stbadge.bad{color:var(--miss);border-color:color-mix(in srgb,var(--miss) 50%,transparent)}
+.stbadge.wait{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 45%,transparent)}
+.bzform i.d{background:var(--mute)}

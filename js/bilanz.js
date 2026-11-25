@@ -23,14 +23,15 @@ function bzNorm(m){
   if(!m || !m.team || !Array.isArray(m.sets) || !Array.isArray(m.players)) return null;
   const T = m.team, O = T === 1 ? 2 : 1;
   const sw = m.sets.filter(s=>s[2] === T).length, sl = m.sets.filter(s=>s[2] === O).length;
-  if(sw === sl) return null;                                   // kein Sieger: nicht durchgespielt
+  const draw = m.sets.some(s=>s[2] === 0);                     // Remis im Entscheidungssatz
+  if(sw === sl && !draw) return null;                          // kein Ergebnis: nicht durchgespielt
   const gf = m.sets.reduce((a,s)=>a + (T === 1 ? s[0] : s[1]), 0);
   const ga = m.sets.reduce((a,s)=>a + (T === 1 ? s[1] : s[0]), 0);
   const mine = m.players.filter(p=>p.team === T);
   const opps = m.players.filter(p=>p.team === O);
   const meId = m.me || null;
   return {id:m.id, at:Date.parse(m.at), mode:m.mode, detail:m.detail, cat:m.category || 'ranked',
-    state:m.state, host:!!m.host, win:sw > sl, sw, sl, gf, ga, sets:m.sets, team:T,
+    state:m.state, host:!!m.host, win:!draw && sw > sl, draw, sw, sl, gf, ga, sets:m.sets, team:T,
     me:meId, partner:mine.find(p=>p.id !== meId) || null, opps, goals:m.goals || [],
     elo:m.elo == null ? null : m.elo};
 }
@@ -51,17 +52,18 @@ function bzStreaks(list){
   let best = 0, run = 0, cur = 0;
   for(const m of list){
     run = m.win ? run + 1 : 0; if(run > best) best = run;
-    cur = m.win ? (cur > 0 ? cur + 1 : 1) : (cur < 0 ? cur - 1 : -1);
+    cur = m.draw ? 0 : m.win ? (cur > 0 ? cur + 1 : 1) : (cur < 0 ? cur - 1 : -1);   // Remis unterbricht
   }
   return {cur, best};
 }
 
 function bzSum(list){
-  const n = list.length, w = list.filter(m=>m.win).length;
-  return {n, w, l:n - w, rate:n ? w / n : 0,
+  const n = list.length, w = list.filter(m=>m.win).length, d = list.filter(m=>m.draw).length;
+  // Quote wie im Elo: Remis zählt halb
+  return {n, w, d, l:n - w - d, rate:n ? (w + d / 2) / n : 0,
     sw:list.reduce((a,m)=>a + m.sw, 0), sl:list.reduce((a,m)=>a + m.sl, 0),
     gf:list.reduce((a,m)=>a + m.gf, 0), ga:list.reduce((a,m)=>a + m.ga, 0),
-    form:list.slice(-10).map(m=>m.win), open:list.filter(m=>m.state === 'finished').length,
+    form:list.slice(-10).map(m=>m.draw ? 'd' : m.win), open:list.filter(m=>m.state === 'finished').length,
     last:n ? list[n-1].at : null, ...bzStreaks(list)};
 }
 
@@ -149,9 +151,10 @@ async function bzLoad(){
 /* Bilanz plus Quote – die Quote nur, wenn sie etwas aussagt */
 function bzSLR(s){ return bzSL(s) + (s.n >= BZ_MIN_RATE ? ' · ' + pct(s.rate) : '') }
 function bzRateLine(s){ return s.n >= BZ_MIN_RATE ? 'Quote ' + pct(s.rate) : 'Quote ab ' + BZ_MIN_RATE + ' Spielen' }
-function bzSL(s){ return s.w + ' – ' + s.l }
+function bzSL(s){ return s.d ? s.w + ' – ' + s.d + ' – ' + s.l : s.w + ' – ' + s.l }
 function bzForm(form){
-  return '<span class="bzform">' + form.map(w=>'<i class="' + (w ? 'w' : 'l') + '">' + (w ? 'S' : 'N') + '</i>').join('') + '</span>';
+  return '<span class="bzform">' + form.map(w=>w === 'd' ? '<i class="d">U</i>'
+    : '<i class="' + (w ? 'w' : 'l') + '">' + (w ? 'S' : 'N') + '</i>').join('') + '</span>';
 }
 function bzStreakText(c){
   return c > 0 ? c + (c === 1 ? ' Sieg' : ' Siege') : c < 0 ? -c + (c === -1 ? ' Niederlage' : ' Niederlagen') : '–';
@@ -216,7 +219,7 @@ function renderBilanz(){
   const s = bzSum(list);
   h += '<div class="card"><h2>Übersicht ' + tipBtn('bzSum') + '</h2>'
     + '<div class="bigpct">' + bzSL(s) + '</div>'
-    + '<p class="center hint" style="margin-top:4px">Siege – Niederlagen · ' + bzRateLine(s) + '</p>'
+    + '<p class="center hint" style="margin-top:4px">' + (s.d ? 'Siege – Remis – Niederlagen' : 'Siege – Niederlagen') + ' · ' + bzRateLine(s) + '</p>'
     + kv('Form', bzForm(s.form))
     + kv('Aktuelle Serie', bzStreakText(s.cur))
     + kv('Längste Siegserie', s.best)
@@ -297,10 +300,10 @@ function renderBilanzOpp(el, list){
   h += '<div class="card"><h2>Begegnungen</h2>' + ms.slice().reverse().slice(0, 20).map(m=>{
     const sets = m.sets.map(x=>m.team === 1 ? x[0] + ':' + x[1] : x[1] + ':' + x[0]).join('  ');
     const mit = m.partner ? ' · mit ' + esc(m.partner.nick) : '';
-    return '<div class="mrow" data-mid="' + m.id + '"><div><b class="' + (m.win ? 'up' : 'down') + '">'
-      + (m.win ? 'S' : 'N') + ' ' + m.sw + ':' + m.sl + '</b><small>'
+    return '<div class="mrow" data-mid="' + m.id + '"><div><b class="' + (m.draw ? '' : m.win ? 'up' : 'down') + '">'
+      + (m.draw ? 'U' : m.win ? 'S' : 'N') + ' ' + m.sw + ':' + m.sl + '</b><small>'
       + (m.mode === 'single' ? 'Einzel' : 'Doppel') + mit + ' · ' + sets
-      + (m.cat === 'casual' ? ' · locker' : '') + (m.state === 'finished' ? ' · unbestätigt' : '')
+      + (m.cat === 'casual' ? ' · locker' : '') + (m.state === 'finished' ? ' · ⏳ unbestätigt' : ' · ✓')
       + (m.elo != null ? ' · Elo ' + bzSigned(m.elo) : '') + '</small></div>'
       + '<span>' + fmtDate(m.at) + '</span></div>';
   }).join('') + '</div>';
@@ -342,7 +345,7 @@ function bzEloCard(){
   const teams = (E.teams || []).filter(x=>x.games > 0);
   if(teams.length){
     h += '<div class="blockh">Feste Paarungen</div>' + teams.slice(0, 5).map(x=>kv('mit ' + esc(x.nick),
-      x.rating + ' <small>(' + x.wins + ' – ' + (x.games - x.wins) + ')</small>')).join('');
+      x.rating + ' <small>(' + bzSL({w:x.wins, d:x.draws||0, l:x.games - x.wins - (x.draws||0)}) + ')</small>')).join('');
   }
   return h + '<button class="big" id="bzRank" style="margin-top:12px">Rangliste</button></div>';
 }
@@ -371,7 +374,7 @@ function renderLeaderboard(el){
   else if(!lb.rows) h += '<p class="hint" style="margin:0">Konnte nicht geladen werden.</p>';
   else if(!lb.rows.length) h += '<p class="lead">Noch niemand. In der Rangliste steht, wer zugestimmt und mindestens 10 gewertete Spiele hat.</p>';
   else h += lb.rows.map((r,i)=>'<div class="mrow lbrow' + (r.me ? ' me' : '') + '"><b class="lbpos">' + (i + 1) + '</b><div><b>'
-      + esc(r.nick) + '</b><small>' + r.games + ' Spiele · ' + r.wins + ' – ' + (r.games - r.wins) + '</small></div>'
+      + esc(r.nick) + '</b><small>' + r.games + ' Spiele · ' + bzSL({w:r.wins, d:r.draws||0, l:r.games - r.wins - (r.draws||0)}) + '</small></div>'
       + '<span><b>' + r.rating + '</b></span></div>').join('');
   h += '</div>';
   h += '<div class="card"><h2>Deine Teilnahme</h2><p class="lead">' + (opt

@@ -69,9 +69,10 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   await pg.click('#pJoinBtn'); await pg.waitForTimeout(250);
   await pg.fill('.dlg .dinput','000000'); await pg.click('.dlg .dbtns [data-i="0"]'); await pg.waitForTimeout(600);
   ok(!(await vis('lobby')),'Falscher Code führt nirgendwohin');
-  // Die letzte Meldung zählt – die vom Nickname-Speichern steht evtl. noch da
-  const toastTxt=await pg.evaluate(()=>{const t=document.querySelectorAll('.toast');return t.length?t[t.length-1].textContent:''});
-  ok(/Kein offenes Spiel/.test(toastTxt),'Falscher Code nennt keine Einzelheiten: '+toastTxt);
+  const dlgTxt=(await pg.textContent('.dlg')).replace(/\s+/g,' ');
+  ok(/Keine Lobby gefunden/.test(dlgTxt)&&dlgTxt.includes('000000'),'Falscher Code: klarer Dialog „Keine Lobby gefunden“');
+  ok(!/abgelaufen|läuft schon|existiert nicht/.test(dlgTxt),'…ohne zu verraten, ob es den Code gibt');
+  await pg.click('.dlg .dbtns [data-i="0"]'); await pg.waitForTimeout(300);
 
   await pg.click('#pJoinBtn'); await pg.waitForTimeout(250);
   await pg.fill('.dlg .dinput',code); await pg.click('.dlg .dbtns [data-i="0"]'); await pg.waitForTimeout(800);

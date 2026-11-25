@@ -105,7 +105,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   console.log('== Satz- und Spielende ==');
   await pg.click('#mArea .ptile >> nth=0'); await pg.waitForTimeout(350);   // 3:1 -> Satz 1 an Team 1
   ok((await txt('#mHead')).includes('Satz 2'),'Satz 2 beginnt');
-  ok((await txt('#mHead')).includes('1:0'),'Satzstand 1:0');
+  ok(/Sätze\s*1\s*:\s*0/.test(await txt('#mHead')),'Satzstand 1:0 groß in der Kopfzeile');
   ok((await score())==='0:0','Neuer Satz beginnt bei 0');
   for(let i=0;i<3;i++){ await pg.click('#mArea .ptile >> nth=0'); await pg.waitForTimeout(300) }
   await pg.waitForTimeout(400);
@@ -135,7 +135,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   await pg.waitForTimeout(900);
   // 1:1 + zwei Tore = 3:1, und bei "Satz bis 3" ist der Satz damit durch
   ok((await score())==='0:0','Nach dem Satzgewinn beginnt der neue Satz bei 0');
-  ok((await txt('#mHead')).includes('1:0'),'Satzstand 1:0 nach dem Nachsenden');
+  ok(/1\s*:\s*0/.test(await txt('#mHead')),'Satzstand 1:0 nach dem Nachsenden');
   await pg.evaluate(()=>{__fake.offline=false});
   await pg.evaluate(()=>window.dispatchEvent(new Event('online'))); await pg.waitForTimeout(600);
   ok(!(await vis('mSync')),'Nach dem Netz ist nichts mehr offen');
