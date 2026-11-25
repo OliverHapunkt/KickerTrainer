@@ -46,7 +46,10 @@
         const made = this.ins.map(v=>{
           const r = Object.assign({id:uid()}, v);
           if(this.t === 'players'){
-            if(DB.players.some(p=>p.nickname.toLowerCase()===String(r.nickname).toLowerCase() && !p.deleted_at)) return '__dup';
+            // Wie die Indizes: Konten weltweit eindeutig, Gäste je Besitzer bzw. Gruppe
+            const nk = x => String(x.nickname).trim().toLowerCase();
+            if(DB.players.some(p=>!p.deleted_at && nk(p)===nk(r) && p.kind===r.kind
+               && (r.kind==='account' || (r.owner_id ? p.owner_id===r.owner_id : p.group_id===r.group_id)))) return '__dup';
             r.deleted_at = r.deleted_at || null; r.ranking_opt_in = !!r.ranking_opt_in;
           }
           return r;
@@ -111,12 +114,27 @@
 
   const RPC = {
     match_state: a => res(state(a.p_match)),
+    // Spiegelt my_match_history(): eigene Spiele mit Ergebnis, neueste zuerst
+    my_match_history: () => {
+      const me = DB.players.find(p=>p.user_id===UID()); if(!me) return res([]);
+      const ids = DB.match_players.filter(x=>x.player_id===me.id).map(x=>x.match_id);
+      const at = m => m.finished_at || m.started_at || m.created_at;
+      const out = DB.matches.filter(m=>ids.includes(m.id) && ['finished','confirmed','disputed'].includes(m.state))
+        .sort((a,b)=>at(a)<at(b)?1:-1).map(m=>({id:m.id, me:me.id, at:at(m), mode:m.mode, detail:m.detail,
+          category:m.category||'ranked', state:m.state, host:m.host_id===me.id,
+          team:DB.match_players.find(x=>x.match_id===m.id&&x.player_id===me.id).team,
+          players:DB.match_players.filter(x=>x.match_id===m.id).map(x=>{const p=DB.players.find(y=>y.id===x.player_id)||{};
+            return {id:x.player_id, nick:p.nickname, kind:p.kind, team:x.team, pos:x.position, del:!!p.deleted_at}}),
+          sets:DB.match_sets.filter(x=>x.match_id===m.id).sort((a,b)=>a.set_no-b.set_no).map(x=>[x.score1,x.score2,x.winner_team]),
+          goals:m.detail==='full' ? DB.goals.filter(g=>g.match_id===m.id).map(g=>[g.set_no,g.team,g.scorer_id,g.scorer_position,g.own_goal]) : []}));
+      return res(out);
+    },
     create_match: a => {
       const need = a.p_mode==='single'?1:2;
       const n1=a.p_players.filter(p=>p.team===1).length, n2=a.p_players.filter(p=>p.team===2).length;
       if(n1!==need||n2!==need) return res(null,{message:'Teamgröße',code:'P0001'});
       const m={id:uid(),host_id:DB.players.find(p=>p.user_id===UID()).id,mode:a.p_mode,detail:a.p_detail,
-        goals_per_set:a.p_goals_per_set,sets_to_win:a.p_sets_to_win,state:'running',
+        goals_per_set:a.p_goals_per_set,sets_to_win:a.p_sets_to_win,state:'running',category:a.p_category||'ranked',
         join_code:null,started_at:new Date().toISOString(),rev:1};
       DB.matches.push(m);
       a.p_players.forEach(p=>DB.match_players.push({match_id:m.id,player_id:p.player_id,team:p.team,
@@ -178,7 +196,7 @@
       const me = DB.players.find(p=>p.user_id===UID());
       if(!me) return res(null,{message:'Zum Spielen wird erst ein Nickname benötigt',code:'P0001'});
       const m={id:uid(),host_id:me.id,mode:a.p_mode,detail:a.p_detail,
-        goals_per_set:a.p_goals_per_set,sets_to_win:a.p_sets_to_win,state:'lobby',
+        goals_per_set:a.p_goals_per_set,sets_to_win:a.p_sets_to_win,state:'lobby',category:a.p_category||'ranked',
         join_code:String(Math.floor(Math.random()*1e6)).padStart(6,'0'),
         created_at:new Date().toISOString(),rev:1};
       DB.matches.push(m);
