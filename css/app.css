@@ -543,3 +543,15 @@ body.play{--acc:#1fb8a6}
 .stbadge.bad{color:var(--miss);border-color:color-mix(in srgb,var(--miss) 50%,transparent)}
 .stbadge.wait{color:var(--acc);border-color:color-mix(in srgb,var(--acc) 45%,transparent)}
 .bzform i.d{background:var(--mute)}
+/* Konto mit Code, Web-App-Hinweis (v3.22) */
+button.big small{display:block;font-size:13px;font-weight:400;opacity:.75;margin-top:2px}
+.acage{border-left:3px solid var(--acc,#f5a623);padding-left:10px}
+.acchk{display:flex;gap:10px;align-items:flex-start;font-size:15px;margin:10px 0;line-height:1.35}
+.acchk input{width:22px;height:22px;flex:none;margin-top:1px}
+.codebox{font:700 clamp(20px,6.4vw,30px)/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:1px;white-space:nowrap;text-align:center;padding:16px 8px;margin:10px 0;border:2px dashed var(--miss,#e5484d);border-radius:12px;user-select:all;-webkit-user-select:all;word-break:break-all}
+.codewarn{background:rgba(229,72,77,.14);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:15px;line-height:1.4}
+.codewarn b{color:var(--miss,#e5484d)}
+.codeact{display:flex;gap:8px}.codeact button{flex:1}
+.pwahow{display:flex;flex-direction:column;gap:2px;padding:8px 10px;margin:6px 0;border-radius:10px;background:rgba(127,127,127,.12);font-size:15px;line-height:1.4}
+.pwahow.on{outline:2px solid var(--acc,#f5a623)}
+.pwawarn{font-size:15px}

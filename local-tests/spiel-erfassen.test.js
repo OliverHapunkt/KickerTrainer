@@ -15,7 +15,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   await ctx.addInitScript(()=>{try{
     localStorage.setItem('sb-ihbyurdtfjwhpladpmwz-auth-token',
       JSON.stringify({user:{id:'11111111-0000-4000-8000-000000000001',email:'test@example.org'}}));
-    localStorage.setItem('kt2_settings', JSON.stringify({onb:true, mode:'play'}));
+    localStorage.setItem('kt2_settings', JSON.stringify({onb:true, pwa:true, mode:'play'}));
   }catch(e){}});
   const pg=await ctx.newPage(); const errs=[];
   pg.on('pageerror',e=>errs.push('pageerror: '+e.message));

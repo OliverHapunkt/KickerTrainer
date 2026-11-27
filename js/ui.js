@@ -82,7 +82,32 @@ function onboarding(){
   };
   step();
 }
+/* ---------- Web-App: Hinweis zum Installieren ---------- */
+// Im Browser (nicht vom Home-Bildschirm gestartet) einmal beim ersten Aufruf, danach unter Optionen › Hilfe.
+function isStandalone(){try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}catch(e){return false}}
+function devPlatform(){const u=navigator.userAgent||'';
+  if(/android/i.test(u))return'android';
+  if(/iphone|ipad|ipod/i.test(u)||(/Macintosh/.test(u)&&navigator.maxTouchPoints>1))return'ios';
+  return'other'}
+let pwaPrompt=null; // Android/Chrome: Installationsdialog des Browsers, falls angeboten
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();pwaPrompt=e});
+const PWA_HOW={
+  ios:['iPhone / iPad','In <b>Safari</b> unten bzw. oben auf <b>Teilen</b> tippen (Quadrat mit Pfeil nach oben) › <b>Zum Home-Bildschirm</b> › <b>Hinzufügen</b>.'],
+  android:['Android','In <b>Chrome</b> oben rechts auf <b>⋮</b> tippen › <b>App installieren</b> oder <b>Zum Startbildschirm hinzufügen</b>.'],
+  other:['Computer','In Chrome oder Edge rechts in der Adresszeile auf das Installieren-Symbol klicken. Safari am Mac: Ablage › Zum Dock hinzufügen.'],
+};
+function pwaHelpHtml(){
+  const p=devPlatform(),order=[p].concat(['ios','android','other'].filter(x=>x!==p));
+  return'<p class="dmsg">KickerTrainer ist eine <b>Web-App</b>: Sie läuft im Browser, ganz ohne App Store. Legst du sie auf den Home-Bildschirm, startet sie wie eine normale App im Vollbild, läuft auch offline und das Handy löscht ihre Daten nicht nach ein paar Tagen ohne Besuch.</p>'
+    +order.map((k,i)=>'<div class="pwahow'+(i?'':' on')+'"><b>'+PWA_HOW[k][0]+'</b><span>'+PWA_HOW[k][1]+'</span></div>').join('')
+    +'<p class="dmsg pwawarn"><b>Erst installieren, dann anmelden.</b> Auf iPhone und iPad haben Safari und die App vom Home-Bildschirm getrennte Speicher: Was du in Safari anmeldest oder trainierst, ist in der App nicht da.</p>'}
+function pwaHint(){
+  const btns=[{t:'Verstanden',v:true,cls:'primary',primary:true}];
+  if(pwaPrompt)btns.unshift({t:'Jetzt installieren',v:'install',cls:'primary'});
+  return dlg('<h3 class="dtitle">App auf den Home-Bildschirm</h3>'+pwaHelpHtml(),btns).then(v=>{
+    if(v==='install'&&pwaPrompt){const e=pwaPrompt;pwaPrompt=null;try{e.prompt()}catch(x){}}})}
 function maybeOnboarding(){
+  if(!S.pwa&&!isStandalone()){setTimeout(()=>pwaHint().then(()=>{S.pwa=true;saveS();maybeOnboarding()}),400);return}
   if(S.onb)return;
   if(D.shots.length){S.onb=true;saveS();return} // bestehende Nutzer: nicht mehr zeigen
   setTimeout(onboarding,400);

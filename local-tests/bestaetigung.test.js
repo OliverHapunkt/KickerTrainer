@@ -28,7 +28,7 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
     await pg.addInitScript(([u])=>{try{
       localStorage.setItem('sb-ihbyurdtfjwhpladpmwz-auth-token', JSON.stringify({user:{id:u}}));
       localStorage.setItem('__fakeuid', u);
-      localStorage.setItem('kt2_settings', JSON.stringify({onb:true, mode:'play'}));
+      localStorage.setItem('kt2_settings', JSON.stringify({onb:true, pwa:true, mode:'play'}));
     }catch(e){}}, [uid]);
     await pg.goto('http://127.0.0.1:8119/',{waitUntil:'networkidle'});
     await pg.waitForTimeout(800);

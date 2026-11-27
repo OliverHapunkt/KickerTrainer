@@ -152,6 +152,16 @@ Ein Chip „Reaktionsschießen“, darunter zwei Varianten (eigene Disziplinen `
 - Beim ersten Anmelden mit vorhandenen Gerätedaten gibt es eine Rückfrage, ob sie ins Konto übernommen werden. Bei Daten eines anderen Kontos auf dem Gerät ebenfalls
 - **Abmelden** behält alle Daten auf dem Gerät. **Konto löschen** entfernt E-Mail-Adresse und alle Daten im Konto, die Gerätedaten bleiben
 
+### Konto mit Code und Web-App-Hinweis (v3.22)
+- **Konto mit Code, ohne E-Mail**: Nickname wählen, die App zeigt einmal einen 12-stelligen Code (`K7P-M2X-9QF-H4T`, ohne verwechselbare Zeichen). Anmelden mit Nickname + Code. Code weg = Konto weg
+- Code-Dialog lässt sich erst nach dem Haken „gesichert“ schließen, mit Kopieren und Teilen
+- Angemeldet: **Neuen Anmelde-Code erzeugen** (alter wird ungültig), bei Code-Konten **E-Mail hinzufügen** (Bestätigung per E-Mail-Code). Auch E-Mail-Konten mit Nickname können sich einen Code holen
+- Altershinweis: unter 18 Code-Anmeldung empfohlen, unter 16 Eltern fragen (Haken bei der Code-Registrierung, keine echte Prüfung)
+- Technik: Edge Function `code-login` (`supabase/functions/code-login/`, `verify_jwt = false`, prüft selbst). Intern Platzhalter-Adresse `<uuid>@code.kickertrainer.invalid` + Code als Passwort. Die Adresse verlässt den Server nie, Anmelden läuft über die Funktion
+- E-Mail nachtragen: Hilfs-Client bestätigt die Adresse per OTP (legt dabei ein leeres Konto an), die Funktion löscht dieses leere Konto und hängt die Adresse ans Code-Konto. Gehört die Adresse schon einem Konto mit Daten, wird abgelehnt
+- Code zurücksetzen durch den Betreiber: neues Passwort für das Konto setzen (Supabase-Dashboard oder Admin-API) und dem Nutzer den Code geben
+- **Web-App-Hinweis**: beim ersten Aufruf im Browser (nicht als installierte App) eine Anleitung für iPhone/iPad, Android und Computer, die passende zuerst. Wichtig: erst installieren, dann anmelden (iOS trennt Safari und Home-Bildschirm-App). Später unter Mehr › Hilfe › App installieren
+
 ---
 
 ## Technik

@@ -11,7 +11,7 @@ const srv=http.createServer((rq,rs)=>{let p=rq.url.split('?')[0];if(p==='/')p='/
 let fails=0;const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m);if(!c)fails++};
 const errs=[];
 const CFG=o=>Object.assign({d:'r3',tech:'Frei',wt:['Frei'],tS:[2],order:'mix',timing:'free',ready:'off',scoring:'exact',amt:'count',count:8,lvl:5,dyn:false,rxd:'fix',rxa:true},o||{});
-const base=(extra,cfg)=>JSON.stringify(Object.assign({onb:true,mode:'train',lvl:'pro',voiceOut:false,mic:true,det:'audio',rxHelp:{gap:true,sig:true},
+const base=(extra,cfg)=>JSON.stringify(Object.assign({onb:true, pwa:true,mode:'train',lvl:'pro',voiceOut:false,mic:true,det:'audio',rxHelp:{gap:true,sig:true},
   cal:{a:.05,m:null,at:Date.now(),qa:9,qm:0},cfg:CFG(cfg)},extra||{}));
 async function open(br,settings,mic=true,data){
   const ctx=await br.newContext({viewport:{width:390,height:844},permissions:['microphone']});const pg=await ctx.newPage();

@@ -25,6 +25,10 @@ node local-tests/bilanz-browser.test.js
 node local-tests/elo.test.js
 node local-tests/regeln.test.js             # kein Browser nötig
 node local-tests/regeln-browser.test.js
+node local-tests/code-login.test.js         # kein Browser nötig (Node ≥ 22.18)
+node local-tests/konto-code-browser.test.js
+node local-tests/code-login.test.js         # kein Browser nötig (Node ≥ 22.18)
+node local-tests/konto-code-browser.test.js
 ```
 
 | Datei | Inhalt |
@@ -42,6 +46,8 @@ node local-tests/regeln-browser.test.js
 | `bilanz.test.js` | Rechenlogik der Bilanz ohne Browser: Sieg aus meiner Sicht (Team 1 und 2), Filter Zeitraum/Modus/Art, strittige zählen nicht, Serien, Form, zwei Franks als zwei Gegner, Partner, Paare, Monate, eigene Tore |
 | `bilanz-browser.test.js` | Zwei Konten legen je einen Gast „Frank“ an, doppelter Gast beim selben Host, Kürzel, Art Wertung/locker beim Anlegen und in der Lobby, Bilanz-Tab mit Übersicht, Gegnern, Filtern, Direktvergleich, offline aus dem Zwischenspeicher |
 | `elo.test.js` | Elo im Browser: +24 → 1024 in der Auswertung, lockeres Spiel ohne Elo, Wertungskarte mit Kurve und „vorläufig“, Elo je Begegnung und Gegner-Elo, Rangliste mit Zustimmungsdialog (Abbrechen ändert nichts), Aufnahme ab 10 Spielen, Gast nie, Widerruf, Korrektur rechnet neu |
+| `code-login.test.js` | Server-Funktion `code-login` ohne Netz: Code-Format (12 Zeichen, keine verwechselbaren), Registrieren, vergebener/zu kurzer Nickname, kein verwaistes Konto, Anmelden (Bindestriche, Kleinschreibung, gleiche Meldung bei falschem Code und unbekanntem Nickname), neuer Code macht alten ungültig, E-Mail nachtragen nur mit frischem leeren Konto, Platzhalter-Adresse nie in der Antwort |
+| `konto-code-browser.test.js` | Web-App-Hinweis (erster Aufruf, iPhone-Anleitung zuerst, nicht in der installierten App, unter Hilfe), Konto mit Code: Altershinweis, Eltern-Haken, Code-Dialog nur mit „gesichert“ schließbar, Anzeige ohne Platzhalter-Adresse, neuer Code, Ab- und Anmelden, E-Mail hinzufügen |
 | `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal`/`settle_match` und die Elo-Rechnung aus `recompute_ratings` |
 
 ## Grenzen

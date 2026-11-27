@@ -2,3 +2,8 @@
 # Bewusst minimal gehalten. `supabase init` erzeugt eine vollständige Datei,
 # die du bei Bedarf an die Stelle setzen kannst.
 project_id = "kickertrainer"
+
+# Anmeldung mit Nickname + Code. Prüft Anmeldungen selbst (siehe handler.ts),
+# weil sie auch ohne Sitzung aufgerufen wird.
+[functions.code-login]
+verify_jwt = false

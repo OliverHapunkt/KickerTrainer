@@ -20,7 +20,7 @@ let fails=0;const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m);if(!c)fails++}
   pg.on('console',m=>{if(m.type()==='error')errs.push('console: '+m.text())});
   // Desktop-Chromium hat keinen echten Bewegungssensor (und fragt bei requestPermission nach) – hier durch ein iPhone-ähnliches Ereignis ersetzt.
   await pg.addInitScript(()=>{window.DeviceMotionEvent=class extends Event{constructor(t,i){super(t);Object.assign(this,i||{})}}});
-  await pg.addInitScript(()=>localStorage.setItem('kt2_settings',JSON.stringify({onb:true,mode:'train'})));
+  await pg.addInitScript(()=>localStorage.setItem('kt2_settings',JSON.stringify({onb:true, pwa:true,mode:'train'})));
   await pg.goto('http://127.0.0.1:8126/',{waitUntil:'networkidle'});await pg.waitForTimeout(500);
 
   // Künstliche Signalquelle einhängen: Mikrofonpuffer und Bewegungssensor

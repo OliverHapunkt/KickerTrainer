@@ -36,7 +36,7 @@ r=labAnalyze(frames({secs:1,shot:500}).filter(f=>f.t<400),2000);ok(r.pick===0&&r
   const br=await chromium.launch({args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream','--autoplay-policy=no-user-gesture-required']});
   const cx=await br.newContext({viewport:{width:390,height:844},permissions:['camera','microphone']});const pg=await cx.newPage();const errs=[];
   pg.on('pageerror',e=>errs.push('pageerror: '+e.message+' '+(e.stack||'').split('\n').slice(1,3).join('|')));pg.on('console',m=>{if(m.type()==='error')errs.push('console: '+m.text())});
-  await pg.addInitScript(()=>localStorage.setItem('kt2_settings',JSON.stringify({onb:true,mode:'train',voiceOut:false,cal:{a:.05,m:null,at:Date.now(),qa:9,qm:0}})));
+  await pg.addInitScript(()=>localStorage.setItem('kt2_settings',JSON.stringify({onb:true, pwa:true,mode:'train',voiceOut:false,cal:{a:.05,m:null,at:Date.now(),qa:9,qm:0}})));
   await pg.goto('http://127.0.0.1:8129/',{waitUntil:'networkidle'});await pg.waitForTimeout(500);
   console.log('== Freischalten ==');
   await pg.evaluate(()=>go('settings'));

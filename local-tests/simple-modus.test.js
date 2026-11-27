@@ -23,7 +23,7 @@ const vis=(pg,sel)=>pg.$eval(sel,e=>!e.classList.contains('hidden')&&e.offsetPar
 
   console.log('== Frische Installation ==');
   let pg=await mk(null);
-  await pg.evaluate(()=>{S.onb=true;saveS();document.querySelectorAll('.overlay:not(.hidden):not(#summary)').forEach(e=>e.remove())});
+  await pg.evaluate(()=>{S.onb=true;S.pwa=true;saveS();document.querySelectorAll('.overlay:not(.hidden):not(#summary)').forEach(e=>e.remove())});
   let st=await pg.evaluate(()=>({lvl:S.lvl,lp:S.lp,std:S.stdOn,auto:S.autoCount,mic:S.mic,gam:S.gam,voice:S.voiceOut,tech:DEFCFG.tech}));
   ok(st.lvl==='simple','Startet im Simple-Modus');
   ok(st.lp===false&&st.std===false&&st.auto===false,'Trainings-Tipps, Standardtest, Auto-Treffer sind aus');
@@ -61,7 +61,7 @@ const vis=(pg,sel)=>pg.$eval(sel,e=>!e.classList.contains('hidden')&&e.offsetPar
   await pg.close();
 
   console.log('== Wechsel auf Profi ==');
-  pg=await mk(()=>{if(!localStorage.getItem('kt2_settings'))localStorage.setItem('kt2_settings',JSON.stringify({onb:true,mode:'train',cfg:{d:'s2',tech:'Gerade'}}))});
+  pg=await mk(()=>{if(!localStorage.getItem('kt2_settings'))localStorage.setItem('kt2_settings',JSON.stringify({onb:true, pwa:true,mode:'train',cfg:{d:'s2',tech:'Gerade'}}))});
   st=await pg.evaluate(()=>({lvl:S.lvl,lp:S.lp,std:S.stdOn,auto:S.autoCount,ch:S.gam.ch,d:S.cfg.d,t:S.cfg.tech}));
   ok(st.lvl==='pro','Bestehende Nutzer bleiben im Profi-Modus');
   ok(st.lp&&st.std&&st.auto&&st.ch,'… mit Tipps, Standardtest, Auto-Treffer und Challenges wie bisher');

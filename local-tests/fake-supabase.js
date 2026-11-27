@@ -381,10 +381,22 @@
     }
   };
 
+  const ME = () => { let e=null; try{ e=localStorage.getItem('__fakeemail') }catch(x){}
+    return {id:UID(), email:e||UID().slice(0,4)+'@example.org'} };
   window.supabase = {createClient(){ return {
     auth:{
-      getSession:()=>Promise.resolve(res({session:{user:{id:UID(),email:UID().slice(0,4)+'@example.org'}}})),
-      onAuthStateChange(){}, signOut(){return Promise.resolve(res(null))}
+      getSession:()=>Promise.resolve(res({session:{access_token:'fake|'+UID()+'|'+ME().email,user:ME()}})),
+      onAuthStateChange(){}, signOut(){return Promise.resolve(res(null))},
+      // Code-Anmeldung (code-login.test im Browser): Token = 'fake|<uid>|<email>'
+      setSession(s){ const p=String(s&&s.access_token||'').split('|');
+        if(p[0]!=='fake'||!p[1]) return Promise.resolve(res(null,{message:'Invalid session'}));
+        try{localStorage.setItem('__fakeuid',p[1]);localStorage.setItem('__fakeemail',p[2]||'')}catch(e){}
+        return Promise.resolve(res({session:{access_token:s.access_token,user:ME()},user:ME()})) },
+      // Nach „E-Mail hinzufügen“ liefert der Server die neue Adresse beim nächsten Auffrischen
+      refreshSession(){ if(window.__fake.linked){try{localStorage.setItem('__fakeemail',window.__fake.linked)}catch(e){} window.__fake.linked=null}
+        return Promise.resolve(res({session:{user:ME()},user:ME()})) },
+      signInWithOtp(){ return Promise.resolve(res({})) },
+      verifyOtp({email}){ window.__fake.linked=email; return Promise.resolve(res({session:{access_token:'otp|'+email},user:{id:'otp-'+email,email}})) }
     },
     from:t=>new Q(t),
     rpc:(name,args)=>{ window.__fake.calls.push(name);

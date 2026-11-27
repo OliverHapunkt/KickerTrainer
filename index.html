@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.21.0',d:'2026-11-26'};
+window.KT_VER={v:'3.22.0',d:'2026-11-28'};
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -127,10 +127,33 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <p class="hint">„Ton + Erschütterung“ = beide müssen gleichzeitig ausschlagen: am wenigsten Fehlauslöser (Stimmen, Nachbartisch). Erschütterung braucht iPad direkt auf dem Tisch.</p></div>
     <button class="big" id="btnTest">Schusserkennung kalibrieren &amp; testen</button>
   </div>
+  <div class="card"><h2>Hilfe</h2>
+    <div class="two eq"><button class="big" id="btnPwa">App installieren</button><button class="big" id="btnIntro">Einführung</button></div>
+  </div>
   <div class="card" id="acct"><h2>Konto &amp; Sicherung</h2>
     <div id="acOut">
-      <p class="hint" style="margin:0">Ohne Konto läuft alles wie bisher: Die Daten bleiben nur auf diesem Gerät (bitte regelmäßig sichern). Mit Konto werden sie gesichert und zwischen deinen Geräten abgeglichen.</p>
-      <button class="big" id="acStart">Anmelden / Registrieren</button>
+      <p class="hint" style="margin:0">Ohne Konto läuft alles wie bisher: Die Daten bleiben nur auf diesem Gerät (bitte regelmäßig sichern). Mit Konto werden sie gesichert, zwischen deinen Geräten abgeglichen, und du kannst Spiele gegen andere werten.</p>
+      <p class="hint acage"><b>Unter 18?</b> Bitte die Anmeldung mit Code nutzen, dafür brauchst du keine E-Mail. <b>Unter 16?</b> Frag vorher deine Eltern.</p>
+      <button class="big primary" id="acCodeNew">Neues Konto mit Code<small>ohne E-Mail</small></button>
+      <button class="big" id="acCodeLogin">Anmelden mit Nickname + Code</button>
+      <button class="big" id="acStart">Mit E-Mail anmelden / registrieren<small>ab 18</small></button>
+    </div>
+    <div id="acCNew" class="hidden">
+      <label for="acCNick" class="hint" style="margin:0">Dein Nickname</label>
+      <input type="text" id="acCNick" maxlength="20" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="3 bis 20 Zeichen">
+      <p class="hint">Nimm nicht deinen echten vollen Namen. Unter diesem Namen sehen dich deine Mitspieler.</p>
+      <label class="acchk"><input type="checkbox" id="acCAge"> Ich bin mindestens 16 – oder meine Eltern sind einverstanden.</label>
+      <p class="hint">Du bekommst gleich einen Code. Mit Nickname + Code meldest du dich an. Es gibt keine E-Mail und kein Passwort-Zurücksetzen: <b>Ist der Code weg, ist das Konto weg.</b></p>
+      <button class="big primary" id="acCCreate">Konto anlegen</button>
+      <button class="big" id="acCancel3">Abbrechen</button>
+    </div>
+    <div id="acCLogin" class="hidden">
+      <label for="acLNick" class="hint" style="margin:0">Nickname</label>
+      <input type="text" id="acLNick" maxlength="20" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <label for="acLCode" class="hint" style="margin:0">Code</label>
+      <input type="text" id="acLCode" maxlength="20" autocomplete="current-password" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="XXX-XXX-XXX-XXX">
+      <button class="big primary" id="acLGo">Anmelden</button>
+      <button class="big" id="acCancel4">Abbrechen</button>
     </div>
     <div id="acMail" class="hidden">
       <label for="acEmail" class="hint" style="margin:0">E-Mail-Adresse</label>
@@ -150,9 +173,11 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <div class="kv"><span>Angemeldet als</span><b id="acUser"></b></div>
       <div class="kv"><span>Abgleich</span><b id="acState"></b></div>
       <button class="big" id="acSync">Jetzt abgleichen</button>
+      <button class="big" id="acRegen">Neuen Anmelde-Code erzeugen</button>
+      <button class="big" id="acLink">E-Mail hinzufügen</button>
       <button class="big" id="acOutBtn">Abmelden</button>
       <button class="big danger" id="acDelete">Konto löschen</button>
-      <p class="hint">Gelöschte Einträge werden nicht auf andere Geräte übertragen. Beim Konto löschen verschwinden E-Mail-Adresse und alle Daten im Konto, die Daten auf diesem Gerät bleiben.</p>
+      <p class="hint" id="acInHint">Gelöschte Einträge werden nicht auf andere Geräte übertragen. Beim Konto löschen verschwinden E-Mail-Adresse und alle Daten im Konto, die Daten auf diesem Gerät bleiben.</p>
     </div>
   </div>
   <div class="card"><h2>Daten</h2>

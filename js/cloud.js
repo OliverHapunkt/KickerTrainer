@@ -134,15 +134,62 @@ async function cloudWipe(){ // alles im Konto löschen (bei "Alle Daten löschen
   for(const t of['shots','sessions']){const r=await sb.from(t).delete().eq('user_id',uid);if(r.error)throw r.error}
   const u=SY.uid,m=SY.email;SY=SY0();SY.uid=u;SY.email=m;saveSY()}
 
+/* Konto mit Nickname + Code (ohne E-Mail) – Server: supabase/functions/code-login */
+// Ein Code-Konto hat intern eine Platzhalter-Adresse, die nie angezeigt wird.
+const CODE_DOM='@code.kickertrainer.invalid';
+const isCodeUser=u=>!!(u&&typeof u.email==='string'&&u.email.toLowerCase().endsWith(CODE_DOM));
+const fmtCode=c=>String(c).replace(/(.{3})(?=.)/g,'$1-');
+const normNickC=v=>String(v||'').trim().replace(/\s+/g,' ');
+const CODE_ERR={nick_taken:'Dieser Nickname ist schon vergeben',nick_len:'Nickname: 3 bis 20 Zeichen',login_failed:'Nickname oder Code stimmt nicht',
+  email_taken:'Diese E-Mail gehört schon zu einem anderen Konto',has_email:'Dieses Konto hat schon eine E-Mail',auth:'Sitzung abgelaufen – bitte neu anmelden',
+  no_player:'Leg zuerst unter „Spielen“ deinen Nickname an'};
+const codeErr=(e,d)=>CODE_ERR[e&&e.code]||errText(e,d);
+async function codeFn(body,token){
+  let r;
+  try{r=await fetch(SB_URL+'/functions/v1/code-login',{method:'POST',headers:{'Content-Type':'application/json',apikey:SB_KEY,Authorization:'Bearer '+(token||SB_KEY)},body:JSON.stringify(body)})}
+  catch(e){throw new Error('offline')}
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok){const e=new Error(j.error||('HTTP '+r.status));e.code=String(j.error||'').split(':')[0];throw e}
+  return j}
+async function accessToken(){const sb=await sbInit(),{data}=await sb.auth.getSession();return data&&data.session?data.session.access_token:null}
+// Code groß anzeigen. Schließen nur über „Weiter“ nach dem Haken „gesichert“.
+async function showCode(code,o={}){
+  const c=fmtCode(code);
+  for(;;){
+    const v=await dlg('<h3 class="dtitle">'+(o.first?'Dein Anmelde-Code':'Dein neuer Anmelde-Code')+'</h3>'
+      +'<div class="codewarn"><b>Jetzt sichern!</b> Du siehst diesen Code nur jetzt. Ohne Code kommst du nicht mehr in dein Konto'+(o.first?', es gibt keine E-Mail zum Zurücksetzen':'')+'. Mach einen <b>Screenshot</b>, schreib ihn ab oder speichere ihn in Notizen oder Passwörtern.</div>'
+      +(o.nick?'<p class="dmsg">Nickname: <b>'+esc(o.nick)+'</b></p>':'')
+      +'<div class="codebox">'+c+'</div>'
+      +'<div class="codeact"><button class="big" data-cc="copy">Kopieren</button>'+(navigator.share?'<button class="big" data-cc="share">Teilen / Speichern</button>':'')+'</div>'
+      +'<label class="acchk"><input type="checkbox" class="codeok"> Ich habe den Code gesichert.</label>',
+      [{t:'Weiter',v:true,cls:'primary'}],
+      x=>{const b=x.querySelector('.dbtns button');b.disabled=true;
+        x.querySelector('.codeok').onchange=e=>{b.disabled=!e.target.checked};
+        x.querySelectorAll('[data-cc]').forEach(btn=>btn.onclick=async()=>{
+          if(btn.dataset.cc==='copy'){try{await navigator.clipboard.writeText(c);toast('Code kopiert')}catch(e){toast('Kopieren geht hier nicht – bitte abschreiben')}}
+          else{try{await navigator.share({title:'KickerTrainer Anmelde-Code',text:'KickerTrainer · Nickname: '+(o.nick||'–')+' · Code: '+c})}catch(e){}}})});
+    if(v===true)return}}
+async function loginWith(sess,nick){
+  const sb=await sbInit(),{data,error}=await sb.auth.setSession(sess);
+  if(error)throw error;
+  await adopt(data.user,nick)}
+
 /* Oberfläche */
 function renderAcct(){
   const li=!!CL.user,s=CL.step;
   $('#acOut').classList.toggle('hidden',li||s!=='out');
   $('#acMail').classList.toggle('hidden',li||s!=='mail');
   $('#acCode').classList.toggle('hidden',li||s!=='code');
+  $('#acCNew').classList.toggle('hidden',li||s!=='cnew');
+  $('#acCLogin').classList.toggle('hidden',li||s!=='clogin');
   $('#acIn').classList.toggle('hidden',!li);
   if(li){
-    $('#acUser').textContent=CL.user.email||'–';
+    const cu=isCodeUser(CL.user);
+    $('#acUser').textContent=cu?(SY.nick||'Code-Konto')+' (mit Code)':(CL.user.email||'–');
+    $('#acLink').classList.toggle('hidden',!cu);
+    $('#acInHint').textContent=cu
+      ?'Code verloren? Solange du hier angemeldet bist, kannst du einen neuen erzeugen. Beim Konto löschen verschwinden alle Daten im Konto, die Daten auf diesem Gerät bleiben.'
+      :'Mit einem Anmelde-Code kannst du dich auch ohne E-Mail mit Nickname + Code anmelden. Beim Konto löschen verschwinden E-Mail-Adresse und alle Daten im Konto, die Daten auf diesem Gerät bleiben.';
     const st=$('#acState');
     st.textContent=CL.busy?'Synchronisiere …':CL.err?CL.err:SY.at?'Zuletzt '+new Date(SY.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):'Noch nicht abgeglichen';
     st.style.color=CL.err&&!CL.busy?'var(--miss)':'';
@@ -170,7 +217,7 @@ async function sendCode(again){
     startCd(60);acStep('code');$('#acToken').value='';setTimeout(()=>$('#acToken').focus(),50)
   }catch(e){toast(errText(e,'Code konnte nicht gesendet werden'))}
   finally{b.disabled=false;renderAcct()}}
-async function adopt(user){ // nach erfolgreicher Anmeldung: Gerätedaten zuordnen
+async function adopt(user,nick){ // nach erfolgreicher Anmeldung: Gerätedaten zuordnen
   const n=D.shots.length;
   if(SY.uid&&SY.uid!==user.id){
     if(!await ask('Auf diesem Gerät liegen Daten eines anderen Kontos'+(SY.email?' ('+SY.email+')':'')+'. Mit diesem Konto zusammenführen?',{title:'Anderes Konto',ok:'Zusammenführen',cancel:'Wieder abmelden'})){await signOutLocal();return}
@@ -178,7 +225,7 @@ async function adopt(user){ // nach erfolgreicher Anmeldung: Gerätedaten zuordn
   }else if(!SY.uid&&n>0){
     if(!await ask('Deine '+n+' bisherigen Einträge auf diesem Gerät in dein Konto übernehmen? Daten, die schon im Konto liegen, werden dazugemischt.',{title:'Daten übernehmen',ok:'Übernehmen',cancel:'Wieder abmelden'})){await signOutLocal();return}
   }
-  SY.uid=user.id;SY.email=user.email||null;saveSY();
+  SY.uid=user.id;SY.email=isCodeUser(user)?null:(user.email||null);if(nick)SY.nick=nick;saveSY();
   CL.user=user;CL.step='out';CL.err='';renderAcct();cloudSync(true)}
 $('#acStart').onclick=()=>{acStep('mail');setTimeout(()=>$('#acEmail').focus(),50)};
 $('#acCancel1').onclick=()=>acStep('out');
@@ -203,7 +250,7 @@ $('#acOutBtn').onclick=async()=>{
   if(navigator.onLine&&!CL.busy)await cloudSync(true); // letzter Abgleich vor dem Abmelden
   await signOutLocal();toast('Abgemeldet')};
 $('#acDelete').onclick=async()=>{
-  if(!await ask('Deine E-Mail-Adresse und ALLE Daten im Konto werden unwiderruflich gelöscht. Die Daten auf diesem Gerät bleiben erhalten.',{title:'Konto löschen?',ok:'Konto löschen',danger:true}))return;
+  if(!await ask((isCodeUser(CL.user)?'Dein Konto':'Deine E-Mail-Adresse')+' und ALLE Daten im Konto werden unwiderruflich gelöscht. Die Daten auf diesem Gerät bleiben erhalten.',{title:'Konto löschen?',ok:'Konto löschen',danger:true}))return;
   if(!await ask('Das kann nicht rückgängig gemacht werden.',{title:'Wirklich sicher?',ok:'Endgültig löschen',danger:true}))return;
   const b=$('#acDelete');b.disabled=true;
   try{
@@ -214,6 +261,61 @@ $('#acDelete').onclick=async()=>{
   finally{b.disabled=false}};
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&CL.user&&CL.sb&&Date.now()-(SY.at||0)>6e4)scheduleSync(1500)});
 window.addEventListener('online',()=>{if(!CL.user)return;if(CL.sb)scheduleSync(2000);else cloudBoot()});
+$('#acCodeNew').onclick=()=>{acStep('cnew');setTimeout(()=>$('#acCNick').focus(),50)};
+$('#acCodeLogin').onclick=()=>{acStep('clogin');setTimeout(()=>$('#acLNick').focus(),50)};
+$('#acCancel3').onclick=()=>acStep('out');
+$('#acCancel4').onclick=()=>acStep('out');
+$('#acCCreate').onclick=async()=>{
+  const nick=normNickC($('#acCNick').value);
+  if(nick.length<3||nick.length>20){toast('Nickname: 3 bis 20 Zeichen');return}
+  if(!$('#acCAge').checked){await info('Kurz die Eltern fragen','<p class="dmsg">Wenn du unter 16 bist, brauchst du für ein Konto das Einverständnis deiner Eltern. Frag sie kurz und setz dann den Haken.</p>');return}
+  const b=$('#acCCreate');b.disabled=true;
+  try{
+    const j=await codeFn({action:'signup',nick});
+    await showCode(j.code,{nick,first:true});
+    $('#acCNick').value='';$('#acCAge').checked=false;
+    await loginWith(j.session,nick)
+  }catch(e){toast(codeErr(e,'Konto konnte nicht angelegt werden'))}
+  finally{b.disabled=false}};
+$('#acLGo').onclick=async()=>{
+  const nick=normNickC($('#acLNick').value),code=$('#acLCode').value;
+  if(nick.length<3||code.replace(/[^A-Za-z0-9]/g,'').length!==12){toast('Bitte Nickname und den 12-stelligen Code eintragen');return}
+  const b=$('#acLGo');b.disabled=true;
+  try{
+    const j=await codeFn({action:'login',nick,code});
+    $('#acLCode').value='';
+    await loginWith(j.session,nick)
+  }catch(e){toast(codeErr(e,'Anmeldung fehlgeschlagen'))}
+  finally{b.disabled=false}};
+$('#acRegen').onclick=async()=>{
+  if(!await ask('Du bekommst einen neuen Code. Der bisherige Code funktioniert danach nicht mehr.',{title:'Neuen Code erzeugen?',ok:'Neuen Code erzeugen'}))return;
+  const b=$('#acRegen');b.disabled=true;
+  try{
+    const j=await codeFn({action:'regen'},await accessToken());
+    const nick=(typeof PL!=='undefined'&&PL&&PL.me&&PL.me.nickname)||SY.nick||'';
+    await showCode(j.code,{nick})
+  }catch(e){toast(codeErr(e,'Neuer Code fehlgeschlagen'))}
+  finally{b.disabled=false}};
+$('#acLink').onclick=async()=>{
+  const em=((await askText('E-Mail hinzufügen',{hint:'Wir schicken dir einen Code an diese Adresse. Danach meldest du dich wahlweise mit E-Mail oder weiter mit Nickname + Code an.',placeholder:'name@beispiel.de',ok:'Code senden'}))||'').trim().toLowerCase();
+  if(!em)return;
+  if(!/^\S+@\S+\.\S+$/.test(em)){toast('Bitte eine gültige E-Mail eintragen');return}
+  try{
+    // Eigener Hilfs-Client ohne Speicher: Die laufende Anmeldung bleibt unberührt.
+    const lib=await sbLib(),tmp=lib.createClient(SB_URL,SB_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'kt-link-tmp'}});
+    let r=await tmp.auth.signInWithOtp({email:em,options:{shouldCreateUser:true}});
+    if(r.error)throw r.error;
+    const tok=((await askText('Code aus der E-Mail',{hint:'Wir haben einen Code an '+em+' geschickt.',ok:'Bestätigen',max:10}))||'').replace(/\s/g,'');
+    if(!tok)return;
+    r=await tmp.auth.verifyOtp({email:em,token:tok,type:'email'});
+    if(r.error)throw r.error;
+    await codeFn({action:'link',email_token:r.data.session.access_token},await accessToken());
+    const sb=await sbInit(),{data}=await sb.auth.refreshSession();
+    if(data&&data.user){CL.user=data.user;SY.email=data.user.email||null;saveSY()}
+    renderAcct();toast('E-Mail hinzugefügt')
+  }catch(e){toast(codeErr(e,'E-Mail konnte nicht hinzugefügt werden'))}};
+$('#btnPwa').onclick=()=>pwaHint();
+$('#btnIntro').onclick=()=>onboarding();
 async function cloudBoot(){
   let raw=null;try{raw=localStorage.getItem(SB_AUTH)}catch(e){}
   if(!raw){renderAcct();return} // nie angemeldet: nichts laden, nichts senden
