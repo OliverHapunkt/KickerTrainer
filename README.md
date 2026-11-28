@@ -154,6 +154,14 @@ Ein Chip „Reaktionsschießen“, darunter zwei Varianten (eigene Disziplinen `
 - Beim ersten Anmelden mit vorhandenen Gerätedaten gibt es eine Rückfrage, ob sie ins Konto übernommen werden. Bei Daten eines anderen Kontos auf dem Gerät ebenfalls
 - **Abmelden** behält alle Daten auf dem Gerät. **Konto löschen** entfernt E-Mail-Adresse und alle Daten im Konto, die Gerätedaten bleiben
 
+### Jeder zählt am eigenen Handy (v3.26)
+- In der Lobby wählt jeder Mitspieler mit Konto **„Wie zählst du?“**: *Host zählt* (Vorgabe), *Eigenes Handy* (nur eigene Tore) oder *Team-Handy* (Tore des eigenen Teams, Schütze wählbar; nur Doppel). Je Team entweder ein Team-Handy oder eigene Handys, sonst landet ein Tor doppelt. Umstellen geht auch im laufenden Spiel
+- **Zählansicht „eigenes Handy“** (`#mine`): oben der Stand, groß und mit dem **eigenen Team links**, darunter der Tor-Knopf (Team-Handy: ein Knopf je Spieler). Unten Rückgängig, „Ich gehe vorne/hinten“ (Doppel, Erweitert) und „Eigentor vom Gegner“. Querformat: Stand links, Knopf rechts
+- Regeln auf dem Server (`record_goal`, `undo_goal`, `set_device`, `swap_positions`): nie Tore für den Gegner; Eigentor des Gegners trägt das begünstigte Team ein; zurücknehmen nur das letzte Tor und nur, wer es eingetragen hat, der Schütze, das Team-Handy oder der Host; nach Spielende korrigiert nur der Host. `goals.by_player` hält fest, wer eingetragen hat. `record_goal` sperrt das Spiel, damit gleichzeitige Tore nacheinander zählen
+- Ohne Netz ist der Tor-Knopf gesperrt („Verbindung weg“). Der Host darf immer für alle zählen und ist der Rückfall
+- Gegen schnelles Mehrfachtippen sperrt der Knopf kurz; die Bestätigung durch die Gegenseite bleibt Pflicht
+- Host: Kacheln zeigen „📱 zählt selbst“/„Team-Handy“; sein Bildschirm holt alle 3 s den Stand, sobald Mitspieler mit Konto dabei sind. Live-Ansicht für Zuschauer zeigt das eigene Team links
+
 ### Offline-Spiele (v3.25)
 - **Ohne Netz neue Spiele anlegen**, beliebig viele: nur mit eigenen Gästen (wie „Nur Gäste“ online). Das Gerät vergibt die Spiel-Nummer, zählt lokal mit denselben Regeln (`rlPredict`) und zeigt in der Kopfzeile „Offline-Spiel“
 - Auf der Spielen-Seite listet die Karte **„Auf diesem Gerät“** die wartenden Spiele (antippen = fortsetzen bzw. Auswertung). Hochladen passiert von selbst, sobald Netz da ist (Ereignis `online`, Aufruf der Spielen-Seite, App-Start)
@@ -241,9 +249,9 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Das Schema liegt als Migrationen in `supabase/migrations/`. Die GitHub-Integration von Supabase spielt neue Migrationen beim Merge nach `main` ein – ein Merge verändert also sofort die echte Datenbank
 - Tabellen **Üben** (Phase 1): `profiles`, `sessions`, `shots`
 - Tabellen **Spielen** (Paket 4): `players`, `groups`, `group_members`, `matches`, `match_players`, `match_sets`, `goals`, `match_confirmations`
-- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `import_match()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()`, `my_ratings()`, `leaderboard()`, `recompute_ratings()` (nur intern) – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
+- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `set_device()`, `swap_positions()`, `import_match()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()`, `my_ratings()`, `leaderboard()`, `recompute_ratings()` (nur intern) – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
 - Konto löschen läuft über die Funktion `delete_my_account()`
-- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 487 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
+- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 547 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
 - Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
 
 ### Einrichtung in Supabase

@@ -179,11 +179,12 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   await asUser(BB);
   await pg.click('#pResume'); await pg.waitForTimeout(1200);
   let lv=(await txt('#lobBody')).replace(/\s+/g,' ');
-  ok(lv.includes('live')&&lv.includes('1 : 0'),'Mitspieler sieht den Stand live: 1 : 0');
+  const live=()=>pg.$$eval('#lobBody .miscore .miteam b',b=>b.map(x=>x.textContent).join(':'));
+  // Eigenes Team (BB spielt in Team 2) steht links
+  ok(lv.includes('live')&&(await live())==='0:1'&&lv.includes('Ihr'),'Mitspieler sieht den Stand live, eigenes Team links: '+(await live()));
   await pg.evaluate(()=>{const s=__fake.DB.match_sets.slice(-1)[0];s.score1=2;__fake.persist()});
   await pg.waitForTimeout(4800);
-  lv=(await txt('#lobBody')).replace(/\s+/g,' ');
-  ok(lv.includes('2 : 0'),'…und aktualisiert sich von selbst');
+  ok((await live())==='0:2','…und aktualisiert sich von selbst');
 
   const bad=errs.filter(e=>!/Failed to fetch|ERR_|favicon/i.test(e));
   if(bad.length) console.log(bad.join('\n'));

@@ -11,7 +11,7 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.25.0',d:'2026-11-28'};
+window.KT_VER={v:'3.26.0',d:'2026-11-28'};
 // Kamera-Labor: aus der Live-Version genommen (Code liegt unverändert in js/lab.js). Zum Wiedereinschalten true setzen.
 window.KT_LAB=window.KT_LAB===true;
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
@@ -236,6 +236,19 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
     <button id="mInfo" aria-label="Erklärung"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01"/></svg><small>Info</small></button>
     <button id="mEnd"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><small>Ende</small></button>
   </div>
+</section>
+
+<!-- Eigenes Handy: oben der Stand (groß, eigenes Team links), unten der Tor-Knopf -->
+<section id="mine" class="hidden">
+  <div class="mhead mihead">
+    <button class="mhbtn" id="miBack" aria-label="Zurück">‹ <small>Zurück</small></button>
+    <div class="msets" id="miSets"></div>
+    <button class="mhbtn" id="miInfo" aria-label="Erklärung">? <small>Hilfe</small></button>
+  </div>
+  <div class="miscore" id="miScore"></div>
+  <div class="misync" id="miSync"></div>
+  <div class="mibtns" id="miBtns"></div>
+  <div class="tfoot mifoot" id="miFoot"></div>
 </section>
 
 <div id="msummary" class="overlay hidden"><div class="sheet" id="msumBody"></div></div>

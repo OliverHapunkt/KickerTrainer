@@ -568,3 +568,47 @@ button.big small{display:block;font-size:13px;font-weight:400;opacity:.75;margin
 .setrow b{font-size:18px}
 .setrow small{font-size:14px;color:var(--mute);line-height:1.35}
 .setrow i{font-style:normal;font-size:26px;color:var(--mute);flex:none}
+
+/* ===== v3.26 Eigenes Handy: Stand oben, Tor-Knopf unten =====
+   Der Stand muss vom Tisch aus lesbar sein: eigenes Team immer links und farbig,
+   Ziffern so groß, wie der Platz hergibt. Quer: Stand links, Knöpfe rechts. */
+#mine{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 12px);gap:8px}
+.miscore{display:flex;align-items:center;justify-content:center;gap:4px;line-height:.9}
+.miteam{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+.miteam span{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mute)}
+.miteam b{font-size:clamp(96px,34vw,220px);font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.miteam small{font-size:14px;color:var(--mute);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.miteam.me span,.miteam.me b{color:var(--acc)}
+.miscore i{font-size:clamp(44px,14vw,90px);color:var(--line);font-style:normal;font-weight:800}
+.miscore.bump .miteam b{animation:mibump .5s ease}
+@keyframes mibump{0%{transform:scale(1)}30%{transform:scale(1.12)}100%{transform:scale(1)}}
+.misync{text-align:center;font-size:14px;min-height:18px;color:var(--mute)}
+.misync.bad{color:var(--miss);font-weight:700}
+.mibtns{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+.migoal{flex:1;min-height:110px;border-radius:22px;border:3px solid var(--acc);background:var(--panel);background:color-mix(in srgb,var(--acc) 12%,var(--panel));color:var(--acc);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px}
+.migoal b{font-size:clamp(34px,11vw,60px);font-weight:800;line-height:1}
+.migoal small{font-size:15px;color:var(--text);opacity:.8}
+.migoal:active{background:var(--acc);color:#111}
+.migoal:active small{color:#111}
+.migoal:disabled{opacity:.35;border-color:var(--line);color:var(--mute);background:var(--panel)}
+.migoal.busy{opacity:.6}
+.mifoot button:disabled{opacity:.35}
+#miOwn{font-size:16px}
+@media (orientation:landscape) and (max-height:520px){
+  #mine{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto;
+    grid-template-areas:"head head" "score btns" "sync btns" "foot foot";column-gap:14px;row-gap:6px;
+    padding:calc(env(safe-area-inset-top) + 6px) max(12px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 6px) max(12px,env(safe-area-inset-left))}
+  #mine .mihead{grid-area:head}
+  #mine .miscore{grid-area:score;align-self:center}
+  #mine .miteam b{font-size:clamp(80px,40vh,200px)}
+  #mine .misync{grid-area:sync}
+  #mine .mibtns{grid-area:btns}
+  #mine .migoal{min-height:0}
+  #mine .mifoot{grid-area:foot}
+  #mine .mifoot button{min-height:48px;font-size:15px;border-radius:14px}
+}
+/* Lobby: Wie zählst du? / Kennzeichen „zählt selbst“ */
+.ldev{font-size:12px;color:var(--acc);margin-left:6px;font-weight:600}
+.ptile .pdev{font-size:11px;color:var(--acc);text-transform:none;letter-spacing:0}

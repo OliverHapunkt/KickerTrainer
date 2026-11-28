@@ -395,7 +395,7 @@ async function pOpen(id){
     const {sb} = await pSb();
     const [m, mp, st] = await Promise.all([
       sb.from('matches').select('*').eq('id', id).single(),
-      sb.from('match_players').select('player_id,team,position,is_host').eq('match_id', id),
+      sb.from('match_players').select('player_id,team,position,is_host,device').eq('match_id', id),
       sb.rpc('match_state', {p_match:id})]);
     if(m.error) throw m.error; if(mp.error) throw mp.error; if(st.error) throw st.error;
     // Namen der Mitspieler: Gäste stehen evtl. noch nicht im lokalen Puffer
@@ -413,7 +413,7 @@ async function pOpen(id){
          st:st.data, own:false};
     // Tipps anderer Spiele bleiben stehen: pFlush schickt sie mit (früher gingen sie hier verloren)
     wake(true); renderMatch(); show('match');
-    pFlush();
+    pFlush(); pHostPoll();
   }catch(e){ toast(errText(e, 'Spiel konnte nicht geöffnet werden')) }
 }
 
@@ -444,11 +444,14 @@ function renderMatch(){
   $('#mSync').classList.toggle('hidden', !q && !P.off);
 
   const tile = p => '<button class="ptile" data-pid="' + p.player_id + '" data-team="' + p.team + '">'
-    + '<b>' + esc(p.nickname) + '</b>' + (pSlotOf(p) ? '<small>' + pSlotOf(p) + '</small>' : '') + '</button>';
+    + '<b>' + esc(p.nickname) + '</b>' + (pSlotOf(p) ? '<small>' + pSlotOf(p) + '</small>' : '')
+    + (p.device && p.player_id !== P.host ? '<small class="pdev">📱 ' + pDevText(p.device) + '</small>' : '') + '</button>';
   const teamCol = t => {
     if(P.detail === 'simple')
       return '<div class="tcol"><button class="ptile big2" data-team="' + t + '"><b>Team ' + t + '</b>'
-        + '<small>' + pTeam(t).map(p=>esc(p.nickname)).join(' · ') + '</small></button></div>';
+        + '<small>' + pTeam(t).map(p=>esc(p.nickname)).join(' · ') + '</small>'
+        + (pTeam(t).some(p=>p.device && p.player_id !== P.host) ? '<small class="pdev">📱 zählt selbst</small>' : '')
+        + '</button></div>';
     return '<div class="tcol">' + pTeam(t).map(tile).join('')
       + (P.mode==='double' ? '<button class="swapbtn" data-swap="' + t + '">' + icon('swap') + ' tauschen</button>' : '')
       + '</div>';
@@ -622,7 +625,7 @@ async function pSummary(){
 }
 
 function pClose(){
-  wake(false); P = null;
+  wake(false); P = null; clearTimeout(hostTimer);
   go('play');
 }
 
@@ -643,9 +646,8 @@ function pSwap(team){
   ps.forEach(p=>{ p.position = p.position === 'off' ? 'def' : 'off' });
   renderMatch();
   if(P.off){ saveOFF(); return }   // P.players ist die Aufstellung des Offline-Spiels
-  pSb().then(({sb})=>Promise.all(ps.map(p=>
-    sb.from('match_players').update({position:p.position}).eq('match_id',P.id).eq('player_id',p.player_id)
-  ))).catch(()=>toast('Tausch noch nicht gespeichert'));
+  pSb().then(({sb})=>sb.rpc('swap_positions', {p_match:P.id, p_team:team}))
+    .then(r=>{ if(r.error) throw r.error }).catch(()=>toast('Tausch noch nicht gespeichert'));
 }
 $('#mUndo').onclick = ()=>pUndo();
 async function pEditRulesMatch(){
@@ -733,7 +735,7 @@ async function pLobbyLoad(id){
   const {sb} = await pSb();
   const [m, mp] = await Promise.all([
     sb.from('matches').select('id,host_id,mode,detail,goals_per_set,sets_to_win,state,join_code,rev,finished_at,category,win_by,win_by_scope,goal_cap,draw_at').eq('id', id).single(),
-    sb.from('match_players').select('player_id,team,position,is_host').eq('match_id', id)]);
+    sb.from('match_players').select('player_id,team,position,is_host,device').eq('match_id', id)]);
   if(m.error) throw m.error; if(mp.error) throw mp.error;
   const ids = mp.data.map(x=>x.player_id);
   const nm = {};
@@ -805,6 +807,7 @@ function pStateText(st){
 async function pOpenLobby(id){
   try{
     await pLobbyLoad(id);
+    if(L.state === 'running' && !pIsHost() && pMyDevice()) return pMineOpen(id);
     renderLobby(); show('lobby'); pLobbyPoll();
   }catch(e){ toast(errText(e, 'Lobby konnte nicht geöffnet werden')) }
 }
@@ -820,6 +823,8 @@ function pLobbyPoll(){
       await pLobbyLoad(L.id);
       // Host: sobald es läuft, direkt ins Zählen
       if(pIsHost() && L.state === 'running'){ const id = L.id; L = null; pLobbyStop(); return pOpen(id) }
+      // Mitspieler, der selbst zählt: beim Start direkt in die eigene Zählansicht
+      if(L.state === 'running' && before === 'lobby' && pMyDevice()){ pLobbyStop(); return pMineOpen(L.id) }
       if(L.state !== before || true) renderLobby();
     }catch(e){ /* offline: beim nächsten Durchgang erneut */ }
     pLobbyPoll();
@@ -839,16 +844,17 @@ function renderLobby(){
         + '<p class="hint">Die anderen öffnen die App, tippen auf „Einem Spiel beitreten“ und geben diesen Code ein. '
         + 'Mit dem Start wird er ungültig.</p></div>';
     else if(!host)
-      h += '<div class="card"><h2>Du bist dabei</h2><p class="lead">Der Host stellt die Teams zusammen und startet. '
-        + 'Danach zählt er die Tore – auf deinem Gerät passiert währenddessen nichts.</p></div>';
+      h += '<div class="card"><h2>Du bist dabei</h2><p class="lead">Der Host stellt die Teams zusammen und startet.</p></div>';
   } else if(L.state === 'running'){
-    const lv = L.live;
+    const lv = L.live, mt = pMyTeam() || 1, ot = mt === 1 ? 2 : 1;
+    const sc = t => t === 1 ? lv.score1 : lv.score2, se = t => t === 1 ? lv.sets1 : lv.sets2;
     h += '<div class="card"><h2>Das Spiel läuft · live</h2>'
-      + (lv ? '<div class="bigpct">' + lv.score1 + ' : ' + lv.score2 + '</div>'
-            + '<p class="center hint">' + (L.stw > 1 ? 'Sätze ' + lv.sets1 + ' : ' + lv.sets2 + ' · ' : '') + 'Satz ' + (lv.set_no || '') + '</p>'
+      + (lv ? '<div class="miscore">' + miTeamHtml(mt, sc(mt), pMyTeam() ? 'Ihr' : 'Team 1', true)
+              + '<i>:</i>' + miTeamHtml(ot, sc(ot), pMyTeam() ? 'Gegner' : 'Team 2', false) + '</div>'
+            + '<p class="center hint">' + (L.stw > 1 ? 'Sätze ' + se(mt) + ' : ' + se(ot) + ' · ' : '') + 'Satz ' + (lv.set_no || '') + '</p>'
             + (lv.sets||[]).filter(x=>x.winner_team!=null).map(x=>'<p class="center hint" style="margin:2px 0">Satz ' + x.set_no + ': ' + x.score1 + ':' + x.score2 + '</p>').join('')
           : '<p class="lead">Der Host zählt die Tore.</p>')
-      + '<p class="hint">Aktualisiert sich alle paar Sekunden. Team 1 links.</p></div>';
+      + '<p class="hint">Aktualisiert sich alle paar Sekunden.' + (pMyTeam() ? ' Dein Team links.' : '') + '</p></div>';
   } else if(L.state === 'cancelled'){
     h += '<div class="card"><h2>Abgebrochen</h2>'
       + '<p class="lead">Der Host hat das Spiel abgebrochen, es wird nicht gewertet.</p></div>';
@@ -883,6 +889,9 @@ function renderLobby(){
     }
   }
 
+  // Mitspieler mit Konto: Wie zähle ich mit? (Host zählt immer)
+  if(!host && ['lobby','running'].includes(L.state) && pMyTeam()) h += pDevCard();
+
   // Aufstellung, je Team. Die Art steht dabei, damit jeder vor dem Start weiß, ob es zählt.
   h += '<div class="card"><h2>Aufstellung</h2>'
     + kv('Art', L.cat === 'casual' ? 'locker – zählt nicht für Wertungen' : 'Wertung – zählt')
@@ -892,7 +901,8 @@ function renderLobby(){
     const ps = L.players.filter(p=>p.team===t);
     h += '<div class="blockh">Team ' + t + '</div>';
     for(const p of ps){
-      h += '<div class="lrow"><b>' + esc(p.nickname) + (p.is_host ? ' <small>Host</small>' : '') + '</b>';
+      h += '<div class="lrow"><b>' + esc(p.nickname) + (p.is_host ? ' <small>Host</small>' : '')
+        + (p.device && !p.is_host ? '<span class="ldev">📱 ' + pDevText(p.device) + '</span>' : '') + '</b>';
       if(host && L.state === 'lobby'){
         if(pos) h += '<button class="lbtn" data-pos="' + p.player_id + '">'
           + (p.position === 'def' ? 'Abwehr' : 'Sturm') + '</button>';
@@ -949,6 +959,8 @@ function renderLobby(){
   on('lobNo', ()=>pConfirm('reject'));
   on('lobFix', pReopen);
   on('lobRules', pEditRulesLobby);
+  on('lobCount', ()=>pMineOpen(L.id));
+  document.querySelectorAll('#lobDev [data-dev]').forEach(b=>b.onclick = ()=>pSetDevice(b.dataset.dev || null));
 }
 async function pEditRulesLobby(){
   if(!L) return;
@@ -1244,3 +1256,175 @@ function offRenderCard(){
   const up = $('#pOffUp'); if(up) up.onclick = ()=>{ OFF.forEach(m=>{ m.err = '' }); offUpload() };
 }
 setTimeout(()=>{ if(offMine().length) offUpload() }, 4000);
+
+/* ---------- Jeder zählt am eigenen Handy (v3.26) ----------
+   Regeln (Oliver, 28.11.2026), durchgesetzt auf dem Server:
+   - „Eigenes Handy“: nur eigene Tore. „Team-Handy“: Tore des eigenen Teams, Schütze wählbar.
+     Je Team entweder ein Team-Handy oder eigene Handys.
+   - Nie Tore für den Gegner; ein Eigentor des Gegners trägt das begünstigte Team ein.
+   - Zurücknehmen: nur das letzte Tor, nur wer es eingetragen hat, der Schütze, das Team-Handy, der Host.
+   - Ohne Netz ist der Tor-Knopf gesperrt. Der Host zählt immer und ist damit der Rückfall.
+   - Die Bestätigung am Ende bleibt; gegen schnelles Mehrfachtippen sperrt der Knopf kurz. */
+function pDevText(d){ return d === 'team' ? 'Team-Handy' : d === 'own' ? 'zählt selbst' : '' }
+function pMyDevice(){ const p = L && PL.me && L.players.find(x=>x.player_id === PL.me.id); return p ? p.device || null : null }
+function pDevCard(){
+  const d = pMyDevice(), dbl = L.mode === 'double';
+  const opts = [[null,'Host zählt'],['own','Eigenes Handy']].concat(dbl ? [['team','Team-Handy']] : []);
+  const hint = d === 'own' ? (dbl ? 'Du tippst nur deine eigenen Tore. Dein Partner zählt seine selbst, sonst trägt sie der Host ein.' : 'Du tippst deine Tore selbst.')
+    : d === 'team' ? 'Du zählst alle Tore deines Teams und tippst jeweils den Schützen an. Dein Partner zählt dann nicht selbst.'
+    : 'Der Host zählt. Du siehst den Stand live.';
+  return '<div class="card"><h2>Wie zählst du?</h2><div class="chips sc" id="lobDev">'
+    + opts.map(([v,t])=>'<button class="chip' + (d === v ? ' on' : '') + '" data-dev="' + (v || '') + '">' + t + '</button>').join('')
+    + '</div><p class="hint">' + hint + ' Bestätigt wird am Ende trotzdem.</p>'
+    + (d && L.state === 'running' ? '<button class="big primary" id="lobCount">Zum Zählen</button>' : '') + '</div>';
+}
+async function pSetDevice(d){
+  if(!L) return;
+  try{
+    const {sb} = await pSb();
+    const {error} = await sb.rpc('set_device', {p_match:L.id, p_device:d});
+    if(error) throw error;
+    await pLobbyLoad(L.id);
+    if(L.state === 'running' && d) return pMineOpen(L.id);
+    renderLobby();
+  }catch(e){ toast(errText(e, 'Nicht geändert')) }
+}
+function miTeamHtml(t, n, label, me){
+  const names = L ? L.players.filter(p=>p.team === t).map(p=>esc(p.nickname)).join(' · ') : '';
+  return '<div class="miteam' + (me ? ' me' : '') + '"><span>' + label + '</span><b>' + n + '</b><small>' + names + '</small></div>';
+}
+
+/* Host: Andere zählen mit → regelmäßig den Stand vom Server holen. Nur wenn nichts
+   aussteht, sonst überschriebe die Antwort die eigene Vorhersage. */
+let hostTimer = 0;
+function pHostPoll(){
+  clearTimeout(hostTimer);
+  if(!P || P.off || !P.players.some(p=>p.kind === 'account' && p.player_id !== P.host)) return;
+  hostTimer = setTimeout(async ()=>{
+    if(!P || $('#match').classList.contains('hidden')) return;
+    if(!pFlushing && !pQueued()) try{
+      const {sb} = await pSb(); const id = P.id;
+      const [st, mp] = await Promise.all([sb.rpc('match_state', {p_match:id}),
+        sb.from('match_players').select('player_id,position,device').eq('match_id', id)]);
+      if(P && P.id === id && !pFlushing && !pQueued() && !st.error){
+        const was = P.st.match_done;
+        P.st = st.data;
+        (mp.data||[]).forEach(x=>{ const p = P.players.find(y=>y.player_id === x.player_id); if(p){ p.position = x.position; p.device = x.device } });
+        renderMatch();
+        if(!was && P.st.match_done) pSummary();
+      }
+    }catch(e){ /* kein Netz: nächster Versuch */ }
+    pHostPoll();
+  }, 3000);
+}
+
+/* ---------- Zählansicht „eigenes Handy“ ---------- */
+let miTimer = 0, miBusy = false, miNet = true, miLast = '';
+async function pMineOpen(id){
+  try{
+    pLobbyStop();
+    await pLobbyLoad(id);
+    if(L.state !== 'running' || !pMyDevice()){ renderLobby(); show('lobby'); pLobbyPoll(); return }
+    ensureAudio(); miNet = true; miLast = '';
+    wake(true); renderMine(); show('mine'); miPoll();
+  }catch(e){ toast(errText(e, 'Spiel konnte nicht geöffnet werden')) }
+}
+function miStop(){ clearTimeout(miTimer); miTimer = 0 }
+function miPoll(){
+  miStop();
+  miTimer = setTimeout(async ()=>{
+    if(!L || $('#mine').classList.contains('hidden')) return;
+    try{
+      await pLobbyLoad(L.id); miNet = true;
+      if(L.state !== 'running' || !pMyDevice()){ wake(false); miStop(); return pOpenLobby(L.id) }
+    }catch(e){ miNet = false }
+    renderMine(); miPoll();
+  }, 2500);
+}
+function miOnline(){ return miNet && navigator.onLine }
+function renderMine(){
+  if(!L || !PL.me) return;
+  const me = L.players.find(p=>p.player_id === PL.me.id); if(!me) return;
+  const t = me.team, o = t === 1 ? 2 : 1, dev = me.device;
+  const s = L.live || {score1:0, score2:0, sets1:0, sets2:0, set_no:1};
+  const sc = x => x === 1 ? s.score1 : s.score2, se = x => x === 1 ? s.sets1 : s.sets2;
+  const full = L.detail === 'full', dbl = L.mode === 'double', pos = full && dbl;
+  const decider = s.sets1 === L.stw - 1 && s.sets2 === L.stw - 1;
+  $('#miSets').innerHTML = L.stw > 1
+    ? '<span>Sätze</span><b>' + se(t) + ' : ' + se(o) + '</b><span>Satz ' + s.set_no + (decider ? ' · Entscheidung' : '') + '</span>'
+    : '<span>Satz bis ' + L.gps + '</span>';
+  const key = sc(t) + ':' + sc(o) + ':' + s.set_no;
+  $('#miScore').innerHTML = miTeamHtml(t, sc(t), dbl ? 'Ihr' : 'Du', true) + '<i>:</i>' + miTeamHtml(o, sc(o), 'Gegner', false);
+  if(miLast && miLast !== key){ const e = $('#miScore'); e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump') }
+  miLast = key;
+  const on = miOnline();
+  $('#miSync').textContent = !on ? 'Verbindung weg – Tippen gesperrt, der Host zählt weiter'
+    : miBusy ? 'Wird gezählt …' : 'Live · ' + (dev === 'team' ? 'Team-Handy' : 'eigenes Handy');
+  $('#miSync').classList.toggle('bad', !on);
+  const dis = !on || miBusy ? ' disabled' : '';
+  const sub = p => esc(p.nickname) + (pos && p.position ? ' · ' + pSlotOf(p) : '');
+  let b;
+  if(!full) b = '<button class="migoal" data-sc=""' + dis + '><b>TOR</b><small>für ' + (dbl ? 'uns' : 'mich') + '</small></button>';
+  else if(dev === 'team' && dbl)
+    b = L.players.filter(p=>p.team === t).sort((x,y)=>(x.position==='off'?0:1)-(y.position==='off'?0:1))
+      .map(p=>'<button class="migoal" data-sc="' + p.player_id + '"' + dis + '><b>TOR</b><small>' + sub(p) + '</small></button>').join('');
+  else b = '<button class="migoal" data-sc="' + me.player_id + '"' + dis + '><b>TOR</b><small>von mir' + (pos && me.position ? ' · ' + pSlotOf(me) : '') + '</small></button>';
+  $('#miBtns').innerHTML = b;
+  const swapT = dev === 'team' ? 'Sturm ⇆ Abwehr' : me.position === 'off' ? 'Ich gehe hinten' : 'Ich gehe vorne';
+  $('#miFoot').innerHTML = '<button id="miUndo"' + dis + '>' + icon('undo') + '<small>Rückgängig</small></button>'
+    + (pos ? '<button id="miSwap"' + dis + '>' + icon('swap') + '<small>' + swapT + '</small></button>' : '')
+    + (full ? '<button id="miOwn"' + dis + '>Eigentor<small>vom Gegner</small></button>' : '');
+}
+async function miSend(fn, okBeep){
+  if(miBusy || !miOnline()) return;
+  miBusy = true; renderMine();
+  const t0 = Date.now();
+  try{
+    const {sb} = await pSb();
+    const r = await offTimeout(fn(sb), 8000);
+    if(r.error) throw r.error;
+    if(okBeep) beep(880, .07, .25);
+    if(r.data && typeof r.data === 'object' && 'score1' in r.data) L.live = r.data;
+    await pLobbyLoad(L.id).catch(()=>{});
+  }catch(e){
+    if(offIsNet(e)) miNet = false;
+    beep(220, .15, .3);
+    // Fachliche Ablehnung (Rechte, Regeln) im Wortlaut des Servers, ohne Vorsatz
+    toast(offIsNet(e) ? 'Nicht gezählt – keine Verbindung' : (e && /^(P0001|42501)$/.test(e.code) ? errText(e) : errText(e, 'Nicht möglich')));
+  }
+  // Kurze Sperre: ein versehentlicher Doppeltipp zählt nicht doppelt
+  setTimeout(()=>{ miBusy = false;
+    if(L && L.state !== 'running'){ miStop(); wake(false); return pOpenLobby(L.id) }
+    renderMine() }, Math.max(0, 900 - (Date.now() - t0)));
+}
+function miTeam(){ const me = L.players.find(p=>p.player_id === PL.me.id); return me ? me.team : null }
+$('#miBtns').addEventListener('pointerdown', e=>{
+  const b = e.target.closest('.migoal'); if(!b || b.disabled || !L) return;
+  e.preventDefault();
+  const sc = b.dataset.sc || null;
+  miSend(sb=>sb.rpc('record_goal', {p_match:L.id, p_team:miTeam(), p_scorer:sc, p_position:null, p_own:false}), true);
+});
+$('#miFoot').addEventListener('click', async e=>{
+  const b = e.target.closest('button'); if(!b || b.disabled || !L) return;
+  if(b.id === 'miUndo') miSend(sb=>sb.rpc('undo_goal', {p_match:L.id}));
+  else if(b.id === 'miSwap') miSend(sb=>sb.rpc('swap_positions', {p_match:L.id, p_team:miTeam()}));
+  else if(b.id === 'miOwn'){
+    const opp = L.players.filter(p=>p.team !== miTeam());
+    let chosen = null;
+    await dlg('<h3 class="dtitle">Eigentor – wem ist es passiert?</h3><p class="dmsg">Der Punkt geht an euch.</p><div class="picklist">'
+      + opp.map(p=>'<button class="pickrow" data-pid="' + p.player_id + '">' + esc(p.nickname) + '</button>').join('') + '</div>',
+      [{t:'Abbrechen', v:null, cancel:true}],
+      o => o.addEventListener('click', ev=>{ const x = ev.target.closest('[data-pid]'); if(!x) return;
+        chosen = x.dataset.pid; o.querySelector('.dbtns [data-i="0"]').click() }));
+    if(chosen) miSend(sb=>sb.rpc('record_goal', {p_match:L.id, p_team:miTeam(), p_scorer:chosen, p_position:null, p_own:true}), true);
+  }
+});
+$('#miBack').onclick = ()=>{ miStop(); wake(false); L = null; go('play') };
+$('#miInfo').onclick = ()=>info('Selbst zählen',
+  '<p class="dmsg">Oben steht der Stand, <b>dein Team links</b>. Tippe <b>TOR</b>, wenn ' + (pMyDevice() === 'team' ? 'jemand aus deinem Team' : 'du') + ' getroffen hast.</p>'
+  + '<p class="dmsg">Du trägst nur Tore für dein Team ein, nie für den Gegner. Ein <b>Eigentor</b> des Gegners trägst du ein, weil der Punkt an euch geht.</p>'
+  + '<p class="dmsg"><b>Rückgängig</b> nimmt das letzte Tor des Spiels zurück, wenn du es eingetragen hast oder Schütze warst. Sonst kann es der Host.</p>'
+  + '<p class="dmsg">Ohne Netz ist der Knopf gesperrt, damit nichts doppelt zählt. Der Host kann immer für alle zählen.</p>'
+  + '<p class="dmsg">Am Ende bestätigt die Gegenseite das Ergebnis wie gewohnt.</p>');
+window.addEventListener('online', ()=>{ if(L && !$('#mine').classList.contains('hidden')){ miNet = true; renderMine() } });
+window.addEventListener('offline', ()=>{ if(L && !$('#mine').classList.contains('hidden')) renderMine() });

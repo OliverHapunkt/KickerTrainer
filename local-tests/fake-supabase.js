@@ -269,6 +269,22 @@
     },
     record_goal: a => {
       const m=DB.matches.find(x=>x.id===a.p_match);
+      const meP=DB.players.find(p=>p.user_id===UID());
+      let scorer=a.p_scorer||null;
+      if(meP && m.host_id!==meP.id){
+        const mine=DB.match_players.find(x=>x.match_id===m.id&&x.player_id===meP.id);
+        if(!mine||!mine.device) return res(null,{message:'Nur der Host zählt die Tore',code:'42501'});
+        if(mine.team!==a.p_team) return res(null,{message:'Du zählst nur Tore für dein Team',code:'42501'});
+        if(m.detail==='full'){
+          const tm=id=>(DB.match_players.find(x=>x.match_id===m.id&&x.player_id===id)||{}).team;
+          if(a.p_own){ if(!scorer||tm(scorer)===mine.team) return res(null,{message:'Beim Eigentor steht der Schütze im anderen Team',code:'P0001'}) }
+          else if(mine.device==='own'){ if(scorer&&scorer!==meP.id) return res(null,{message:'Mit dem eigenen Handy zählst du nur deine eigenen Tore',code:'42501'}); scorer=meP.id }
+          else if(scorer&&tm(scorer)!==mine.team) return res(null,{message:'Der Schütze muss in deinem Team spielen',code:'42501'});
+        }
+      }
+      let pos=a.p_position||null;
+      if(!pos&&scorer&&m.detail==='full'&&m.mode==='double') pos=(DB.match_players.find(x=>x.match_id===m.id&&x.player_id===scorer)||{}).position||null;
+      a=Object.assign({},a,{p_scorer:scorer,p_position:pos,by:meP?meP.id:null});
       if(m.state!=='running') return res(null,{message:'Das Spiel läuft nicht mehr',code:'P0001'});
       const cur=DB.match_sets.filter(s=>s.match_id===m.id&&s.winner_team==null).sort((x,y)=>x.set_no-y.set_no)[0];
       // seit v3.23 immer eine Tor-Zeile; Schütze/Position/Eigentor nur bei „Voll“
@@ -276,7 +292,7 @@
       DB.goals.push({match_id:m.id,set_no:cur.set_no,
         seq:DB.goals.filter(g=>g.match_id===m.id&&g.set_no===cur.set_no).length+1,
         team:a.p_team,scorer_id:fullM?(a.p_scorer||null):null,scorer_position:fullM&&m.mode==='double'?a.p_position:null,
-        own_goal:fullM&&!!a.p_own});
+        own_goal:fullM&&!!a.p_own,by_player:a.by});
       if(a.p_team===1)cur.score1++;else cur.score2++;
       const sw=setEnd(m,cur.set_no,cur.score1,cur.score2);
       if(sw!==null){
@@ -377,8 +393,40 @@
         DB.match_sets.push({match_id:m.id,set_no:1,score1:0,score2:0,winner_team:null});
       persist(); return res(m);
     },
+    set_device: a => {
+      const meP=DB.players.find(p=>p.user_id===UID());
+      const m=DB.matches.find(x=>x.id===a.p_match);
+      const mine=DB.match_players.find(x=>x.match_id===a.p_match&&x.player_id===meP.id);
+      if(!mine) return res(null,{message:'Du spielst in diesem Spiel nicht mit',code:'42501'});
+      if(!['lobby','running'].includes(m.state)) return res(null,{message:'Das Spiel läuft nicht mehr',code:'P0001'});
+      let d=a.p_device||null; if(m.mode==='single'&&d==='team') d='own';
+      if(d){ const mate=DB.match_players.find(x=>x.match_id===m.id&&x.team===mine.team&&x.player_id!==meP.id&&x.device);
+        const nick=mate&&(DB.players.find(p=>p.id===mate.player_id)||{}).nickname;
+        if(mate&&mate.device==='team') return res(null,{message:nick+' zählt schon mit dem Team-Handy für euch',code:'P0001'});
+        if(mate&&d==='team') return res(null,{message:nick+' zählt schon selbst. Dann zählt jeder seine eigenen Tore',code:'P0001'}); }
+      mine.device=d; persist(); return res(null);
+    },
+    swap_positions: a => {
+      const meP=DB.players.find(p=>p.user_id===UID());
+      const m=DB.matches.find(x=>x.id===a.p_match);
+      if(m.host_id!==meP.id&&!DB.match_players.some(x=>x.match_id===m.id&&x.player_id===meP.id&&x.team===a.p_team))
+        return res(null,{message:'Nur das eigene Team tauscht seine Positionen',code:'42501'});
+      DB.match_players.filter(x=>x.match_id===m.id&&x.team===a.p_team&&x.position)
+        .forEach(x=>{x.position=x.position==='off'?'def':'off'});
+      persist(); return res(null);
+    },
     undo_goal: a => {
       const m=DB.matches.find(x=>x.id===a.p_match);
+      const meP=DB.players.find(p=>p.user_id===UID());
+      if(m && meP && m.host_id!==meP.id){
+        const mine=DB.match_players.find(x=>x.match_id===m.id&&x.player_id===meP.id);
+        if(!mine||!mine.device) return res(null,{message:'Nur der Host zählt die Tore',code:'42501'});
+        if(m.state!=='running') return res(null,{message:'Korrigieren kann nach Spielende nur der Host',code:'42501'});
+        const lg=DB.goals.filter(g=>g.match_id===m.id).sort((x,y)=>y.set_no-x.set_no||y.seq-x.seq)[0];
+        if(!lg) return res(null,{message:'Es gibt kein Tor zum Zurücknehmen',code:'P0001'});
+        if(!(lg.by_player===meP.id||(lg.scorer_id===meP.id&&!lg.own_goal)||(mine.device==='team'&&mine.team===lg.team)))
+          return res(null,{message:'Das letzte Tor hat jemand anderes eingetragen',code:'42501'});
+      }
       if(m && m.state!=='running'){
         if(!['finished','confirmed','disputed'].includes(m.state))
           return res(null,{message:'In diesem Zustand nicht möglich',code:'P0001'});
