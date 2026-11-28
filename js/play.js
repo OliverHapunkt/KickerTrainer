@@ -74,6 +74,32 @@ async function pLoadGuests(){
 const NICK_HINT = 'Dein Nickname ist für Mitspieler sichtbar – nimm nicht deinen vollen Namen. '
   + '3 bis 20 Zeichen, und er muss noch frei sein.';
 
+/* Mehr › Profil: Nickname und Rangliste, wenn angemeldet */
+var PROF = {busy:false, loaded:false, err:''};
+function renderProf(){
+  const el = $('#prof'); if(!el) return;
+  if(!pLoggedIn()){ PROF.loaded = false; el.classList.add('hidden'); return }
+  el.classList.remove('hidden');
+  const me = PL.me;
+  if(!me && !PROF.loaded){
+    el.innerHTML = '<h2>Spieler-Profil</h2><p class="hint" style="margin:0">' + esc(PROF.err || 'Lade …') + '</p>';
+    if(!PROF.busy){
+      PROF.busy = true;
+      pLoadMe().then(()=>{ PROF.err = '' }).catch(e=>{ PROF.err = errText(e) })
+        .finally(()=>{ PROF.busy = false; PROF.loaded = true; renderProf(); applySetView() });
+    }
+    return;
+  }
+  el.innerHTML = '<h2>Spieler-Profil</h2>'
+    + '<div class="kv"><span>Nickname</span><b>' + (me ? esc(me.nickname) : '–') + '</b></div>'
+    + '<button class="big" id="profNick">' + (me ? 'Nickname ändern' : 'Nickname wählen') + '</button>'
+    + (me ? '<div class="kv"><span>In der Rangliste</span><b>' + (me.ranking_opt_in ? 'ja' : 'nein') + '</b></div>'
+      + '<button class="big" id="profRank">' + (me.ranking_opt_in ? 'Aus der Rangliste nehmen' : 'In der Rangliste erscheinen') + '</button>'
+      + '<p class="hint">Mitspieler sehen deinen Nickname. In der Rangliste sieht jeder Nutzer Nickname, Wertung und Bilanz – nur mit deiner Zustimmung, jederzeit widerrufbar.</p>' : '');
+  $('#profNick').onclick = async ()=>{ if(await pSetNickname()){ renderProf(); applySetView() } };
+  if(me) $('#profRank').onclick = async ()=>{ await bzToggleOptIn(); renderProf() };
+}
+
 async function pSetNickname(){
   const cur = PL.me ? PL.me.nickname : '';
   const v = await askText(PL.me ? 'Nickname ändern' : 'Nickname wählen',
@@ -173,7 +199,7 @@ function renderPlayHome(){
       + 'Dafür brauchst du ein Konto.</p>'
       + '<p class="hint" style="margin-bottom:12px">Das Üben bleibt davon unberührt und funktioniert weiter ohne Konto.</p>'
       + '<button class="big primary" id="pToAcct">Zur Anmeldung</button></div>' + pStepHint();
-    $('#pToAcct').onclick = ()=>{ go('settings'); setTimeout(()=>$('#acct').scrollIntoView({behavior:'smooth'}), 60) };
+    $('#pToAcct').onclick = ()=>{ go('settings'); setView('profil') };
     return;
   }
   // Konto gewechselt? Dann gehört der gemerkte Stand nicht hierher – sonst stünde

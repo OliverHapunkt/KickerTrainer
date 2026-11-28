@@ -91,7 +91,9 @@ Ein Chip „Reaktionsschießen“, darunter zwei Varianten (eigene Disziplinen `
 - Einträge: `tm` (ok/early/late/none), `lv` (Stufe), `w` (Fenster, Signal), `na` (ohne Ansage). Laufen über das `extra`-Feld in die Cloud, keine Datenbank-Änderung
 - Eigene Pieptöne der App sperren die Schusserkennung nicht mehr 400 ms lang (vorher hätte ein schneller Schuss nach dem Piep verschluckt werden können)
 
-### Labor: Kamera-Probe (versteckt)
+### Labor: Kamera-Probe (aus der Live-Version genommen)
+- **Seit v3.24 nicht mehr erreichbar**: `index.html` setzt `window.KT_LAB=false`, `js/lab.js` wird dann nicht einmal geladen, Knopf und 7×-Tippen entfallen. Code und Test (`kamera-labor.test.js`) bleiben unverändert liegen. Wiedereinschalten: `window.KT_LAB` in `index.html` auf `true`
+- Beschreibung unten gilt für eingeschaltetes Labor
 - Freischalten: in den Einstellungen **7× auf die Versionsnummer** tippen. Danach gibt es dort den Knopf „Labor · Kamera-Probe“. Kein Schutz, nur versteckt; der Code ist ohnehin öffentlich
 - Zweck: prüfen, ob eine Kamera am Tischrand erkennt, in welches Segment der Ball ging. Ändert nichts am Training, das Bild bleibt auf dem Gerät
 - Ablauf: Rotes Rechteck per Regler über die Toröffnung legen (5 Streifen). Pro Kamerabild wird die Veränderung je Streifen gemessen. Der Ton löst aus, ausgewertet wird 150 ms vor bis 400 ms nach dem Schuss. Ergebnis: stärkster Streifen, „eindeutig“ ab 1,5× Abstand zum zweitbesten und mindestens 3× Ruhepegel
@@ -151,6 +153,11 @@ Ein Chip „Reaktionsschießen“, darunter zwei Varianten (eigene Disziplinen `
 - Training bleibt offline möglich, Änderungen werden später hochgeladen
 - Beim ersten Anmelden mit vorhandenen Gerätedaten gibt es eine Rückfrage, ob sie ins Konto übernommen werden. Bei Daten eines anderen Kontos auf dem Gerät ebenfalls
 - **Abmelden** behält alle Daten auf dem Gerät. **Konto löschen** entfernt E-Mail-Adresse und alle Daten im Konto, die Gerätedaten bleiben
+
+### Mehr als Menü (v3.24)
+- Statt einer langen Liste: Übersicht mit **Profil**, **Training** (in „Spielen“: nur Gamification), **Daten & Sicherung**, **Hilfe & Rechtliches**. Zurück über „‹ Mehr“; der Tab „Mehr“ öffnet immer die Übersicht
+- **Profil** enthält Konto & Sicherung und, wenn angemeldet, die Karte „Spieler-Profil“: Nickname ändern, Teilnahme an der Rangliste ein/aus
+- Technik: Karten tragen `data-grp`, `setView()`/`applySetView()` in `js/home.js`, `renderProf()` in `js/play.js`
 
 ### Konto mit Code und Web-App-Hinweis (v3.22)
 - **Konto mit Code, ohne E-Mail**: Nickname wählen, die App zeigt einmal einen 12-stelligen Code (`K7P-M2X-9QF-H4T`, ohne verwechselbare Zeichen). Anmelden mit Nickname + Code. Code weg = Konto weg

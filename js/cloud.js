@@ -201,6 +201,7 @@ function renderAcct(){
   // Die Spielen-Hälfte hängt am Konto: Beim Anmelden, Abmelden oder wenn die
   // Sitzung beim Start eintrifft, muss ihr Bildschirm neu aufgebaut werden.
   if(typeof renderPlayHome==='function'&&!$('#play').classList.contains('hidden'))renderPlayHome();
+  if(typeof applySetView==='function')applySetView();
   $('#acResend').disabled=CL.cd>0;
   $('#acResend').textContent=CL.cd>0?'Neuen Code senden ('+CL.cd+')':'Neuen Code senden'}
 function acStep(s){CL.step=s;renderAcct()}

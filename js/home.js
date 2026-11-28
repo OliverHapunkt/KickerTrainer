@@ -277,6 +277,26 @@ function renderSettings(){
   const play=curMode()==='play';
   document.querySelectorAll('#settings [data-only]').forEach(el=>
     el.classList.toggle('hidden',el.dataset.only!==(play?'play':'train')));
-  renderDataHint();$('#btnLab').classList.toggle('hidden',!S.lab);
+  renderDataHint();$('#btnLab').classList.toggle('hidden',!(S.lab&&window.KT_LAB));
+  applySetView();
 }
+/* Mehr als Menü: null = Übersicht, sonst eine Gruppe (profil | train | daten | hilfe).
+   Beim Öffnen über den Tab beginnt es immer in der Übersicht. */
+var SETV=null;
+const SET_TITLE={profil:'Profil',train:'Training',daten:'Daten & Sicherung',hilfe:'Hilfe & Rechtliches'};
+function setView(g,quiet){SETV=g||null;if(!quiet)renderSettings();if(!quiet&&g)window.scrollTo(0,0)}
+function applySetView(){
+  const menu=SETV===null,play=curMode()==='play';
+  document.querySelectorAll('#settings [data-grp]').forEach(el=>el.classList.toggle('grpoff',menu||el.dataset.grp!==SETV));
+  $('#setMenu').classList.toggle('grpoff',!menu);
+  $('#setBack').classList.toggle('grpoff',menu);
+  $('#setTitle').textContent=menu?'Mehr':SET_TITLE[SETV];
+  $('#smTrainT').textContent=play?'Gamification':'Training';
+  $('#smTrain').textContent=play?'Level, XP und Challenges':'Ansage, Eingabe, Schusserkennung, Gamification';
+  const nick=typeof PL!=='undefined'&&PL&&PL.me?PL.me.nickname:'';
+  $('#smProfil').textContent=CL&&CL.user?(nick?nick+' · angemeldet':'Angemeldet'):'Nicht angemeldet · Konto anlegen oder anmelden';
+  if(SETV==='profil'&&typeof renderProf==='function')renderProf();
+}
+$('#setMenu').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)setView(b.dataset.go)});
+$('#setBack').onclick=()=>setView(null);
 $('#btnTest').onclick=()=>{ensureAudio();renderTest();show('test')};

@@ -11,7 +11,9 @@
 <title>KickerTrainer</title>
 <script>
 // Version und Datum: nur hier ändern. Hängt an CSS/JS als ?v=…, damit iOS nach einem Update keine alten Dateien mischt.
-window.KT_VER={v:'3.23.0',d:'2026-11-28'};
+window.KT_VER={v:'3.24.0',d:'2026-11-28'};
+// Kamera-Labor: aus der Live-Version genommen (Code liegt unverändert in js/lab.js). Zum Wiedereinschalten true setzen.
+window.KT_LAB=window.KT_LAB===true;
 document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </script>
 </head>
@@ -102,23 +104,29 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 </section>
 
 <section id="settings" class="screen tabbed hidden">
-  <header class="ptitle"><h1>Einstellungen</h1></header>
-  <div class="card" data-only="train"><h2>Ansage &amp; Eingabe</h2>
+  <header class="ptitle"><button type="button" class="link grpoff" id="setBack">‹ Mehr</button><h1 id="setTitle">Mehr</h1></header>
+  <div id="setMenu" class="setmenu">
+    <button type="button" class="card setrow" data-go="profil"><span><b>Profil</b><small id="smProfil">Konto, Nickname, Anmelde-Code</small></span><i>›</i></button>
+    <button type="button" class="card setrow" data-go="train"><span><b id="smTrainT">Training</b><small id="smTrain">Ansage, Eingabe, Schusserkennung, Gamification</small></span><i>›</i></button>
+    <button type="button" class="card setrow" data-go="daten"><span><b>Daten &amp; Sicherung</b><small>Sichern, Importieren, Alles löschen</small></span><i>›</i></button>
+    <button type="button" class="card setrow" data-go="hilfe"><span><b>Hilfe &amp; Rechtliches</b><small>App installieren, Einführung, Impressum, Datenschutz</small></span><i>›</i></button>
+  </div>
+  <div class="card" data-grp="train" data-only="train"><h2>Ansage &amp; Eingabe</h2>
     <label class="row"><span>Sprachansage <button type="button" class="tipb" data-tip-k="voiceOut" aria-label="Erklärung">ⓘ</button><small>Schuss: nur Zahl · Pass: „wall“ / „lane“</small></span><input type="checkbox" class="sw" id="oVoiceOut"></label>
     <label class="row"><span>Daneben mit Richtung <button type="button" class="tipb" data-tip-k="missdir" aria-label="Erklärung">ⓘ</button><small>Nur Wertung „Einfach“: teilt „Daneben“ in links / rechts (aus Sicht des Schützen). Bei „Genau“ immer vorhanden</small></span><input type="checkbox" class="sw" id="oMissDir"></label>
     <label class="row"><span>Spracheingabe (Beta) <button type="button" class="tipb" data-tip-k="vocab" aria-label="Erklärung">ⓘ</button><small>„Ja“, „eins“–„fünf“, „links“, „rechts“, „miss“ – ⓘ zeigt das Wörterbuch</small></span><input type="checkbox" class="sw" id="oVoiceIn"></label>
     <p class="hint" id="srNote" style="margin-top:6px"></p>
   </div>
-  <div class="card" data-only="train"><h2>Trainingshilfen</h2>
+  <div class="card" data-grp="train" data-only="train"><h2>Trainingshilfen</h2>
     <label class="row"><span>Lernpfad<small>Zeigt auf der Trainingsseite, welche Stufe (Serie, Gemischt, Auf Signal) als Nächstes dran ist</small></span><input type="checkbox" class="sw" id="oLp"></label>
     <label class="row"><span>Standardtest-Erinnerung<small>Einmal im Monat derselbe Test, damit du Fortschritt wirklich vergleichen kannst</small></span><input type="checkbox" class="sw" id="oStd"></label>
   </div>
-  <div class="card"><h2>Gamification</h2>
+  <div class="card" data-grp="train"><h2>Gamification</h2>
     <label class="row"><span>Gamification<small>Level, XP und Challenges. Aus = App wie bisher</small></span><input type="checkbox" class="sw" id="gOn"></label>
     <label class="row"><span>XP &amp; Level<small>Punkte für Training und Treffer, schwierigere Ziele zählen mehr</small></span><input type="checkbox" class="sw" id="gXp"></label>
     <label class="row"><span>Challenges<small>Vorkonfigurierte Aufgaben mit Fortschritt</small></span><input type="checkbox" class="sw" id="gCh"></label>
   </div>
-  <div class="card" data-only="train"><h2>Schusserkennung</h2>
+  <div class="card" data-grp="train" data-only="train"><h2>Schusserkennung</h2>
     <label class="row"><span>Schusserkennung <button type="button" class="tipb" data-tip-k="detect" aria-label="Erklärung">ⓘ</button><small>nur damit werden Reaktionszeiten gemessen</small></span><input type="checkbox" class="sw" id="oMic"></label>
     <label class="row"><span>Auto-Treffer <button type="button" class="tipb" data-tip-k="autocount" aria-label="Erklärung">ⓘ</button><small>Ein erkannter Schuss zählt als Treffer auf das angesagte Ziel. Im Korrekturfenster kannst du ihn überschreiben. Nur mit Schusserkennung, nur bei Schüssen</small></span><input type="checkbox" class="sw" id="oAuto"></label>
     <div class="sub" id="wDet"><label>Erkennung über <button type="button" class="tipb" data-tip-k="detect" aria-label="Erklärung">ⓘ</button></label><div class="chips" id="cDet"></div>
@@ -127,10 +135,11 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <p class="hint">„Ton + Erschütterung“ = beide müssen gleichzeitig ausschlagen: am wenigsten Fehlauslöser (Stimmen, Nachbartisch). Erschütterung braucht iPad direkt auf dem Tisch.</p></div>
     <button class="big" id="btnTest">Schusserkennung kalibrieren &amp; testen</button>
   </div>
-  <div class="card"><h2>Hilfe</h2>
+  <div class="card" data-grp="hilfe"><h2>Hilfe</h2>
     <div class="two eq"><button class="big" id="btnPwa">App installieren</button><button class="big" id="btnIntro">Einführung</button></div>
   </div>
-  <div class="card" id="acct"><h2>Konto &amp; Sicherung</h2>
+  <div class="card hidden" data-grp="profil" id="prof"></div>
+  <div class="card" data-grp="profil" id="acct"><h2>Konto &amp; Sicherung</h2>
     <div id="acOut">
       <p class="hint" style="margin:0">Ohne Konto läuft alles wie bisher: Die Daten bleiben nur auf diesem Gerät (bitte regelmäßig sichern). Mit Konto werden sie gesichert, zwischen deinen Geräten abgeglichen, und du kannst Spiele gegen andere werten.</p>
       <p class="hint acage"><b>Unter 18?</b> Bitte die Anmeldung mit Code nutzen, dafür brauchst du keine E-Mail. <b>Unter 16?</b> Frag vorher deine Eltern.</p>
@@ -180,18 +189,18 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
       <p class="hint" id="acInHint">Gelöschte Einträge werden nicht auf andere Geräte übertragen. Beim Konto löschen verschwinden E-Mail-Adresse und alle Daten im Konto, die Daten auf diesem Gerät bleiben.</p>
     </div>
   </div>
-  <div class="card"><h2>Daten</h2>
+  <div class="card" data-grp="daten"><h2>Daten</h2>
     <div class="two eq"><button class="big" id="btnExport">Sichern (JSON)</button><button class="big" id="btnCSV">Tabelle (CSV)</button></div>
     <button class="big" id="btnImport">Importieren (zusammenführen)</button>
     <input type="file" id="fileImport" accept="application/json,.json" class="hidden">
     <button class="big danger" id="btnReset">Alle Daten löschen</button>
     <p class="hint" id="dataHint"></p>
   </div>
-  <div class="card"><h2>Rechtliches</h2>
+  <div class="card" data-grp="hilfe"><h2>Rechtliches</h2>
     <div class="two eq"><a class="big linkbtn" href="impressum.html">Impressum</a><a class="big linkbtn" href="datenschutz.html">Datenschutz</a></div>
     <p class="hint">Was gespeichert wird, wer was sieht und wie gelöscht wird.</p>
   </div>
-  <p class="hint" data-only="train">Segment 1 = links aus Sicht des Schützen. Links/rechts „daneben“ ebenfalls aus Sicht des Schützen. <button type="button" class="link" data-tip-k="segs">Segmente erklärt</button> · <button type="button" class="link" data-tip-k="miss">Daneben erklärt</button></p>
+  <p class="hint" data-grp="train" data-only="train">Segment 1 = links aus Sicht des Schützen. Links/rechts „daneben“ ebenfalls aus Sicht des Schützen. <button type="button" class="link" data-tip-k="segs">Segmente erklärt</button> · <button type="button" class="link" data-tip-k="miss">Daneben erklärt</button></p>
   <button class="big hidden" id="btnLab">Labor · Kamera-Probe</button>
   <p class="ver" id="appVer"></p>
 </section>
@@ -293,7 +302,7 @@ document.write('<link rel="stylesheet" href="css/app.css?v='+KT_VER.v+'">');
 <div id="summary" class="overlay hidden"><div class="sheet" id="summaryBody"></div></div>
 <script>
 // Skripte in fester Reihenfolge laden (async=false), alle teilen sich denselben globalen Gültigkeitsbereich
-['core','ui','detector','sensors','home','training','reaktion','stats','gamification','learn','regeln','play','bilanz','tools','lab','calibrate','cloud','main'].forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
+['core','ui','detector','sensors','home','training','reaktion','stats','gamification','learn','regeln','play','bilanz','tools','lab','calibrate','cloud','main'].filter(f=>f!=='lab'||window.KT_LAB).forEach(f=>{const s=document.createElement('script');s.src='js/'+f+'.js?v='+KT_VER.v;s.async=false;document.body.appendChild(s)});
 </script>
 </body>
 </html>

@@ -49,6 +49,8 @@ let fails=0; const ok=(c,m)=>{console.log((c?'PASS  ':'FAIL  ')+m); if(!c)fails+
   await pg.goto('http://127.0.0.1:8116/',{waitUntil:'networkidle'}); await pg.waitForTimeout(700);
   await pg.evaluate(()=>{document.querySelectorAll('.overlay.dlg').forEach(e=>e.remove());S.onb=true;S.pwa=true;saveS();go('settings')});
   await pg.waitForTimeout(300);
+  ok(await pg.isHidden('a[href="impressum.html"]'),'Mehr: Impressum erst nach Öffnen von „Hilfe & Rechtliches“');
+  await pg.click('[data-go="hilfe"]'); await pg.waitForTimeout(200);
   ok(await pg.isVisible('a[href="impressum.html"]'),'App verlinkt das Impressum');
   ok(await pg.isVisible('a[href="datenschutz.html"]'),'App verlinkt den Datenschutz');
   const h=await pg.evaluate(()=>{const a=document.querySelector('a[href="impressum.html"]');return Math.round(a.getBoundingClientRect().height)});

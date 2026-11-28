@@ -558,3 +558,13 @@ button.big small{display:block;font-size:13px;font-weight:400;opacity:.75;margin
 
 .codeact button.flash{background:rgba(46,204,113,.22);border-color:var(--hit,#2ecc71);color:var(--hit,#2ecc71)}
 .codeact button.flashbad{background:rgba(255,77,79,.18);border-color:var(--miss,#ff4d4f);color:var(--miss,#ff4d4f)}
+
+/* Mehr: Menü mit Unterseiten (v3.24) */
+.grpoff{display:none!important}
+#setBack{font-size:17px;padding:4px 0;margin-bottom:2px}
+.setmenu{display:flex;flex-direction:column;gap:10px}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;cursor:pointer;color:var(--text);font:inherit;margin:0}
+.setrow span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.setrow b{font-size:18px}
+.setrow small{font-size:14px;color:var(--mute);line-height:1.35}
+.setrow i{font-style:normal;font-size:26px;color:var(--mute);flex:none}

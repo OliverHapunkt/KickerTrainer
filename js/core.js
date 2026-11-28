@@ -107,7 +107,7 @@ function go(id){
   if(id==='home'){renderHome();show('home')}
   else if(id==='chal'){renderChal();show('chal')}
   else if(id==='stats'){ST.session=null;ST.open=null;ST.edit=null;show('stats');renderStats()}
-  else if(id==='settings'){renderSettings();show('settings')}
+  else if(id==='settings'){if(typeof setView==='function')setView(null,true);renderSettings();show('settings')}
   else if(id==='rank'){show(id);renderBilanzTab()}
   else if(id==='play'||id==='groups'){renderPlay(id);show(id)}
   else show(id);

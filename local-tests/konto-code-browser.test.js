@@ -69,7 +69,7 @@ function codeFn(body,auth){
     t=await dlgText(pg);
     ok(!/Web-App/.test(t),'beim nächsten Start kein Hinweis mehr');
     await pg.evaluate(()=>{document.querySelectorAll('.overlay.dlg').forEach(e=>e.remove());S.onb=true;saveS();go('settings')});
-    await pg.click('#btnPwa');await pg.waitForTimeout(200);
+    await pg.click('[data-go="hilfe"]');await pg.click('#btnPwa');await pg.waitForTimeout(200);
     ok(/Web-App/.test(await dlgText(pg)),'unter Optionen › Hilfe wieder aufrufbar');
     await ctx.close()}
 
@@ -91,6 +91,21 @@ function codeFn(body,auth){
   await ctx.addInitScript(()=>{if(!localStorage.getItem('kt2_settings'))localStorage.setItem('kt2_settings',JSON.stringify({onb:true,pwa:true}))});
   await pg.goto(URL,{waitUntil:'networkidle'});await pg.waitForTimeout(400);
   await pg.evaluate(()=>go('settings'));await pg.waitForTimeout(200);
+  // Mehr als Menü
+  ok(await pg.isVisible('#setMenu')&&await pg.isHidden('#acct')&&await pg.isHidden('#btnReset')&&await pg.isHidden('#oVoiceOut'),'Mehr: nur das Menü, keine lange Liste');
+  await pg.screenshot({path:'/tmp/kt-menu.png'});
+  const mt=await pg.textContent('#setMenu');
+  ok(/Profil/.test(mt)&&/Training/.test(mt)&&/Daten & Sicherung/.test(mt)&&/Hilfe & Rechtliches/.test(mt),'Menü: Profil, Training, Daten & Sicherung, Hilfe & Rechtliches');
+  ok(/Nicht angemeldet/.test(await pg.textContent('#smProfil')),'Menü: Profil zeigt „Nicht angemeldet“');
+  await pg.click('[data-go="train"]');await pg.waitForTimeout(100);
+  ok(await pg.isVisible('#oVoiceOut')&&await pg.isHidden('#acct')&&await pg.isHidden('#setMenu')&&(await pg.textContent('#setTitle'))==='Training','Training: nur Trainings-Einstellungen, Titel „Training“');
+  await pg.click('#setBack');ok(await pg.isVisible('#setMenu')&&(await pg.textContent('#setTitle'))==='Mehr','Zurück zur Übersicht');
+  await pg.click('[data-go="daten"]');ok(await pg.isVisible('#btnReset')&&await pg.isHidden('#oVoiceOut'),'Daten & Sicherung: Sichern, Importieren, Löschen');
+  await pg.click('#setBack');
+  await pg.click('[data-go="hilfe"]');ok(await pg.isVisible('#btnPwa')&&await pg.isVisible('a[href="impressum.html"]'),'Hilfe & Rechtliches: App installieren, Impressum');
+  await pg.evaluate(()=>go('settings'));ok(await pg.isVisible('#setMenu'),'Tab „Mehr“ öffnet immer die Übersicht');
+  await pg.click('[data-go="profil"]');await pg.waitForTimeout(100);
+  ok(await pg.isVisible('#acct')&&await pg.isHidden('#prof'),'Profil: Konto sichtbar, Spieler-Profil erst angemeldet');
   let t=await pg.textContent('#acOut');
   ok(/Unter 18\?/.test(t)&&/Unter 16\?/.test(t)&&/Eltern/.test(t),'Hinweis zu Alter und Eltern');
   ok(/ab 18/.test(t),'E-Mail-Weg mit „ab 18“ gekennzeichnet');
@@ -131,6 +146,10 @@ function codeFn(body,auth){
   ok(t==='Kicki (mit Code)','Anzeige ohne Platzhalter-Adresse: '+t);
   ok(!(await pg.textContent('#acct')).includes('invalid'),'Platzhalter-Adresse nirgends sichtbar');
   ok(await pg.isVisible('#acLink')&&await pg.isVisible('#acRegen'),'E-Mail hinzufügen und neuer Code angeboten');
+  await pg.waitForTimeout(500);
+  ok(await pg.isVisible('#prof'),'Profil: Karte „Spieler-Profil“ erscheint nach der Anmeldung');
+  ok(/Nickname/.test(await pg.textContent('#prof'))&&await pg.isVisible('#profNick'),'Profil: Nickname-Zeile mit Knopf');
+  await pg.evaluate(()=>window.scrollTo(0,0));await pg.screenshot({path:'/tmp/kt-profil.png'});
 
   // neuer Code
   await pg.click('#acRegen');await pg.waitForTimeout(100);
