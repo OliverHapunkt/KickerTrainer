@@ -331,9 +331,15 @@ async function pLoadRunning(){
     $('#pResume').onclick = ()=>(lob || !mine) ? pOpenLobby(m.id) : pOpen(m.id);
     const d = $('#pDrop');
     if(d) d.onclick = async ()=>{
-      if(!await ask('Das Spiel wird nicht gewertet und verschwindet aus deiner Liste.',
-        {title:'Spiel verwerfen?', ok:'Verwerfen', danger:true})) return;
-      try{ const {sb} = await pSb(); await sb.from('matches').update({state:'cancelled', join_code:null}).eq('id', m.id); }catch(e){}
+      if(lob){
+        if(!await ask('Die Lobby wird geschlossen, der Code gilt nicht mehr.', {title:'Lobby schließen?', ok:'Schließen', danger:true})) return;
+        try{ const {sb} = await pSb(); const r = await sb.rpc('request_end', {p_match:m.id, p_kind:'cancel'}); if(r.error) throw r.error }
+        catch(e){ toast(errText(e, 'Nicht möglich')) }
+        return renderPlayHome();
+      }
+      // Aufstellung laden, damit pEndRequest sagen kann, wer zustimmen muss
+      const ctx = await pLobbyLoad(m.id).catch(()=>null); L = null;
+      await pEndRequest(m.id, 'cancel', ctx);
       renderPlayHome();
     };
   }catch(e){ /* offline: dann eben nicht */ }
@@ -406,7 +412,8 @@ async function pOpen(id){
     const nm = {}; (names||[]).forEach(p=>nm[p.id]=p);
     P = {id, mode:m.data.mode, detail:m.data.detail, gps:m.data.goals_per_set, stw:m.data.sets_to_win,
          host:m.data.host_id, rev:m.data.rev, finished_at:m.data.finished_at, cat:m.data.category || 'ranked',
-         rules:rlFromMatch(m.data), flip:!!(P && P.id === id && P.flip),
+         rules:rlFromMatch(m.data), flip:!!(P && P.id === id && P.flip), state:m.data.state,
+         req:{kind:m.data.end_req, by:m.data.end_req_by, at:m.data.end_req_at},
          players:mp.data.map(x=>Object.assign({}, x, {
            nickname:(nm[x.player_id]||{}).nickname||'?',
            kind:(nm[x.player_id]||{}).kind, deleted_at:(nm[x.player_id]||{}).deleted_at})),
@@ -437,11 +444,13 @@ function renderMatch(){
   $('#mFlip').onclick = ()=>{ P.flip = !P.flip; renderMatch() };
   $('#mRules').onclick = pEditRulesMatch;
   const q = pQueued();
+  const rq = pReq(P);
   $('#mSync').textContent = P.off ? 'Offline-Spiel · wird hochgeladen, sobald Netz da ist'
+    : rq ? (rq.mine ? 'Abbruch beantragt – wartet auf Zustimmung der Gegenseite' : rq.who + ' möchte das Spiel abbrechen')
     : q === 0 ? ''
     : q === 1 ? '1 Tipp noch nicht gespeichert – wird nachgeholt'
     : q + ' Tipps noch nicht gespeichert – werden nachgeholt';
-  $('#mSync').classList.toggle('hidden', !q && !P.off);
+  $('#mSync').classList.toggle('hidden', !q && !P.off && !rq);
 
   const tile = p => '<button class="ptile" data-pid="' + p.player_id + '" data-team="' + p.team + '">'
     + '<b>' + esc(p.nickname) + '</b>' + (pSlotOf(p) ? '<small>' + pSlotOf(p) + '</small>' : '')
@@ -672,11 +681,17 @@ $('#mOwn').onclick = ()=>{ if(!P) return; P.own = !P.own; renderMatch();
 $('#mEnd').onclick = async ()=>{
   if(!P) return;
   if(P.st.match_done) return pSummary();
-  if(!await ask('Das Spiel wird vorzeitig beendet und nicht gewertet.',
-    {title:'Spiel beenden?', ok:'Beenden', danger:true})) return;
-  if(P.off){ offDrop(P.id); pClose(); return }
-  try{ const {sb} = await pSb(); await sb.from('matches').update({state:'cancelled'}).eq('id', P.id) }catch(e){}
-  pClose();
+  if(P.off){
+    if(!await ask('Das Spiel wird vorzeitig beendet und nicht gewertet.', {title:'Spiel beenden?', ok:'Beenden', danger:true})) return;
+    offDrop(P.id); pClose(); return }
+  const rq = pReq(P);
+  if(rq && rq.mine){
+    if(await ask('Die Gegenseite hat noch nicht zugestimmt.', {title:'Anfrage zurückziehen?', ok:'Zurückziehen'}))
+      await pEndAnswer(P.id, false);
+    return;
+  }
+  if(rq && rq.can) return pReqPrompt(P, true);
+  await pEndRequest(P.id, 'cancel', P);
 };
 $('#mInfo').onclick = ()=>info('Zählen',
   '<p class="dmsg">Jeder Tipp auf eine Kachel zählt ein Tor für dieses Team. Bei <b>Erweitert</b> ist die angetippte Person der Torschütze.</p>'
@@ -734,9 +749,9 @@ async function pJoin(){
 async function pLobbyLoad(id){
   const {sb} = await pSb();
   const [m, mp] = await Promise.all([
-    sb.from('matches').select('id,host_id,mode,detail,goals_per_set,sets_to_win,state,join_code,rev,finished_at,category,win_by,win_by_scope,goal_cap,draw_at').eq('id', id).single(),
+    sb.from('matches').select('id,host_id,mode,detail,goals_per_set,sets_to_win,state,join_code,rev,finished_at,category,win_by,win_by_scope,goal_cap,draw_at,end_req,end_req_by,end_req_at').eq('id', id).single(),
     sb.from('match_players').select('player_id,team,position,is_host,device').eq('match_id', id)]);
-  if(m.error) throw m.error; if(mp.error) throw mp.error;
+  if(m.error) throw pGone(m.error); if(mp.error) throw mp.error;
   const ids = mp.data.map(x=>x.player_id);
   const nm = {};
   if(ids.length){
@@ -746,7 +761,7 @@ async function pLobbyLoad(id){
   L = {id, host:m.data.host_id, mode:m.data.mode, detail:m.data.detail,
        gps:m.data.goals_per_set, stw:m.data.sets_to_win, state:m.data.state,
        code:m.data.join_code, rev:m.data.rev, finished_at:m.data.finished_at, cat:m.data.category || 'ranked',
-       rules:rlFromMatch(m.data),
+       rules:rlFromMatch(m.data), req:{kind:m.data.end_req, by:m.data.end_req_by, at:m.data.end_req_at},
        players:mp.data.map(x=>Object.assign({}, x, {
          nickname:(nm[x.player_id]||{}).nickname||'?',
          kind:(nm[x.player_id]||{}).kind, deleted_at:(nm[x.player_id]||{}).deleted_at}))};
@@ -809,7 +824,7 @@ async function pOpenLobby(id){
     await pLobbyLoad(id);
     if(L.state === 'running' && !pIsHost() && pMyDevice()) return pMineOpen(id);
     renderLobby(); show('lobby'); pLobbyPoll();
-  }catch(e){ toast(errText(e, 'Lobby konnte nicht geöffnet werden')) }
+  }catch(e){ toast(e && e.gone ? 'Das Spiel wurde gelöscht' : errText(e, 'Lobby konnte nicht geöffnet werden')) }
 }
 
 function pLobbyStop(){ clearTimeout(lobTimer); lobTimer = 0 }
@@ -826,7 +841,7 @@ function pLobbyPoll(){
       // Mitspieler, der selbst zählt: beim Start direkt in die eigene Zählansicht
       if(L.state === 'running' && before === 'lobby' && pMyDevice()){ pLobbyStop(); return pMineOpen(L.id) }
       if(L.state !== before || true) renderLobby();
-    }catch(e){ /* offline: beim nächsten Durchgang erneut */ }
+    }catch(e){ if(e && e.gone) return pGoneExit() /* sonst offline: beim nächsten Durchgang erneut */ }
     pLobbyPoll();
   }, L.state === 'lobby' ? 3000 : L.state === 'running' && !pIsHost() ? 4000 : 15000);
 }
@@ -837,6 +852,13 @@ function renderLobby(){
   const pos = L.detail === 'full' && L.mode === 'double';
   $('#lobTitle').textContent = L.state === 'lobby' ? 'Lobby' : L.state === 'running' ? 'Spiel läuft' : 'Spiel';
   let h = '';
+  const rq = pReq(L);
+  if(rq) h += '<div class="card todo"><h2>' + (rq.kind === 'cancel' ? 'Abbruch' : 'Löschen') + ' beantragt</h2>'
+    + '<p class="lead">' + (rq.mine ? 'Du möchtest' : esc(rq.who) + ' möchte') + ' das Spiel ' + rq.text + '.'
+    + (rq.kind === 'delete' ? ' Gelöscht ist es für alle weg, auch aus Bilanz und Wertung.' : ' Abgebrochen wird es nicht gewertet.') + '</p>'
+    + (rq.can ? '<div class="two"><button class="big primary" id="lobReqOk">Zustimmen</button><button class="big" id="lobReqNo">Ablehnen</button></div>'
+      : rq.mine ? '<p class="hint">Wartet auf die Zustimmung der Gegenseite.</p><button class="big" id="lobReqBack">Anfrage zurückziehen</button>'
+      : '<p class="hint">Darüber entscheidet die Gegenseite.</p>') + '</div>';
 
   if(L.state === 'lobby'){
     if(host && L.code)
@@ -946,6 +968,10 @@ function renderLobby(){
         h += '<p class="hint">Die Korrekturzeit von 2 Stunden ist abgelaufen – das Ergebnis ist endgültig.</p>';
       }
     }
+    if(pMyTeam() && !rq){
+      if(L.state === 'running' && !host) h += '<button class="big" id="lobAbort">Abbruch beantragen</button>';
+      if(['finished','confirmed','disputed'].includes(L.state)) h += '<button class="big danger" id="lobDel">Spiel löschen</button>';
+    }
     h += '<button class="big" id="lobBack">Zurück</button>';
   }
   $('#lobBody').innerHTML = h;
@@ -960,6 +986,11 @@ function renderLobby(){
   on('lobFix', pReopen);
   on('lobRules', pEditRulesLobby);
   on('lobCount', ()=>pMineOpen(L.id));
+  on('lobAbort', ()=>pEndRequest(L.id, 'cancel', L));
+  on('lobDel', ()=>pEndRequest(L.id, 'delete', L));
+  on('lobReqOk', ()=>pEndAnswer(L.id, true));
+  on('lobReqNo', ()=>pEndAnswer(L.id, false));
+  on('lobReqBack', ()=>pEndAnswer(L.id, false));
   document.querySelectorAll('#lobDev [data-dev]').forEach(b=>b.onclick = ()=>pSetDevice(b.dataset.dev || null));
 }
 async function pEditRulesLobby(){
@@ -1043,7 +1074,7 @@ async function pCancelLobby(){
   if(!L) return;
   if(!await ask('Die Lobby wird geschlossen, der Code gilt nicht mehr. Beigetretene Mitspieler sind wieder raus.',
     {title:'Lobby abbrechen?', ok:'Abbrechen', danger:true})) return;
-  try{ const {sb} = await pSb(); await sb.from('matches').update({state:'cancelled', join_code:null}).eq('id', L.id) }
+  try{ const {sb} = await pSb(); const r = await sb.rpc('request_end', {p_match:L.id, p_kind:'cancel'}); if(r.error) throw r.error }
   catch(e){ toast(errText(e, 'Nicht möglich')); return }
   L = null; pLobbyStop(); go('play');
 }
@@ -1119,9 +1150,16 @@ async function pLoadTodo(){
       .order('finished_at',{ascending:false}).limit(10);
     const offen = (data||[]).filter(m=>m.host_id !== PL.me.id
       && !(m.match_confirmations||[]).some(c=>c.rev===m.rev && c.player_id===PL.me.id));
-    if(!offen.length){ el.innerHTML=''; return }
+    // Anfragen der Gegenseite (Abbrechen/Löschen). Ob ich wirklich zustimmen darf, sagt der Lobby-Bildschirm.
+    const rq = await sb.from('matches').select('id,mode,state,end_req,end_req_by,end_req_at')
+      .in('id', ids).not('end_req', 'is', null).limit(10);
+    const anf = (rq.data||[]).filter(m=>m.end_req_by !== PL.me.id && !offen.some(o=>o.id === m.id));
+    if(!offen.length && !anf.length){ el.innerHTML=''; return }
     el.innerHTML = '<div class="card todo"><h2>Warten auf dich</h2>'
-      + '<p class="lead">Diese Spiele zählen erst, wenn du das Ergebnis bestätigst.</p>'
+      + (offen.length ? '<p class="lead">Diese Spiele zählen erst, wenn du das Ergebnis bestätigst.</p>' : '')
+      + anf.map(m=>'<div class="mrow" data-conf="' + m.id + '"><div><b>' + (m.mode==='single'?'Einzel':'Doppel') + '</b><small>'
+          + (m.end_req === 'cancel' ? 'Abbruch' : 'Löschen') + ' beantragt – zustimmen oder ablehnen</small></div>'
+          + '<span>' + fmtDate(Date.parse(m.end_req_at), true) + '</span></div>').join('')
       + offen.map(m=>'<div class="mrow" data-conf="' + m.id + '"><div><b>'
           + (m.mode==='single'?'Einzel':'Doppel') + '</b><small>' + pStateText(m.state) + '</small></div>'
           + '<span>' + (m.finished_at ? fmtDate(Date.parse(m.finished_at), true) : '') + '</span></div>').join('')
@@ -1304,14 +1342,20 @@ function pHostPoll(){
     if(!P || $('#match').classList.contains('hidden')) return;
     if(!pFlushing && !pQueued()) try{
       const {sb} = await pSb(); const id = P.id;
-      const [st, mp] = await Promise.all([sb.rpc('match_state', {p_match:id}),
-        sb.from('match_players').select('player_id,position,device').eq('match_id', id)]);
+      const [st, mp, mm] = await Promise.all([sb.rpc('match_state', {p_match:id}),
+        sb.from('match_players').select('player_id,position,device').eq('match_id', id),
+        sb.from('matches').select('state,end_req,end_req_by,end_req_at').eq('id', id).maybeSingle()]);
+      if(P && P.id === id && !mm.error && (!mm.data || mm.data.state === 'cancelled')){
+        toast(mm.data ? 'Das Spiel wurde abgebrochen' : 'Das Spiel wurde gelöscht'); return pClose();
+      }
+      if(P && P.id === id && mm.data){ P.state = mm.data.state; P.req = {kind:mm.data.end_req, by:mm.data.end_req_by, at:mm.data.end_req_at} }
       if(P && P.id === id && !pFlushing && !pQueued() && !st.error){
         const was = P.st.match_done;
         P.st = st.data;
         (mp.data||[]).forEach(x=>{ const p = P.players.find(y=>y.player_id === x.player_id); if(p){ p.position = x.position; p.device = x.device } });
         renderMatch();
         if(!was && P.st.match_done) pSummary();
+        else pReqPrompt(P);
       }
     }catch(e){ /* kein Netz: nächster Versuch */ }
     pHostPoll();
@@ -1337,8 +1381,8 @@ function miPoll(){
     try{
       await pLobbyLoad(L.id); miNet = true;
       if(L.state !== 'running' || !pMyDevice()){ wake(false); miStop(); return pOpenLobby(L.id) }
-    }catch(e){ miNet = false }
-    renderMine(); miPoll();
+    }catch(e){ if(e && e.gone){ wake(false); return pGoneExit() } miNet = false }
+    renderMine(); pReqPrompt(L); miPoll();
   }, 2500);
 }
 function miOnline(){ return miNet && navigator.onLine }
@@ -1373,7 +1417,10 @@ function renderMine(){
   const swapT = dev === 'team' ? 'Sturm ⇆ Abwehr' : me.position === 'off' ? 'Ich gehe hinten' : 'Ich gehe vorne';
   $('#miFoot').innerHTML = '<button id="miUndo"' + dis + '>' + icon('undo') + '<small>Rückgängig</small></button>'
     + (pos ? '<button id="miSwap"' + dis + '>' + icon('swap') + '<small>' + swapT + '</small></button>' : '')
-    + (full ? '<button id="miOwn"' + dis + '>Eigentor<small>vom Gegner</small></button>' : '');
+    + (full ? '<button id="miOwn"' + dis + '>Eigentor<small>vom Gegner</small></button>' : '')
+    + '<button id="miEnd"' + (on ? '' : ' disabled') + '>' + icon('stop') + '<small>Abbruch</small></button>';
+  const rq = pReq(L);
+  if(rq && on && !miBusy) $('#miSync').textContent = rq.mine ? 'Abbruch beantragt – wartet auf die Gegenseite' : rq.who + ' möchte abbrechen';
 }
 async function miSend(fn, okBeep){
   if(miBusy || !miOnline()) return;
@@ -1406,6 +1453,12 @@ $('#miBtns').addEventListener('pointerdown', e=>{
 });
 $('#miFoot').addEventListener('click', async e=>{
   const b = e.target.closest('button'); if(!b || b.disabled || !L) return;
+  if(b.id === 'miEnd'){
+    const rq = pReq(L);
+    if(rq && rq.can) return pReqPrompt(L, true);
+    if(rq && rq.mine){ if(await ask('Die Gegenseite hat noch nicht zugestimmt.', {title:'Anfrage zurückziehen?', ok:'Zurückziehen'})) await pEndAnswer(L.id, false); return }
+    return pEndRequest(L.id, 'cancel', L);
+  }
   if(b.id === 'miUndo') miSend(sb=>sb.rpc('undo_goal', {p_match:L.id}));
   else if(b.id === 'miSwap') miSend(sb=>sb.rpc('swap_positions', {p_match:L.id, p_team:miTeam()}));
   else if(b.id === 'miOwn'){
@@ -1428,3 +1481,91 @@ $('#miInfo').onclick = ()=>info('Selbst zählen',
   + '<p class="dmsg">Am Ende bestätigt die Gegenseite das Ergebnis wie gewohnt.</p>');
 window.addEventListener('online', ()=>{ if(L && !$('#mine').classList.contains('hidden')){ miNet = true; renderMine() } });
 window.addEventListener('offline', ()=>{ if(L && !$('#mine').classList.contains('hidden')) renderMine() });
+
+/* ---------- Abbrechen und Löschen mit Zustimmung (v3.27) ----------
+   Abbrechen (laufend, ohne Wertung) und Löschen (beendet, endgültig) beantragt
+   jeder Mitspieler; zustimmen muss jemand mit Konto aus dem anderen Team. Gegen
+   reine Gäste entscheidet der Host. Maßgeblich ist request_end/answer_end. */
+function pGone(err){
+  // Kein Spiel mehr unter dieser Nummer: gelöscht (oder nie sichtbar)
+  if(err && (err.code === 'PGRST116' || /no rows|0 rows/i.test(err.message || ''))) return Object.assign(new Error('gelöscht'), {gone:true});
+  return err;
+}
+function pGoneExit(){
+  miStop(); pLobbyStop(); L = null; toast('Das Spiel wurde gelöscht'); go('play');
+}
+function pReq(o){
+  if(!o || !o.req || !o.req.kind || !o.players) return null;
+  const fits = o.req.kind === 'cancel' ? ['lobby','running'].includes(o.state) : ['finished','confirmed','disputed'].includes(o.state);
+  if(!fits) return null;
+  const me = PL.me && PL.me.id, by = o.players.find(p=>p.player_id === o.req.by);
+  const byT = by ? by.team : null;
+  const other = o.players.filter(p=>p.team !== byT && p.kind === 'account' && !p.deleted_at);
+  const can = !!me && me !== o.req.by && (other.length ? other.some(p=>p.player_id === me) : o.host === me);
+  return {kind:o.req.kind, mine:me === o.req.by, can, who:by ? by.nickname : 'Jemand',
+          text:o.req.kind === 'cancel' ? 'abbrechen' : 'löschen'};
+}
+// Wer müsste zustimmen, wenn ich beantrage? (nur für den Text; entscheidet der Server)
+function pApprovers(o){
+  if(!o || !o.players || !PL.me) return [];
+  const mine = o.players.find(p=>p.player_id === PL.me.id); if(!mine) return [];
+  const other = o.players.filter(p=>p.team !== mine.team && p.kind === 'account' && !p.deleted_at);
+  if(other.length) return other.map(p=>p.nickname);
+  const h = o.players.find(p=>p.player_id === o.host);
+  return h && o.host !== PL.me.id ? [h.nickname] : [];
+}
+async function pEndRequest(id, kind, ctx){
+  const who = pApprovers(ctx), del = kind === 'delete';
+  const body = (del ? 'Das Spiel ist danach für alle endgültig weg, auch aus Bilanz und Wertung.' : 'Das Spiel wird nicht gewertet.')
+    + (who.length ? ' ' + who.join(' oder ') + ' muss zustimmen.' : '');
+  if(!await ask(body, {title:(del ? 'Spiel löschen' : 'Spiel abbrechen') + (who.length ? ' beantragen?' : '?'),
+    ok:who.length ? 'Beantragen' : (del ? 'Löschen' : 'Spiel abbrechen'), danger:true})) return;
+  try{
+    const {sb} = await pSb();
+    const {data, error} = await sb.rpc('request_end', {p_match:id, p_kind:kind});
+    if(error) throw error;
+    pEndAfter(id, data, kind);
+  }catch(e){ toast(errText(e)) }
+}
+async function pEndAnswer(id, ok){
+  try{
+    const {sb} = await pSb();
+    const {data, error} = await sb.rpc('answer_end', {p_match:id, p_ok:ok});
+    if(error) throw error;
+    const kind = (L && L.id === id && L.req.kind) || (P && P.id === id && P.req && P.req.kind) || 'cancel';
+    pEndAfter(id, data, kind);
+  }catch(e){ toast(errText(e)) }
+}
+async function pEndAfter(id, res, kind){
+  if(res === 'done'){
+    toast(kind === 'delete' ? 'Spiel gelöscht' : 'Spiel abgebrochen');
+    miStop(); pLobbyStop(); L = null;
+    if(P && P.id === id) return pClose();
+    return go('play');
+  }
+  toast(res === 'requested' ? 'Beantragt – die Gegenseite muss zustimmen'
+    : res === 'rejected' ? 'Abgelehnt – das Spiel bleibt'
+    : res === 'withdrawn' ? 'Anfrage zurückgezogen' : 'Die Anfrage war schon überholt');
+  if(P && P.id === id && $('#mine').classList.contains('hidden')){
+    try{ const {sb} = await pSb(); const {data} = await sb.from('matches').select('end_req,end_req_by,end_req_at').eq('id', id).maybeSingle();
+      if(data) P.req = {kind:data.end_req, by:data.end_req_by, at:data.end_req_at} }catch(e){}
+    return renderMatch();
+  }
+  if(L && L.id === id){
+    await pLobbyLoad(id).catch(()=>{});
+    if(!$('#mine').classList.contains('hidden')) renderMine(); else renderLobby();
+  }
+}
+/* Anfrage der Gegenseite einmal als Dialog zeigen (oder sofort, wenn force) */
+let pReqSeen = '';
+async function pReqPrompt(o, force){
+  const r = pReq(o); if(!r || !r.can) return;
+  const key = o.id + '|' + o.req.at;
+  if(!force && pReqSeen === key) return;
+  pReqSeen = key;
+  const v = await dlg('<h3 class="dtitle">' + esc(r.who) + ' möchte das Spiel ' + r.text + '</h3>'
+    + '<p class="dmsg">' + (r.kind === 'cancel' ? 'Abgebrochen wird es nicht gewertet.' : 'Gelöscht ist es für alle endgültig weg.') + '</p>',
+    [{t:'Zustimmen', v:'ok', cls:'primary'}, {t:'Ablehnen', v:'no'}, {t:'Später', v:null, cancel:true}]);
+  if(v === 'ok') await pEndAnswer(o.id, true);
+  else if(v === 'no') await pEndAnswer(o.id, false);
+}

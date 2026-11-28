@@ -210,7 +210,9 @@ select tst('Gruppe mit Gästen ist nicht löschbar', 'aaaaaaaa-0000-4000-8000-00
 \echo
 select '== Spiel ==';
 
-select trows('A erstellt ein Spiel (mit RETURNING)', 'aaaaaaaa-0000-4000-8000-000000000001',
+select tst('A kann kein Spiel direkt anlegen (nur über create_match/create_lobby)', 'aaaaaaaa-0000-4000-8000-000000000001',
+  $$insert into matches (host_id, mode) select (select id from t_ids where name = 'Oliver'), 'single'$$, 'err');
+select trows('Spiel anlegen (wie create_lobby, mit RETURNING)', 'super',
   $$insert into matches (host_id, mode, detail, group_id)
     select (select id from t_ids where name = 'Oliver'), 'double', 'full',
            (select id from t_ids where name = 'Gruppe') returning id, join_code$$, 1);
@@ -250,15 +252,22 @@ select trows('A tauscht die Positionen im eigenen Team',
   $$update match_players set position = case position when 'off' then 'def' else 'off' end
      where team = 1$$, 2);
 
-select trows('A legt Satz 1 an', 'aaaaaaaa-0000-4000-8000-000000000001',
+select tst('A kann keinen Satz direkt anlegen', 'aaaaaaaa-0000-4000-8000-000000000001',
+  $$insert into match_sets (match_id, set_no) select (select id from t_ids where name = 'Spiel'), 1$$, 'err');
+select trows('Satz 1 anlegen (wie start_match)', 'super',
   $$insert into match_sets (match_id, set_no)
     select (select id from t_ids where name = 'Spiel'), 1 returning match_id$$, 1);
-select trows('A zählt ein Tor mit Schütze und Position',
-  'aaaaaaaa-0000-4000-8000-000000000001',
+select trows('Spiel läuft (wie start_match)', 'super',
+  $$update matches set state = 'running', join_code = null, started_at = now()$$, 1);
+select tst('A kann kein Tor direkt schreiben (nur über record_goal)', 'aaaaaaaa-0000-4000-8000-000000000001',
+  $$insert into goals (match_id, set_no, seq, team) select (select id from t_ids where name = 'Spiel'), 1, 9, 1$$, 'err');
+select trows('Tor mit Schütze und Position (wie record_goal)', 'super',
   $$insert into goals (match_id, set_no, seq, team, scorer_id, scorer_position)
     select (select id from t_ids where name = 'Spiel'), 1, 1, 1,
            (select id from t_ids where name = 'Oliver'), 'def' returning seq$$, 1);
-select trows('A trägt den Satzstand nach', 'aaaaaaaa-0000-4000-8000-000000000001',
+select trows('A kann den Satzstand nicht direkt ändern', 'aaaaaaaa-0000-4000-8000-000000000001',
+  $$update match_sets set score1 = 9 where set_no = 1$$, 0);
+select trows('Satzstand nachtragen (wie record_goal)', 'super',
   $$update match_sets set score1 = 1 where set_no = 1$$, 1);
 select tst('B kann kein Tor schreiben', 'bbbbbbbb-0000-4000-8000-000000000002',
   $$insert into goals (match_id, set_no, seq, team)
@@ -267,21 +276,25 @@ select trows('B kann kein Tor löschen', 'bbbbbbbb-0000-4000-8000-000000000002',
   $$delete from goals$$, 0);
 select tcount('B sieht die Tore des Spiels', 'bbbbbbbb-0000-4000-8000-000000000002',
   $$select count(*) from goals$$, 1);
-select tst('Tor in einem nicht angelegten Satz wird abgewiesen',
-  'aaaaaaaa-0000-4000-8000-000000000001',
+select trows('Nach Spielbeginn kann A die Aufstellung nicht mehr direkt ändern', 'aaaaaaaa-0000-4000-8000-000000000001',
+  $$update match_players set team = 2 where player_id = (select id from t_ids where name = 'Oliver')$$, 0);
+select tst('Tor in einem nicht angelegten Satz wird abgewiesen', 'super',
   $$insert into goals (match_id, set_no, seq, team)
     select (select id from t_ids where name = 'Spiel'), 7, 1, 1$$, 'err');
-select tst('Ungültige Position wird abgewiesen', 'aaaaaaaa-0000-4000-8000-000000000001',
+select tst('Ungültige Position wird abgewiesen', 'super',
   $$insert into goals (match_id, set_no, seq, team, scorer_position)
     select (select id from t_ids where name = 'Spiel'), 1, 2, 1, 'mitte'$$, 'err');
 
 \echo
 select '== Bestätigung und Korrektur ==';
 
-select trows('A beendet das Spiel und entwertet den Code',
-  'aaaaaaaa-0000-4000-8000-000000000001',
+select trows('A kann ein Spiel nicht direkt auf bestätigt setzen (Elo ohne Zustimmung)', 'aaaaaaaa-0000-4000-8000-000000000001',
+  $$update matches set state = 'confirmed', join_code = null, finished_at = now()$$, 0);
+select trows('A kann ein Spiel mit Mitspielern nicht direkt löschen', 'aaaaaaaa-0000-4000-8000-000000000001',
+  $$delete from matches$$, 0);
+select trows('Spiel beenden, Code entwerten (wie record_goal)', 'super',
   $$update matches set state = 'finished', join_code = null, finished_at = now()$$, 1);
-select tst('Beitrittscode nur in der Lobby', 'aaaaaaaa-0000-4000-8000-000000000001',
+select tst('Beitrittscode nur in der Lobby', 'super',
   $$update matches set join_code = '123456' where state = 'finished'$$, 'err');
 select trows('B bestätigt für sich selbst', 'bbbbbbbb-0000-4000-8000-000000000002',
   $$insert into match_confirmations (match_id, player_id, rev, decision)
@@ -294,8 +307,7 @@ select trows('Bestätigung ist nicht änderbar', 'bbbbbbbb-0000-4000-8000-000000
   $$update match_confirmations set decision = 'reject'$$, 0);
 select trows('Bestätigung ist nicht löschbar', 'bbbbbbbb-0000-4000-8000-000000000002',
   $$delete from match_confirmations$$, 0);
-select trows('A korrigiert: rev hoch, zurück auf finished',
-  'aaaaaaaa-0000-4000-8000-000000000001',
+select trows('Korrektur: rev hoch (wie reopen_match)', 'super',
   $$update matches set rev = rev + 1, rated = false$$, 1);
 select tcount('Die alte Bestätigung gilt nicht für die neue Fassung', 'super',
   $$select count(*) from match_confirmations c join matches m on m.id = c.match_id

@@ -154,6 +154,13 @@ Ein Chip „Reaktionsschießen“, darunter zwei Varianten (eigene Disziplinen `
 - Beim ersten Anmelden mit vorhandenen Gerätedaten gibt es eine Rückfrage, ob sie ins Konto übernommen werden. Bei Daten eines anderen Kontos auf dem Gerät ebenfalls
 - **Abmelden** behält alle Daten auf dem Gerät. **Konto löschen** entfernt E-Mail-Adresse und alle Daten im Konto, die Gerätedaten bleiben
 
+### Abbrechen und Löschen mit Zustimmung (v3.27)
+- **Abbrechen** (laufendes Spiel, ohne Wertung): jeder Mitspieler beantragt – Host über „Ende“, eigenes Handy über „Abbruch“, Zuschauer über „Abbruch beantragen“. Zustimmen muss jemand mit Konto aus dem anderen Team. Gegen reine Gäste entscheidet der Host allein; die offene Lobby schließt der Host sofort
+- **Löschen** (beendetes Spiel, endgültig): „Spiel löschen“ in der Ergebnisansicht, Zustimmung wie beim Abbrechen. Weg sind Spiel, Tore, Bestätigungen und der Anteil an Elo (wird neu gerechnet)
+- Anfragen erscheinen beim Host in der Kopfzeile und als Dialog (Zustimmen / Ablehnen / Später), am eigenen Handy ebenso, auf der Startseite unter „Warten auf dich“ und als Karte im Spiel. Wer beantragt hat, kann zurückziehen; beantragt die Gegenseite dasselbe, gilt das als Zustimmung; passt die Anfrage nicht mehr zum Spielstand, verfällt sie
+- Server: `request_end()`, `answer_end()`, `end_approvers()`; Spalten `matches.end_req/_by/_at`
+- **Sicherheitslücke geschlossen**: Bisher durfte der Host `matches`, `match_sets` und `goals` direkt schreiben, also z. B. ein Spiel gegen Konten selbst auf „bestätigt“ setzen (Elo ohne Zustimmung), Stände ändern oder Spiele allein löschen. Jetzt nur noch über geprüfte Funktionen; direkt bleibt nur die Aufstellung in der offenen Lobby
+
 ### Jeder zählt am eigenen Handy (v3.26)
 - In der Lobby wählt jeder Mitspieler mit Konto **„Wie zählst du?“**: *Host zählt* (Vorgabe), *Eigenes Handy* (nur eigene Tore) oder *Team-Handy* (Tore des eigenen Teams, Schütze wählbar; nur Doppel). Je Team entweder ein Team-Handy oder eigene Handys, sonst landet ein Tor doppelt. Umstellen geht auch im laufenden Spiel
 - **Zählansicht „eigenes Handy“** (`#mine`): oben der Stand, groß und mit dem **eigenen Team links**, darunter der Tor-Knopf (Team-Handy: ein Knopf je Spieler). Unten Rückgängig, „Ich gehe vorne/hinten“ (Doppel, Erweitert) und „Eigentor vom Gegner“. Querformat: Stand links, Knopf rechts
@@ -249,9 +256,9 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Das Schema liegt als Migrationen in `supabase/migrations/`. Die GitHub-Integration von Supabase spielt neue Migrationen beim Merge nach `main` ein – ein Merge verändert also sofort die echte Datenbank
 - Tabellen **Üben** (Phase 1): `profiles`, `sessions`, `shots`
 - Tabellen **Spielen** (Paket 4): `players`, `groups`, `group_members`, `matches`, `match_players`, `match_sets`, `goals`, `match_confirmations`
-- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `set_device()`, `swap_positions()`, `import_match()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()`, `my_ratings()`, `leaderboard()`, `recompute_ratings()` (nur intern) – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
+- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `set_device()`, `swap_positions()`, `request_end()`, `answer_end()`, `import_match()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()`, `my_ratings()`, `leaderboard()`, `recompute_ratings()` (nur intern) – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
 - Konto löschen läuft über die Funktion `delete_my_account()`
-- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 547 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
+- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 608 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
 - Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
 
 ### Einrichtung in Supabase

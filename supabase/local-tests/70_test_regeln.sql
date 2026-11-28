@@ -237,7 +237,7 @@ select htxt('Letztes Tor war Team 2 → 2:1', 'super', $$select r_st('U')$$, 'ru
 select htst('Nochmal', :'H', $$select undo_goal((select id from t7 where name='U'))$$, 'ok');
 select htxt('Davor Team 2 → 2:0', 'super', $$select r_st('U')$$, 'running 2:0/-');
 select hnum('Zeilen passen zum Stand', 'super', $$select count(*) from goals where match_id=(select id from t7 where name='U')$$, 2);
-select htst('Alt-Spiel ohne Zeilen: Schätzung wie bisher', :'H',
+select htst('Alt-Spiel ohne Zeilen: Schätzung wie bisher', 'super',
   $$delete from goals where match_id=(select id from t7 where name='U')$$, 'ok');
 select htst('Rückgängig ohne Zeilen geht', :'H', $$select undo_goal((select id from t7 where name='U'))$$, 'ok');
 select htxt('Schätzung: Team mit höherem Stand', 'super', $$select r_st('U')$$, 'running 1:0/-');

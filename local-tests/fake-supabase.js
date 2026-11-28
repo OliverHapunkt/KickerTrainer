@@ -33,6 +33,7 @@
     eq(k,v){ this.f.push(r=>r[k] === v); return this }
     is(k,v){ this.f.push(r=>(r[k] === undefined ? null : r[k]) === v); return this }
     in(k,v){ this.f.push(r=>v.includes(r[k])); return this }
+    not(k,op,v){ this.f.push(r=>op==='is' ? (r[k] === undefined ? null : r[k]) !== v : r[k] !== v); return this }
     order(k,o){ this.ord = [k, !o || o.ascending !== false]; return this }
     limit(n){ this.lim = n; return this }
     range(){ return this }
@@ -75,7 +76,7 @@
       return Promise.resolve(res(out));
     }
     then(ok, no){ return this._run().then(ok, no) }
-    single(){ return this._run().then(r=>r.error?r:(r.data&&r.data.length?res(r.data[0]):res(null,{message:'no rows'}))) }
+    single(){ return this._run().then(r=>r.error?r:(r.data&&r.data.length?res(r.data[0]):res(null,{message:'JSON object requested, multiple (or no) rows returned',code:'PGRST116'}))) }
     maybeSingle(){ return this._run().then(r=>r.error?r:res((r.data&&r.data[0])||null)) }
     insert(v){ this.ins = Array.isArray(v)?v:[v]; return this }
     update(v){ this.upd = v; return this }
@@ -393,6 +394,28 @@
         DB.match_sets.push({match_id:m.id,set_no:1,score1:0,score2:0,winner_team:null});
       persist(); return res(m);
     },
+    // Wie request_end/answer_end/end_approvers
+    request_end: a => {
+      const me=DB.players.find(p=>p.user_id===UID()), m=DB.matches.find(x=>x.id===a.p_match);
+      if(!m) return res(null,{message:'Spiel nicht gefunden',code:'P0001'});
+      if(!DB.match_players.some(x=>x.match_id===m.id&&x.player_id===me.id)) return res(null,{message:'Du spielst in diesem Spiel nicht mit',code:'42501'});
+      if(!endFits(m.state,a.p_kind)) return res(null,{message:a.p_kind==='cancel'?'Abbrechen geht nur, solange das Spiel läuft. Ein beendetes Spiel kannst du löschen':'Löschen geht erst, wenn das Spiel beendet ist. Ein laufendes Spiel brichst du ab',code:'P0001'});
+      if(m.state==='lobby'){ if(m.host_id!==me.id) return res(null,{message:'Die Lobby schließt der Host. Du kannst aussteigen',code:'42501'}); endExec(m,'cancel'); return res('done') }
+      if(m.end_req===a.p_kind&&m.end_req_by&&approvers(m.id,m.end_req_by).includes(me.id)){ endExec(m,a.p_kind); return res('done') }
+      if(!approvers(m.id,me.id).length){ endExec(m,a.p_kind); return res('done') }
+      m.end_req=a.p_kind; m.end_req_by=me.id; m.end_req_at=new Date().toISOString(); persist(); return res('requested');
+    },
+    answer_end: a => {
+      const me=DB.players.find(p=>p.user_id===UID()), m=DB.matches.find(x=>x.id===a.p_match);
+      if(!m) return res(null,{message:'Spiel nicht gefunden',code:'P0001'});
+      if(!m.end_req) return res(null,{message:'Es gibt keine offene Anfrage',code:'P0001'});
+      const clear=()=>{m.end_req=null;m.end_req_by=null;m.end_req_at=null;persist()};
+      if(!endFits(m.state,m.end_req)){ clear(); return res('stale') }
+      if(me.id===m.end_req_by){ if(a.p_ok) return res(null,{message:'Zustimmen muss die Gegenseite',code:'42501'}); clear(); return res('withdrawn') }
+      if(!approvers(m.id,m.end_req_by).includes(me.id)) return res(null,{message:'Darüber entscheidet die Gegenseite',code:'42501'});
+      if(a.p_ok){ endExec(m,m.end_req); return res('done') }
+      clear(); return res('rejected');
+    },
     set_device: a => {
       const meP=DB.players.find(p=>p.user_id===UID());
       const m=DB.matches.find(x=>x.id===a.p_match);
@@ -449,6 +472,21 @@
     }
   };
 
+  function endFits(st,k){ return k==='cancel'?['lobby','running'].includes(st):k==='delete'?['finished','confirmed','disputed'].includes(st):false }
+  function approvers(mid, by){
+    const m=DB.matches.find(x=>x.id===mid), mp=DB.match_players.filter(x=>x.match_id===mid);
+    const t=(mp.find(x=>x.player_id===by)||{}).team;
+    const other=mp.filter(x=>x.team!==t).filter(x=>{const p=DB.players.find(y=>y.id===x.player_id)||{};return p.kind==='account'&&!p.deleted_at}).map(x=>x.player_id);
+    return other.length?other:(m.host_id!==by?[m.host_id]:[]);
+  }
+  function endExec(m,k){
+    if(k==='cancel'){ m.state='cancelled'; m.join_code=null; m.end_req=null; m.end_req_by=null; m.end_req_at=null }
+    else{ const id=m.id; const was=m.state;
+      DB.matches=DB.matches.filter(x=>x.id!==id);
+      for(const t of ['match_players','match_sets','goals','match_confirmations','rating_history']) DB[t]=DB[t].filter(x=>x.match_id!==id);
+      if(was==='confirmed') recompute(); }
+    persist();
+  }
   const ME = () => { let e=null; try{ e=localStorage.getItem('__fakeemail') }catch(x){}
     return {id:UID(), email:e||UID().slice(0,4)+'@example.org'} };
   window.supabase = {createClient(){ return {
