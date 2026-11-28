@@ -160,6 +160,8 @@ Ein Chip „Reaktionsschießen“, darunter zwei Varianten (eigene Disziplinen `
 - Technik: Edge Function `code-login` (`supabase/functions/code-login/`, `verify_jwt = false`, prüft selbst). Intern Platzhalter-Adresse `<uuid>@code.kickertrainer.invalid` + Code als Passwort. Die Adresse verlässt den Server nie, Anmelden läuft über die Funktion
 - E-Mail nachtragen: Hilfs-Client bestätigt die Adresse per OTP (legt dabei ein leeres Konto an), die Funktion löscht dieses leere Konto und hängt die Adresse ans Code-Konto. Gehört die Adresse schon einem Konto mit Daten, wird abgelehnt
 - Code zurücksetzen durch den Betreiber: neues Passwort für das Konto setzen (Supabase-Dashboard oder Admin-API) und dem Nutzer den Code geben
+- Kopieren/Teilen im Code-Dialog melden sich am Knopf („Kopiert ✓“); Meldungen liegen jetzt über Dialogen
+- **Rückgängig bei „Einfach“ (v3.23)**: `record_goal` speichert jedes Tor als Zeile (ohne Schützen), `undo_goal` nimmt das wirklich letzte Tor zurück. Spiele von vorher (ohne Zeilen) behalten die Schätzung. Migration `20261128120000_undo_einfach.sql`
 - **Web-App-Hinweis**: beim ersten Aufruf im Browser (nicht als installierte App) eine Anleitung für iPhone/iPad, Android und Computer, die passende zuerst. Wichtig: erst installieren, dann anmelden (iOS trennt Safari und Home-Bildschirm-App). Später unter Mehr › Hilfe › App installieren
 
 ---
@@ -224,7 +226,7 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Tabellen **Spielen** (Paket 4): `players`, `groups`, `group_members`, `matches`, `match_players`, `match_sets`, `goals`, `match_confirmations`
 - Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()`, `my_ratings()`, `leaderboard()`, `recompute_ratings()` (nur intern) – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
 - Konto löschen läuft über die Funktion `delete_my_account()`
-- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 433 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
+- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 451 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
 - Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
 
 ### Einrichtung in Supabase

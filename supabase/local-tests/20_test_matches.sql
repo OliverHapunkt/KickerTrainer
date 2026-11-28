@@ -196,8 +196,8 @@ select fnum('Keine Positionen bei Einzel', 'super',
 
 select fjson('Tor im einfachen Modus', :'H',
   $$select record_goal((select id from t2 where name='Spiel2'), 2::smallint)$$, 'score2', '1');
-select fnum('Keine Tor-Zeile im einfachen Modus', 'super',
-  $$select count(*) from goals g join matches m on m.id=g.match_id where m.detail='simple'$$, 0);
+select fnum('Tor-Zeile auch im einfachen Modus (für Rückgängig), ohne Schützen', 'super',
+  $$select count(*) from goals g join matches m on m.id=g.match_id where m.detail='simple' and g.scorer_id is null$$, 1);
 select fjson('Zweites Tor beendet Spiel2', :'H',
   $$select record_goal((select id from t2 where name='Spiel2'), 2::smallint)$$, 'match_done', 'true');
 select fjson('Rückgängig geht auch ohne Tor-Zeilen', :'H',

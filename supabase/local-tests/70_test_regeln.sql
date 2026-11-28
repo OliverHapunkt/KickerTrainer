@@ -152,9 +152,9 @@ select htst('Entscheidung 4:4', :'H', $$select r_goals('E','12121212')$$, 'ok');
 select htxt('Remis: Satz 3 mit Sieger 0, Spiel vorbei', 'super', $$select r_st('E')$$, 'confirmed 5:4/1 0:5/2 4:4/0');
 select hnum('Spielstand meldet das Ende', :'H', $$select (match_state((select id from t7 where name='E'))->>'match_done')::boolean::int$$, 1);
 select htst('Rückgängig nach dem Remis', :'H', $$select undo_goal((select id from t7 where name='E'))$$, 'ok');
--- Einfache Erfassung hat keine Tor-Zeilen: bei Gleichstand nimmt der Server Team 1 zurück
-select htxt('Läuft wieder bei 3:4', 'super', $$select r_st('E')$$, 'running 5:4/1 0:5/2 3:4/-');
-select htst('Wieder 4:4', :'H', $$select r_goals('E','1')$$, 'ok');
+-- Seit v3.23 hat auch die einfache Erfassung Tor-Zeilen: Das letzte Tor (Team 2) wird zurückgenommen
+select htxt('Läuft wieder bei 4:3', 'super', $$select r_st('E')$$, 'running 5:4/1 0:5/2 4:3/-');
+select htst('Wieder 4:4', :'H', $$select r_goals('E','2')$$, 'ok');
 select htxt('Wieder Remis', 'super', $$select r_st('E')$$, 'confirmed 5:4/1 0:5/2 4:4/0');
 select htxt('Bilanz-Verlauf liefert den Remis-Satz', :'H',
   $$select (x->'sets'->2)::text from jsonb_array_elements(my_match_history()) x where x->>'id'=(select id from t7 where name='E')::text$$, '[4, 4, 0]');
@@ -180,7 +180,7 @@ select hmsg('Einzel/Doppel nur in der Lobby', :'H', $$select update_match_rules(
 select htst('Erfassung auf Erweitert', :'H', $$select update_match_rules((select id from t7 where name='F'), p_detail => 'full')$$, 'ok');
 select htst('Tor mit Schütze wird jetzt gespeichert', :'H',
   $$select record_goal((select id from t7 where name='F'), 1::smallint, (select id from t7 where name='Host'))$$, 'ok');
-select hnum('Eine Tor-Zeile', 'super', $$select count(*) from goals where match_id=(select id from t7 where name='F')$$, 1);
+select hnum('Genau ein Tor mit Schütze', 'super', $$select count(*) from goals where match_id=(select id from t7 where name='F') and scorer_id is not null$$, 1);
 select htst('Vorsprung einschalten', :'H', $$select update_match_rules((select id from t7 where name='F'), p_win_by => 2::smallint, p_scope => 'all')$$, 'ok');
 select htst('Obergrenze wieder aus', :'H', $$select update_match_rules((select id from t7 where name='F'), p_cap => 9::smallint)$$, 'ok');
 select htst('…und wieder weg', :'H', $$select update_match_rules((select id from t7 where name='F'), p_clear_cap => true)$$, 'ok');
@@ -217,3 +217,27 @@ select htxt('Remis, wartet auf C', 'super', $$select r_st('M')$$, 'finished 1:1/
 select htst('C bestätigt', :'C', $$select confirm_match((select id from t7 where name='M'), 'ok')$$, 'ok');
 select htxt('H 1000 (Remis bei gleicher Stärke)', 'super',
   $$select round(rating)::text||' '||draws from ratings r join players p on p.id=r.player_id where p.nickname='Host' and r.kind='single'$$, '1000 1');
+
+\echo
+select '== Rückgängig bei „Einfach“ (v3.23) ==';
+select htst('Lobby Einzel, Einfach', :'H', $$select create_lobby('single','simple',6::smallint,1::smallint,null)$$, 'ok');
+delete from t7c; insert into t7c select 'U', join_code from matches where state='lobby' and goals_per_set=6;
+insert into t7 select 'U', id from matches where state='lobby' and goals_per_set=6;
+select htst('C tritt bei', :'C', $$select join_match_by_code((select code from t7c where name='U'))$$, 'ok');
+select htst('Start', :'H', $$select start_match((select id from t7 where name='U'))$$, 'ok');
+select htst('1:1, Team 2 zuletzt', :'H', $$select r_goals('U','12')$$, 'ok');
+select hnum('Jedes Tor hat eine Zeile', 'super', $$select count(*) from goals where match_id=(select id from t7 where name='U')$$, 2);
+select hnum('…ohne Schützen', 'super', $$select count(*) from goals where match_id=(select id from t7 where name='U') and scorer_id is not null$$, 0);
+select htst('Rückgängig', :'H', $$select undo_goal((select id from t7 where name='U'))$$, 'ok');
+select htxt('Team 2 zurückgenommen, nicht Team 1', 'super', $$select r_st('U')$$, 'running 1:0/-');
+select htst('Noch 2, 1, 1 → 2:2? (Team 1,2,2)', :'H', $$select r_goals('U','122')$$, 'ok');
+select htxt('Stand 2:2', 'super', $$select r_st('U')$$, 'running 2:2/-');
+select htst('Rückgängig', :'H', $$select undo_goal((select id from t7 where name='U'))$$, 'ok');
+select htxt('Letztes Tor war Team 2 → 2:1', 'super', $$select r_st('U')$$, 'running 2:1/-');
+select htst('Nochmal', :'H', $$select undo_goal((select id from t7 where name='U'))$$, 'ok');
+select htxt('Davor Team 2 → 2:0', 'super', $$select r_st('U')$$, 'running 2:0/-');
+select hnum('Zeilen passen zum Stand', 'super', $$select count(*) from goals where match_id=(select id from t7 where name='U')$$, 2);
+select htst('Alt-Spiel ohne Zeilen: Schätzung wie bisher', :'H',
+  $$delete from goals where match_id=(select id from t7 where name='U')$$, 'ok');
+select htst('Rückgängig ohne Zeilen geht', :'H', $$select undo_goal((select id from t7 where name='U'))$$, 'ok');
+select htxt('Schätzung: Team mit höherem Stand', 'super', $$select r_st('U')$$, 'running 1:0/-');

@@ -251,10 +251,12 @@
       const m=DB.matches.find(x=>x.id===a.p_match);
       if(m.state!=='running') return res(null,{message:'Das Spiel läuft nicht mehr',code:'P0001'});
       const cur=DB.match_sets.filter(s=>s.match_id===m.id&&s.winner_team==null).sort((x,y)=>x.set_no-y.set_no)[0];
-      if(m.detail==='full') DB.goals.push({match_id:m.id,set_no:cur.set_no,
+      // seit v3.23 immer eine Tor-Zeile; Schütze/Position/Eigentor nur bei „Voll“
+      const fullM=m.detail==='full';
+      DB.goals.push({match_id:m.id,set_no:cur.set_no,
         seq:DB.goals.filter(g=>g.match_id===m.id&&g.set_no===cur.set_no).length+1,
-        team:a.p_team,scorer_id:a.p_scorer||null,scorer_position:m.mode==='double'?a.p_position:null,
-        own_goal:!!a.p_own});
+        team:a.p_team,scorer_id:fullM?(a.p_scorer||null):null,scorer_position:fullM&&m.mode==='double'?a.p_position:null,
+        own_goal:fullM&&!!a.p_own});
       if(a.p_team===1)cur.score1++;else cur.score2++;
       const sw=setEnd(m,cur.set_no,cur.score1,cur.score2);
       if(sw!==null){
@@ -367,10 +369,8 @@
       const tgt=DB.match_sets.filter(s=>s.match_id===m.id&&(s.score1+s.score2)>0).sort((x,y)=>y.set_no-x.set_no)[0];
       if(!tgt) return res(null,{message:'Es gibt kein Tor zum Zurücknehmen',code:'P0001'});
       let team=null;
-      if(m.detail==='full'){
-        const gs=DB.goals.filter(g=>g.match_id===m.id&&g.set_no===tgt.set_no).sort((x,y)=>y.seq-x.seq);
-        if(gs[0]){team=gs[0].team;DB.goals=DB.goals.filter(g=>g!==gs[0])}
-      }
+      { const gs=DB.goals.filter(g=>g.match_id===m.id&&g.set_no===tgt.set_no).sort((x,y)=>y.seq-x.seq);
+        if(gs[0]){team=gs[0].team;DB.goals=DB.goals.filter(g=>g!==gs[0])} }
       if(team==null) team=tgt.score1>=tgt.score2?1:2;
       if(team===1)tgt.score1=Math.max(0,tgt.score1-1);else tgt.score2=Math.max(0,tgt.score2-1);
       tgt.winner_team=null;

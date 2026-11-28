@@ -165,9 +165,12 @@ async function showCode(code,o={}){
       [{t:'Weiter',v:true,cls:'primary'}],
       x=>{const b=x.querySelector('.dbtns button');b.disabled=true;
         x.querySelector('.codeok').onchange=e=>{b.disabled=!e.target.checked};
+        // Rückmeldung am Knopf selbst: eine Meldung am Bildschirmrand liegt hinter dem Dialog
+        const flash=(btn,txt,bad)=>{const old=btn.dataset.t||(btn.dataset.t=btn.textContent);btn.textContent=txt;btn.classList.toggle('flashbad',!!bad);btn.classList.add('flash');
+          clearTimeout(btn._t);btn._t=setTimeout(()=>{btn.textContent=old;btn.classList.remove('flash','flashbad')},2200)};
         x.querySelectorAll('[data-cc]').forEach(btn=>btn.onclick=async()=>{
-          if(btn.dataset.cc==='copy'){try{await navigator.clipboard.writeText(c);toast('Code kopiert')}catch(e){toast('Kopieren geht hier nicht – bitte abschreiben')}}
-          else{try{await navigator.share({title:'KickerTrainer Anmelde-Code',text:'KickerTrainer · Nickname: '+(o.nick||'–')+' · Code: '+c})}catch(e){}}})});
+          if(btn.dataset.cc==='copy'){try{await navigator.clipboard.writeText(c);flash(btn,'Kopiert ✓')}catch(e){flash(btn,'Geht hier nicht – bitte abschreiben',true)}}
+          else{try{await navigator.share({title:'KickerTrainer Anmelde-Code',text:'KickerTrainer · Nickname: '+(o.nick||'–')+' · Code: '+c});flash(btn,'Geteilt ✓')}catch(e){if(e&&e.name!=='AbortError')flash(btn,'Teilen nicht möglich',true)}}})});
     if(v===true)return}}
 async function loginWith(sess,nick){
   const sb=await sbInit(),{data,error}=await sb.auth.setSession(sess);

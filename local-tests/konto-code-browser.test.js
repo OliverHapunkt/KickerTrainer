@@ -110,6 +110,15 @@ function codeFn(body,auth){
   ok(/^[A-Z0-9]{3}(-[A-Z0-9]{3}){3}$/.test(shown.trim()),'Code in Dreierblöcken: '+shown);
   ok(/Kicki/.test(t),'Nickname im Code-Dialog');
   ok(await pg.isDisabled('.overlay.dlg .dbtns button'),'Weiter erst nach dem Haken');
+  await pg.evaluate(()=>{navigator.clipboard.writeText=()=>Promise.resolve()});
+  await pg.click('[data-cc="copy"]');await pg.waitForTimeout(100);
+  ok(/Kopiert/.test(await pg.textContent('[data-cc="copy"]')),'Kopieren: Rückmeldung am Knopf');
+  await pg.evaluate(()=>{navigator.clipboard.writeText=()=>Promise.reject(new Error('x'))});
+  await pg.click('[data-cc="copy"]');await pg.waitForTimeout(100);
+  ok(/abschreiben/.test(await pg.textContent('[data-cc="copy"]')),'Kopieren schlägt fehl: Hinweis am Knopf');
+  ok(await pg.evaluate(()=>{toast('x');const z=+getComputedStyle([...document.querySelectorAll('.toast')].pop()).zIndex,d=+getComputedStyle(document.querySelector('.overlay.dlg')).zIndex;return z>d}),'Meldungen liegen über Dialogen');
+  await pg.waitForTimeout(2400);
+  ok(/Kopieren/.test(await pg.textContent('[data-cc="copy"]')),'Knopftext kehrt zurück');
   await pg.screenshot({path:'/tmp/kt-code.png'});
   await pg.mouse.click(5,5);await pg.waitForTimeout(200);
   ok(/Jetzt sichern/.test(await dlgText(pg)),'Tippen daneben schließt den Code-Dialog nicht');
