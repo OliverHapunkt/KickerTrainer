@@ -48,6 +48,7 @@ node local-tests/konto-code-browser.test.js
 | `elo.test.js` | Elo im Browser: +24 → 1024 in der Auswertung, lockeres Spiel ohne Elo, Wertungskarte mit Kurve und „vorläufig“, Elo je Begegnung und Gegner-Elo, Rangliste mit Zustimmungsdialog (Abbrechen ändert nichts), Aufnahme ab 10 Spielen, Gast nie, Widerruf, Korrektur rechnet neu |
 | `code-login.test.js` | Server-Funktion `code-login` ohne Netz: Code-Format (12 Zeichen, keine verwechselbaren), Registrieren, vergebener/zu kurzer Nickname, kein verwaistes Konto, Anmelden (Bindestriche, Kleinschreibung, gleiche Meldung bei falschem Code und unbekanntem Nickname), neuer Code macht alten ungültig, E-Mail nachtragen nur mit frischem leeren Konto, Platzhalter-Adresse nie in der Antwort |
 | `konto-code-browser.test.js` | Web-App-Hinweis (erster Aufruf, iPhone-Anleitung zuerst, nicht in der installierten App, unter Hilfe), Konto mit Code: Altershinweis, Eltern-Haken, Code-Dialog nur mit „gesichert“ schließbar, Anzeige ohne Platzhalter-Adresse, neuer Code, Ab- und Anmelden, E-Mail hinzufügen |
+| `offline-spiele.test.js` | Ohne Netz drei Spiele anlegen und zählen (Rückgängig, Regeln gesperrt, Auswertung „noch auf diesem Gerät“, letztes Tor zurücknehmen), Neustart der App, Fortsetzen, Netz zurück: genau drei Uploads, Gast-Spiele bestätigt, offenes Spiel läuft über den Server weiter, abgelehntes Spiel mit „Verwerfen“, Tipps anderer Spiele gehen nicht verloren, Rückgängig ohne Netz, Rückfall bei Netzfehler trotz „online“, Warnung beim Abmelden |
 | `fake-supabase.js` | Ersatz für supabase-js. Bildet nur die Aufrufe nach, die die App macht, und spiegelt die Spiellogik aus `record_goal`/`undo_goal`/`settle_match` und die Elo-Rechnung aus `recompute_ratings` |
 
 ## Grenzen
@@ -65,4 +66,5 @@ node local-tests/konto-code-browser.test.js
 - Der Spiel-Bildschirm zeigte „Konto nötig", obwohl man angemeldet war – er wurde gebaut, bevor die Sitzung geladen war
 - Nach einem Kontowechsel stand kurz der Nickname der vorherigen Person auf dem Bildschirm
 - Beim schnellen Tippen konnte eine ältere Serverantwort den neueren Stand überschreiben, der Zähler sprang zurück
+- Beim Öffnen eines anderen Spiels gingen noch nicht gesendete Tipps des vorherigen verloren; „Rückgängig“ ohne Netz ließ den Stand stehen
 - Nach „Ergebnis korrigieren" stand das Spiel auf „läuft", hatte aber keinen laufenden Satz: Der Zählbildschirm zeigte „Satz null" und 0:0, und das nächste Tor lief auf einen Fehler

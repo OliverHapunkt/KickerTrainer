@@ -154,6 +154,16 @@ Ein Chip „Reaktionsschießen“, darunter zwei Varianten (eigene Disziplinen `
 - Beim ersten Anmelden mit vorhandenen Gerätedaten gibt es eine Rückfrage, ob sie ins Konto übernommen werden. Bei Daten eines anderen Kontos auf dem Gerät ebenfalls
 - **Abmelden** behält alle Daten auf dem Gerät. **Konto löschen** entfernt E-Mail-Adresse und alle Daten im Konto, die Gerätedaten bleiben
 
+### Offline-Spiele (v3.25)
+- **Ohne Netz neue Spiele anlegen**, beliebig viele: nur mit eigenen Gästen (wie „Nur Gäste“ online). Das Gerät vergibt die Spiel-Nummer, zählt lokal mit denselben Regeln (`rlPredict`) und zeigt in der Kopfzeile „Offline-Spiel“
+- Auf der Spielen-Seite listet die Karte **„Auf diesem Gerät“** die wartenden Spiele (antippen = fortsetzen bzw. Auswertung). Hochladen passiert von selbst, sobald Netz da ist (Ereignis `online`, Aufruf der Spielen-Seite, App-Start)
+- Hochladen über `import_match()`: legt das Spiel an und spielt jedes Tor über `record_goal()` ein, alles in einer Transaktion. Wiederholbar (gleiche Nummer = kein Doppel). Unstimmige Daten → Spiel bleibt mit „Abgelehnt“ auf dem Gerät und kann verworfen werden
+- Netz kommt zurück, während das Spiel offen ist: Upload, danach läuft das Spiel normal über den Server weiter; Tipps während des Uploads werden nachgereicht
+- Online gestartet, aber keine Antwort (8 s) oder „Failed to fetch“: Die App fällt auf ein Offline-Spiel mit derselben Nummer zurück. Kam das Anlegen doch an, bekommt das leere Spiel beim Upload die Tore
+- Offline gesperrt: Regeln ändern, Lobby/Beitreten, neue Gäste anlegen. Offline heißt „Korrigieren“: letztes Tor zurücknehmen
+- Speicher `kt2_offm`, je Konto getrennt: Ein Kontowechsel löscht nichts, Abmelden warnt
+- **Fehler behoben**: Beim Öffnen eines anderen Spiels gingen noch nicht gesendete Tipps des vorherigen verloren. Jetzt sendet die Warteschlange alle Spiele der Reihe nach. Außerdem stellt „Rückgängig“ ohne Netz den alten Stand sofort her
+
 ### Mehr als Menü (v3.24)
 - Statt einer langen Liste: Übersicht mit **Profil**, **Training** (in „Spielen“: nur Gamification), **Daten & Sicherung**, **Hilfe & Rechtliches**. Zurück über „‹ Mehr“; der Tab „Mehr“ öffnet immer die Übersicht
 - **Profil** enthält Konto & Sicherung und, wenn angemeldet, die Karte „Spieler-Profil“: Nickname ändern, Teilnahme an der Rangliste ein/aus
@@ -231,9 +241,9 @@ Der Ordner `legacy/` enthält eine frühere Version. Er wird von der App **nicht
 - Das Schema liegt als Migrationen in `supabase/migrations/`. Die GitHub-Integration von Supabase spielt neue Migrationen beim Merge nach `main` ein – ein Merge verändert also sofort die echte Datenbank
 - Tabellen **Üben** (Phase 1): `profiles`, `sessions`, `shots`
 - Tabellen **Spielen** (Paket 4): `players`, `groups`, `group_members`, `matches`, `match_players`, `match_sets`, `goals`, `match_confirmations`
-- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()`, `my_ratings()`, `leaderboard()`, `recompute_ratings()` (nur intern) – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
+- Funktionen **Spielen**: `create_group()`, `create_match()`, `create_lobby()`, `join_match_by_code()`, `start_match()`, `leave_match()`, `record_goal()`, `undo_goal()`, `import_match()`, `match_state()`, `confirm_match()`, `reopen_match()`, `team_confirmed()`, `settle_match()`, `my_match_history()`, `my_ratings()`, `leaderboard()`, `recompute_ratings()` (nur intern) – Schreibvorgänge, die mehrere Tabellen betreffen oder Daten ohne Leseberechtigung finden müssen, laufen bewusst über Funktionen statt über einzelne INSERTs
 - Konto löschen läuft über die Funktion `delete_my_account()`
-- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 451 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
+- Lokal prüfbar: Zugriffsregeln und Spiel-Funktionen gegen ein echtes Postgres (`supabase/local-tests/`, 487 Tests), Ablauf der Oberfläche gegen ein echtes Chromium (`local-tests/`)
 - Neue Version der Bibliothek: in `js/cloud.js` Version und Prüfsumme (`SB_LIB`, `SB_SRI`) gemeinsam ändern
 
 ### Einrichtung in Supabase
@@ -358,7 +368,7 @@ Mikrofon und Bewegungssensoren funktionieren nur über HTTPS oder `localhost`.
 
 ## Bekannte Einschränkungen
 
-- Offline: Die App startet ohne Netz aus dem Cache des Service Workers. Anmeldung und Abgleich brauchen Netz
+- Offline: Die App startet ohne Netz aus dem Cache des Service Workers. Anmeldung und Abgleich brauchen Netz. Spiele: offline nur mit eigenen Gästen (Offline-Spiel), Lobby und Bestätigen brauchen Netz
 - Ohne Konto sind Daten an Browser und Gerät gebunden; ohne regelmäßiges Sichern (JSON) gehen sie bei gelöschten Website-Daten verloren
 - Mit Konto werden Löschungen nicht auf andere Geräte übertragen, und bei Konflikten gewinnt das zuletzt abgleichende Gerät
 - Der Sync-Stand liegt ebenfalls im Browser-Speicher (bei sehr vielen Einträgen wächst er mit)

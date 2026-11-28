@@ -236,7 +236,8 @@
       const need = a.p_mode==='single'?1:2;
       const n1=a.p_players.filter(p=>p.team===1).length, n2=a.p_players.filter(p=>p.team===2).length;
       if(n1!==need||n2!==need) return res(null,{message:'Teamgröße',code:'P0001'});
-      const m={id:uid(),host_id:DB.players.find(p=>p.user_id===UID()).id,mode:a.p_mode,detail:a.p_detail,
+      if(a.p_id && DB.matches.some(x=>x.id===a.p_id)) return res(null,{message:'duplicate key',code:'23505'});
+      const m={id:a.p_id||uid(),host_id:DB.players.find(p=>p.user_id===UID()).id,mode:a.p_mode,detail:a.p_detail,
         goals_per_set:a.p_goals_per_set,sets_to_win:a.p_sets_to_win,state:'running',category:a.p_category||'ranked',
         join_code:null,started_at:new Date().toISOString(),rev:1,win_by:1,win_by_scope:'decider',goal_cap:null,draw_at:null};
       applyRules(m,a.p_rules);
@@ -246,6 +247,25 @@
         is_host:p.player_id===m.host_id}));
       DB.match_sets.push({match_id:m.id,set_no:1,score1:0,score2:0,winner_team:null});
       persist(); return res(m);
+    },
+    // Wie import_match: anlegen, Tore der Reihe nach einspielen; alles oder nichts
+    import_match: a => {
+      const me = DB.players.find(p=>p.user_id===UID());
+      const ex = DB.matches.find(x=>x.id===a.p_id);
+      if(ex){
+        if(ex.host_id !== me.id) return res(null,{message:'Diese Spiel-Nummer ist schon vergeben',code:'P0001'});
+        if(ex.state !== 'running' || DB.goals.some(g=>g.match_id===ex.id)) return res(state(ex.id));
+      }
+      const backup = JSON.stringify(DB);
+      window.__fake.imports = (window.__fake.imports||0) + 1;
+      if(!ex){ const r = RPC.create_match(a); if(r.error) return r }
+      for(const g of a.p_goals){
+        const r = RPC.record_goal({p_match:a.p_id, p_team:g.team, p_scorer:g.scorer, p_position:g.position, p_own:g.own});
+        if(r.error){ DB = JSON.parse(backup); persist(); return r }
+      }
+      const m = DB.matches.find(x=>x.id===a.p_id);
+      m.started_at = a.p_started_at; persist();
+      return res(state(a.p_id));
     },
     record_goal: a => {
       const m=DB.matches.find(x=>x.id===a.p_match);

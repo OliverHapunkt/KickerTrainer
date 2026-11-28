@@ -250,7 +250,8 @@ $('#acSync').onclick=async()=>{
   await cloudSync(true);
   if(!CL.err&&CL.info)toast(CL.info.up||CL.info.down?'Abgeglichen: '+CL.info.up+' hochgeladen, '+CL.info.down+' geholt':'Alles aktuell')};
 $('#acOutBtn').onclick=async()=>{
-  if(!await ask('Deine Daten bleiben im Konto und auf diesem Gerät erhalten.',{title:'Abmelden?',ok:'Abmelden'}))return;
+  const nOff=typeof offMine==='function'?offMine().length:0;
+  if(!await ask('Deine Daten bleiben im Konto und auf diesem Gerät erhalten.'+(nOff?' '+(nOff===1?'Ein Offline-Spiel wartet':nOff+' Offline-Spiele warten')+' noch aufs Hochladen. Es bleibt auf dem Gerät und wird hochgeladen, sobald du dich wieder anmeldest.':''),{title:'Abmelden?',ok:'Abmelden'}))return;
   if(navigator.onLine&&!CL.busy)await cloudSync(true); // letzter Abgleich vor dem Abmelden
   await signOutLocal();toast('Abgemeldet')};
 $('#acDelete').onclick=async()=>{

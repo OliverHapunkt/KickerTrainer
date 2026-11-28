@@ -249,13 +249,14 @@ function renderPlayHome(){
     h += '<button class="big primary" id="pStart"' + (ready ? '' : ' disabled') + '>Spiel starten</button>';
     if(!ready) h += '<p class="hint" style="margin-bottom:0">Alle Plätze besetzen – du musst selbst dabei sein.</p>';
   }
-  h += '</div><div id="pTodo"></div><div id="pRunning"></div>'
+  h += '</div><div id="pOff"></div><div id="pTodo"></div><div id="pRunning"></div>'
      + '<div class="card"><h2>Mitspielen</h2><p class="lead">Jemand anderes hostet? Dann brauchst du nur seinen sechsstelligen Code.</p>'
      + '<button class="big" id="pJoinBtn">Einem Spiel beitreten</button></div>'
      + '<div id="pRecent"></div>';
   el.innerHTML = h + pStepHint();
 
   $('#pNick2').onclick = async ()=>{ if(await pSetNickname()) renderPlayHome() };
+  offRenderCard(); offUpload();
   rlWirePresets();
   $('#pRulesTog').onclick = ()=>{ pRulesOpen = !pRulesOpen; renderPlayHome() };
   if($('#pRules')) rlFields($('#pRules'), c, ()=>{ savePL(); renderPlayHome() });
@@ -367,18 +368,23 @@ async function pStart(){
   if(pBusy) return; pBusy = true;
   ensureAudio();   // im Tap: entsperrt den Ton auf iOS
   const b = $('#pStart'); if(b) b.disabled = true;
+  // Die Nummer entsteht auf dem Gerät. So kann ein Spiel auch ohne Netz beginnen
+  // und später unter derselben Nummer hochgeladen werden.
+  const id = offNewId();
+  const players = pSlots().map(i=>({player_id:PL.lineup[i], team:i<2?1:2,
+    position:PL.cfg.mode==='double' ? (i%2===0?'off':'def') : null}));
   try{
+    if(!navigator.onLine) throw new Error('offline');
     const {sb} = await pSb();
-    const players = pSlots().map(i=>({player_id:PL.lineup[i], team:i<2?1:2,
-      position:PL.cfg.mode==='double' ? (i%2===0?'off':'def') : null}));
-    const {data, error} = await sb.rpc('create_match', {
+    const {data, error} = await offTimeout(sb.rpc('create_match', {
       p_mode:PL.cfg.mode, p_detail:PL.cfg.detail,
       p_goals_per_set:PL.cfg.gps, p_sets_to_win:PL.cfg.stw,
-      p_group_id:null, p_players:players, p_category:PL.cfg.cat, p_rules:rlFromCfg(PL.cfg)});
+      p_group_id:null, p_players:players, p_category:PL.cfg.cat, p_rules:rlFromCfg(PL.cfg), p_id:id}), 8000);
     if(error) throw error;
     await pOpen(data.id);
   }catch(e){
-    toast(errText(e, 'Spiel konnte nicht angelegt werden'));
+    if(offIsNet(e)) offStart(id, players);
+    else toast(errText(e, 'Spiel konnte nicht angelegt werden'));
   }finally{ pBusy = false; if(b) b.disabled = false }
 }
 
@@ -405,7 +411,7 @@ async function pOpen(id){
            nickname:(nm[x.player_id]||{}).nickname||'?',
            kind:(nm[x.player_id]||{}).kind, deleted_at:(nm[x.player_id]||{}).deleted_at})),
          st:st.data, own:false};
-    PL.queue = PL.queue.filter(q=>q.match === id); savePL();
+    // Tipps anderer Spiele bleiben stehen: pFlush schickt sie mit (früher gingen sie hier verloren)
     wake(true); renderMatch(); show('match');
     pFlush();
   }catch(e){ toast(errText(e, 'Spiel konnte nicht geöffnet werden')) }
@@ -430,11 +436,12 @@ function renderMatch(){
   $('#mScore').innerHTML = '<b>' + sc(L1) + '</b><i>:</i><b>' + sc(R1) + '</b>';
   $('#mFlip').onclick = ()=>{ P.flip = !P.flip; renderMatch() };
   $('#mRules').onclick = pEditRulesMatch;
-  const q = PL.queue.length;
-  $('#mSync').textContent = q === 0 ? ''
+  const q = pQueued();
+  $('#mSync').textContent = P.off ? 'Offline-Spiel · wird hochgeladen, sobald Netz da ist'
+    : q === 0 ? ''
     : q === 1 ? '1 Tipp noch nicht gespeichert – wird nachgeholt'
     : q + ' Tipps noch nicht gespeichert – werden nachgeholt';
-  $('#mSync').classList.toggle('hidden', !q);
+  $('#mSync').classList.toggle('hidden', !q && !P.off);
 
   const tile = p => '<button class="ptile" data-pid="' + p.player_id + '" data-team="' + p.team + '">'
     + '<b>' + esc(p.nickname) + '</b>' + (pSlotOf(p) ? '<small>' + pSlotOf(p) + '</small>' : '') + '</button>';
@@ -462,29 +469,39 @@ function pGoal(team, scorer, position){
   const own = !!P.own; P.own = false;
   const credit = own ? (team===1?2:1) : team;
   beep(own?520:880, .07, .25);
+  if(P.off) return offGoal({team:credit, scorer:scorer||null, position:position||null, own, t:Date.now()});
+  const prev = P.st;   // für „Rückgängig“ ohne Netz: Stand vor diesem Tipp
   pPredict(credit);
   PL.queue.push({match:P.id, kind:'goal', team:credit, scorer:scorer||null,
-                 position:position||null, own, t:Date.now()});
+                 position:position||null, own, t:Date.now(), prev});
   savePL(); renderMatch(); pFlush();
 }
 function pUndo(){
   if(!P) return;
-  if(PL.queue.length){ PL.queue.pop(); savePL(); pRefresh(); return }  // noch nicht gesendet: einfach wegnehmen
+  if(P.off) return offUndo();
+  // Noch nicht gesendet: einfach wegnehmen – aber nur einen Tipp DIESES Spiels
+  const qi = PL.queue.map(q=>q.match).lastIndexOf(P.id);
+  if(qi >= 0){
+    const q = PL.queue.splice(qi, 1)[0]; savePL();
+    if(q.kind === 'goal' && q.prev) P.st = q.prev;   // sofort richtig, auch ohne Netz
+    pRefresh(); return }
   PL.queue.push({match:P.id, kind:'undo', t:Date.now()}); savePL(); renderMatch(); pFlush();
 }
 
+/* Wie viele Tipps des offenen Spiels warten noch? */
+function pQueued(){ return P ? PL.queue.filter(q=>q.match === P.id).length : 0 }
 /* Warteschlange abarbeiten. Streng der Reihe nach, damit die Reihenfolge stimmt. */
 let pFlushing = false;
 async function pFlush(){
-  if(pFlushing || !P) return;
+  if(pFlushing) return;
   if(!PL.queue.length) return;
   pFlushing = true;
   let last = null;
   try{
     const {sb} = await pSb();
+    // Alle Spiele der Reihe nach, auch ältere. Den Stand übernimmt nur das offene.
     while(PL.queue.length){
       const a = PL.queue[0];
-      if(a.match !== P.id){ PL.queue.shift(); savePL(); continue }
       const r = a.kind === 'undo'
         ? await sb.rpc('undo_goal', {p_match:a.match})
         : await sb.rpc('record_goal', {p_match:a.match, p_team:a.team, p_scorer:a.scorer,
@@ -497,13 +514,13 @@ async function pFlush(){
         throw r.error;   // Netzfehler: drin lassen und später erneut
       }
       PL.queue.shift(); savePL();
-      last = r.data;
+      if(P && a.match === P.id) last = r.data;
     }
     // Erst ganz am Ende übernehmen, und nur wenn nichts mehr aussteht. Sonst würde
     // eine ältere Serverantwort einen neueren lokalen Stand überschreiben.
-    if(P && last && !PL.queue.length) P.st = last;
+    if(P && last && !pQueued()) P.st = last;
     renderMatch();
-    if(P && P.st.match_done) pSummary();
+    if(P && last && P.st.match_done) pSummary();
   }catch(e){
     renderMatch();            // Warteschlange bleibt, Kopfzeile zeigt sie an
   }finally{ pFlushing = false }
@@ -511,7 +528,7 @@ async function pFlush(){
 async function pRefresh(){
   try{ const {sb} = await pSb();
     const {data, error} = await sb.rpc('match_state', {p_match:P.id});
-    if(!error && P) P.st = data;
+    if(!error && P && !pQueued()) P.st = data;   // ausstehende Tipps nicht überschreiben
   }catch(e){}
   renderMatch();
 }
@@ -521,12 +538,16 @@ async function pSummary(){
   if(!P) return;
   // Zustand und Spielende frisch holen: Beides entsteht erst mit dem letzten Tor,
   // und davon hängt ab, ob noch korrigiert werden darf.
-  try{ const {sb} = await pSb();
+  if(P.off) P.state = 'offline';
+  else try{ const {sb} = await pSb();
     const {data} = await sb.from('matches').select('state,finished_at,rev').eq('id', P.id).single();
     if(data){ P.state = data.state; P.finished_at = data.finished_at; P.rev = data.rev }
   }catch(e){}
   let goals = [];
-  if(P.detail === 'full'){
+  if(P.detail === 'full' && P.off){
+    const om = offGet(P.id);
+    goals = (om ? om.goals : []).map(g=>({scorer_id:g.scorer, scorer_position:g.position, own_goal:!!g.own}));
+  } else if(P.detail === 'full'){
     try{ const {sb} = await pSb();
       const {data} = await sb.from('goals').select('set_no,seq,team,scorer_id,scorer_position,own_goal')
         .eq('match_id', P.id).order('set_no').order('seq');
@@ -580,6 +601,9 @@ async function pSummary(){
       + '<p class="hint">' + (warte.length
         ? esc(warte.map(p=>p.nickname).join(' oder ')) + ' muss das Ergebnis noch bestätigen, damit es zählt.'
         : 'Die Gegenseite muss das Ergebnis noch bestätigen.') + '</p>';
+  } else if(P.state === 'offline'){
+    h += '<div class="blockh">Wertung</div>' + kv('Stand', 'noch auf diesem Gerät')
+      + '<p class="hint">Wird hochgeladen, sobald Netz da ist. Ein Spiel mit Gästen gilt dann sofort als bestätigt.</p>';
   } else if(P.state === 'disputed'){
     h += '<div class="blockh">Wertung</div>' + kv('Stand', 'strittig')
       + '<p class="hint">Jemand hat widersprochen. Korrigiere das Ergebnis, damit es gewertet werden kann.</p>';
@@ -587,12 +611,14 @@ async function pSummary(){
 
   const left = pFixLeft();
   let foot = '<button class="big primary" id="msumDone">Fertig</button>';
-  if(left > 0) foot = '<button class="big" id="msumFix">Ergebnis korrigieren</button>' + foot;
+  if(P.off) foot = '<button class="big" id="msumFix">Letztes Tor zurücknehmen</button>' + foot;
+  else if(left > 0) foot = '<button class="big" id="msumFix">Ergebnis korrigieren</button>' + foot;
   $('#msumBody').innerHTML = '<div class="sumscroll">' + h + '</div>'
     + '<div class="sumfoot">' + foot + '</div>';
   $('#msummary').classList.remove('hidden');
   $('#msumDone').onclick = ()=>{ $('#msummary').classList.add('hidden'); pClose() };
-  const fx = $('#msumFix'); if(fx) fx.onclick = pReopen;
+  const fx = $('#msumFix');
+  if(fx) fx.onclick = P.off ? ()=>{ $('#msummary').classList.add('hidden'); offUndo() } : pReopen;
 }
 
 function pClose(){
@@ -616,6 +642,7 @@ function pSwap(team){
   if(ps.length !== 2) return;
   ps.forEach(p=>{ p.position = p.position === 'off' ? 'def' : 'off' });
   renderMatch();
+  if(P.off){ saveOFF(); return }   // P.players ist die Aufstellung des Offline-Spiels
   pSb().then(({sb})=>Promise.all(ps.map(p=>
     sb.from('match_players').update({position:p.position}).eq('match_id',P.id).eq('player_id',p.player_id)
   ))).catch(()=>toast('Tausch noch nicht gespeichert'));
@@ -623,7 +650,9 @@ function pSwap(team){
 $('#mUndo').onclick = ()=>pUndo();
 async function pEditRulesMatch(){
   if(!P || P.st.match_done) return;
-  if(PL.queue.length){ toast('Erst müssen alle Tipps gespeichert sein'); return }
+  if(P.off){ info('Offline-Spiel', '<p class="dmsg">Die Regeln eines Offline-Spiels lassen sich nicht ändern. '
+    + 'Beim Hochladen rechnet der Server jedes Tor mit genau diesen Regeln nach.</p>'); return }
+  if(pQueued()){ toast('Erst müssen alle Tipps gespeichert sein'); return }
   const ch = await rlEditDialog({mode:P.mode, detail:P.detail, gps:P.gps, stw:P.stw, cat:P.cat, rules:P.rules, state:'running'});
   if(!ch) return;
   try{
@@ -643,6 +672,7 @@ $('#mEnd').onclick = async ()=>{
   if(P.st.match_done) return pSummary();
   if(!await ask('Das Spiel wird vorzeitig beendet und nicht gewertet.',
     {title:'Spiel beenden?', ok:'Beenden', danger:true})) return;
+  if(P.off){ offDrop(P.id); pClose(); return }
   try{ const {sb} = await pSb(); await sb.from('matches').update({state:'cancelled'}).eq('id', P.id) }catch(e){}
   pClose();
 };
@@ -651,9 +681,10 @@ $('#mInfo').onclick = ()=>info('Zählen',
   + '<p class="dmsg"><b>Eigentor</b>: erst antippen, dann die Person, der es passiert ist. Der Punkt geht ans andere Team.</p>'
   + '<p class="dmsg"><b>Tauschen</b> dreht Sturm und Abwehr eines Teams. Ab dann zählen Tore auf die neue Position.</p>'
   + '<p class="dmsg">Satz- und Spielende erkennt die App selbst. <b>Rückgängig</b> nimmt auch über ein Satzende hinweg zurück.</p>'
-  + '<p class="dmsg">Ohne Netz zählt die App weiter und holt das Speichern später nach. Die Kopfzeile sagt, wenn etwas aussteht.</p>');
+  + '<p class="dmsg">Ohne Netz zählt die App weiter und holt das Speichern später nach. Die Kopfzeile sagt, wenn etwas aussteht.</p>'
+  + '<p class="dmsg"><b>Offline-Spiel</b>: Ohne Netz kannst du auch neue Spiele mit Gästen anlegen, beliebig viele. Sie liegen auf dem Gerät und werden hochgeladen, sobald wieder Netz da ist. Regeln ändern und Mitspieler per Code einladen gehen erst online.</p>');
 
-window.addEventListener('online', ()=>{ if(P) pFlush() });
+window.addEventListener('online', ()=>{ pFlush(); offUpload() });
 
 /* ---------- Lobby: Mitspieler per Code ----------
    Ein Bildschirm für beide Seiten. Der Host ordnet zu und startet, die anderen
@@ -1086,3 +1117,130 @@ async function pLoadTodo(){
     el.querySelectorAll('[data-conf]').forEach(r=>r.onclick = ()=>pOpenLobby(r.dataset.conf));
   }catch(e){ /* offline */ }
 }
+
+/* ---------- Offline-Spiele ----------
+   Ohne Netz entsteht das Spiel auf dem Gerät: Nummer, Aufstellung, Tore. Der
+   Stand wird aus den Toren mit denselben Regeln berechnet wie auf dem Server
+   (rlPredict). Sobald Netz da ist, lädt import_match das ganze Spiel in einem
+   Stück hoch und rechnet jedes Tor nach. Erst danach ist es aus dem Gerät weg.
+   Eigener Speicher je Konto, damit ein Kontowechsel nichts verliert. */
+const LS_OFF = 'kt2_offm';
+var OFF = load(LS_OFF, []); if(!Array.isArray(OFF)) OFF = [];
+function saveOFF(){ save(LS_OFF, OFF) }
+function offUid(){ return CL && CL.user ? CL.user.id : null }
+function offMine(){ const u = offUid(); return u ? OFF.filter(m=>m.uid === u) : [] }
+function offGet(id){ return OFF.find(m=>m.id === id) || null }
+function offNewId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+  const h = [...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+  return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
+}
+// Kein Netz oder keine Antwort: dann lohnt das Offline-Spiel
+function offIsNet(e){ return errText(e) === 'Offline – keine Verbindung' }
+function offTimeout(pr, ms){
+  return Promise.race([pr, new Promise((_, no)=>setTimeout(()=>no(new Error('offline: keine Antwort')), ms))]);
+}
+function offState(m){
+  let st = {state:'running', set_no:1, score1:0, score2:0, sets1:0, sets2:0, match_done:false, sets:[]};
+  for(const g of m.goals) if(!st.match_done) st = rlPredict(st, m.rules, m.gps, m.stw, g.team);
+  return st;
+}
+
+function offStart(id, players){
+  if(!PL.me || !offUid()){ toast('Offline geht erst, wenn dein Profil einmal online geladen wurde'); return }
+  const c = PL.cfg, two = c.detail === 'full' && c.mode === 'double';
+  const m = {id, uid:offUid(), mode:c.mode, detail:c.detail, gps:c.gps, stw:c.stw, cat:c.cat,
+    rules:rlFromCfg(c), started:Date.now(), goals:[], err:'',
+    players:players.map(p=>({player_id:p.player_id, team:p.team, position:two ? p.position : null,
+      is_host:p.player_id === PL.me.id, nickname:pName(p.player_id),
+      kind:p.player_id === PL.me.id ? 'account' : 'guest'}))};
+  OFF.push(m); saveOFF();
+  offOpen(m);
+  toast('Kein Netz: Das Spiel wird auf dem Gerät gezählt und später hochgeladen');
+}
+function offOpen(m){
+  ensureAudio();
+  P = {id:m.id, off:true, mode:m.mode, detail:m.detail, gps:m.gps, stw:m.stw, host:PL.me ? PL.me.id : null,
+       cat:m.cat, rules:m.rules, flip:false, players:m.players, st:offState(m), own:false};
+  wake(true); renderMatch(); show('match');
+  if(P.st.match_done) pSummary();
+}
+function offGoal(g){
+  const m = offGet(P.id); if(!m) return;
+  m.goals.push(g); P.st = offState(m); saveOFF(); renderMatch();
+  if(P.st.match_done){ pSummary(); offUpload() }
+}
+function offUndo(){
+  const m = offGet(P.id); if(!m) return;
+  if(!m.goals.length){ toast('Es gibt kein Tor zum Zurücknehmen'); return }
+  m.goals.pop(); P.st = offState(m); saveOFF(); renderMatch();
+}
+function offDrop(id){ OFF = OFF.filter(m=>m.id !== id); saveOFF() }
+
+/* Hochladen: der Reihe nach, jedes Spiel für sich. Ein abgelehntes Spiel bleibt
+   mit Begründung auf dem Gerät und hält die anderen nicht auf. */
+let offBusy = false;
+async function offUpload(){
+  if(offBusy || !navigator.onLine || !offMine().length) return;
+  offBusy = true; let n = 0;
+  try{
+    const {sb} = await pSb();
+    for(const m of offMine()){
+      const snap = m.goals.slice();
+      const {data, error} = await sb.rpc('import_match', {p_id:m.id, p_mode:m.mode, p_detail:m.detail,
+        p_goals_per_set:m.gps, p_sets_to_win:m.stw, p_category:m.cat, p_rules:m.rules,
+        p_players:m.players.map(p=>({player_id:p.player_id, team:p.team, position:p.position})),
+        p_goals:snap.map(g=>({team:g.team, scorer:g.scorer, position:g.position, own:!!g.own, t:g.t})),
+        p_started_at:new Date(m.started).toISOString()});
+      if(error){
+        if(error.code === 'P0001' || error.code === '42501'){ m.err = errText(error); saveOFF(); continue }
+        throw error;   // Netz: später erneut
+      }
+      // Was während des Hochladens getippt wurde, geht als normaler Tipp hinterher
+      let k = 0;
+      while(k < snap.length && k < m.goals.length && snap[k] === m.goals[k]) k++;
+      for(let i = k; i < snap.length; i++) PL.queue.push({match:m.id, kind:'undo', t:Date.now()});
+      m.goals.slice(k).forEach(g=>PL.queue.push({match:m.id, kind:'goal', team:g.team, scorer:g.scorer,
+        position:g.position, own:!!g.own, t:g.t}));
+      savePL(); offDrop(m.id); n++;
+      if(P && P.id === m.id){
+        P.off = false;
+        if(data.match_done && k === snap.length && k === m.goals.length){
+          P.st = data;
+          if(!$('#msummary').classList.contains('hidden')) pSummary();
+        } else await pOpen(m.id);
+      }
+    }
+  }catch(e){ /* kein Netz oder abgemeldet: beim nächsten Mal */ }
+  finally{ offBusy = false }
+  if(n){
+    toast(n === 1 ? 'Offline-Spiel hochgeladen' : n + ' Offline-Spiele hochgeladen');
+    if(!P) renderPlayHome();
+  } else offRenderCard();
+}
+
+function offRenderCard(){
+  const el = $('#pOff'); if(!el) return;
+  const list = offMine();
+  if(!list.length){ el.innerHTML = ''; return }
+  el.innerHTML = '<div class="card"><h2>Auf diesem Gerät</h2><p class="lead">'
+    + (list.length === 1 ? 'Ein Offline-Spiel wartet' : list.length + ' Offline-Spiele warten')
+    + ' aufs Hochladen. Das passiert von selbst, sobald Netz da ist.</p>'
+    + list.map(m=>{
+      const st = offState(m), name = t => m.players.filter(p=>p.team===t).map(p=>esc(p.nickname)).join(' & ');
+      return '<div class="mrow" data-oid="' + m.id + '"><div><b>' + (m.stw > 1 ? st.sets1 + ' : ' + st.sets2 : (st.sets[0] || st).score1 + ' : ' + (st.sets[0] || st).score2) + '</b>'
+        + '<small>' + name(1) + ' gegen ' + name(2) + ' · ' + (st.match_done ? 'fertig' : 'läuft') + '</small>'
+        + (m.err ? '<small class="bad">Abgelehnt: ' + esc(m.err) + '</small>' : '') + '</div>'
+        + '<span>' + fmtDate(m.started, true) + '</span></div>'
+        + (m.err ? '<button class="big" data-odrop="' + m.id + '">Verwerfen</button>' : '');
+    }).join('')
+    + (navigator.onLine ? '<button class="big" id="pOffUp">Jetzt hochladen</button>' : '') + '</div>';
+  el.querySelectorAll('[data-oid]').forEach(r=>r.onclick = ()=>{ const m = offGet(r.dataset.oid); if(m) offOpen(m) });
+  el.querySelectorAll('[data-odrop]').forEach(b=>b.onclick = async ()=>{
+    if(!await ask('Das Spiel wird vom Gerät gelöscht und nicht gewertet.', {title:'Offline-Spiel verwerfen?', ok:'Verwerfen', danger:true})) return;
+    offDrop(b.dataset.odrop); offRenderCard() });
+  const up = $('#pOffUp'); if(up) up.onclick = ()=>{ OFF.forEach(m=>{ m.err = '' }); offUpload() };
+}
+setTimeout(()=>{ if(offMine().length) offUpload() }, 4000);
